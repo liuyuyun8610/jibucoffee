@@ -535,27 +535,25 @@
     position: relative;
     transition: all 0.5s ease;
     border: 1px solid var(--line);
+    border-radius: 24px;
     display: flex;
     flex-direction: column;
   }
   .sub-card:hover {
     transform: translateY(-8px);
     box-shadow: 0 28px 70px -22px rgba(26, 26, 26, 0.12);
-    border-color: transparent;
+    border-color: var(--accent);
   }
   .sub-card.featured {
-    background: var(--ink);
-    color: var(--bg);
-    border-color: var(--ink);
+    background: var(--bg-soft);
+    border: 2px solid var(--accent);
+    transform: translateY(-12px);
+    box-shadow: 0 32px 64px -24px rgba(92, 72, 48, 0.22);
   }
-  .sub-card.featured .sub-divider { background: rgba(253, 253, 251, 0.2); }
-  .sub-card.featured .sub-feature { color: rgba(253, 253, 251, 0.72); }
-  .sub-card.featured .sub-feature .check { stroke: var(--accent); }
-  .sub-card.featured .sub-btn {
-    background: var(--bg);
-    color: var(--ink);
+  .sub-card.featured:hover {
+    transform: translateY(-20px);
+    box-shadow: 0 40px 84px -24px rgba(92, 72, 48, 0.28);
   }
-  .sub-card.featured .sub-btn:hover { background: var(--accent); color: var(--bg); }
 
   .sub-badge {
     position: absolute;
@@ -651,9 +649,14 @@
     font-size: 13px;
     letter-spacing: 0.32em;
     text-align: center;
+    border-radius: 999px;
     transition: all 0.4s ease;
   }
   .sub-btn:hover { background: var(--accent-deep); }
+  .sub-card.featured .sub-btn {
+    background: var(--accent);
+  }
+  .sub-card.featured .sub-btn:hover { background: var(--accent-deep); }
 
   .sub-note {
     text-align: center;
@@ -1130,6 +1133,8 @@
     .hero-visual { height: 60vh; }
     section { padding: 90px 24px; }
     .concept-grid, .sub-grid, .product-row, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
+    .sub-card.featured, .sub-card.featured:hover { transform: none; }
+    .sub-card:hover { transform: none; }
     .about { grid-template-columns: 1fr; padding: 90px 24px; gap: 50px; }
     .recommend, .shop, .subscription { padding: 90px 24px; }
     .footer-top { grid-template-columns: 1fr 1fr; gap: 40px; }
