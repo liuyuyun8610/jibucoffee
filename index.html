@@ -1,0 +1,1712 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一坨咖啡 ｜ JIBU CAFE — Slow Coffee, Daily Ritual</title>
+<meta name="description" content="一坨咖啡是一間關於日常的小店。精選小型莊園單品豆、小批量手工烘焙濾掛，與日韓選物。每月可訂閱定期配送。">
+<meta name="keywords" content="一坨咖啡, jibu cafe, 濾掛咖啡, 精品咖啡, 咖啡訂閱, 定期配送, 日本選物, 韓國選物, 台北咖啡">
+<meta name="theme-color" content="#fdfdfb">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="一坨咖啡 JIBU CAFE">
+<meta property="og:title" content="一坨咖啡 ｜ JIBU CAFE">
+<meta property="og:description" content="一杯咖啡的時間，是一天當中最安靜的儀式。精選濾掛 ／ 定期配送 ／ 日韓選物。">
+<meta property="og:image" content="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1200&q=85">
+<meta property="og:locale" content="zh_TW">
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="一坨咖啡 ｜ JIBU CAFE">
+<meta name="twitter:description" content="Slow Coffee · Daily Ritual">
+<meta name="twitter:image" content="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1200&q=85">
+<!-- Favicon (用 emoji 咖啡杯做 SVG favicon，無需檔案) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E☕%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Sans+JP:wght@300;400;500&family=Noto+Serif+TC:wght@300;400;500;600&family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* 白色高雅配色 */
+    --bg: #fdfdfb;
+    --bg-soft: #f6f2ea;
+    --bg-card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #6b665e;
+    --ink-faint: #a8a299;
+    --line: #e8e3d8;
+    --line-soft: #f0ebe0;
+    --accent: #8b6f47;
+    --accent-deep: #5c4830;
+
+    --f-serif-tc: 'Noto Serif TC', serif;
+    --f-serif-en: 'Cormorant Garamond', serif;
+    --f-serif-jp: 'Shippori Mincho', 'Noto Serif TC', serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--f-serif-tc);
+    font-weight: 300;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--ink); color: var(--bg); }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  img { display: block; }
+
+  /* ===== Header ===== */
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 24px 48px;
+    background: rgba(253, 253, 251, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.4s ease, padding 0.4s ease;
+  }
+  header.scrolled { border-bottom-color: var(--line-soft); padding: 18px 48px; }
+
+  .nav {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .menu-btn {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--f-serif-en);
+    font-size: 15px;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+  .menu-btn .bars { display: flex; flex-direction: column; gap: 4px; }
+  .menu-btn .bars span {
+    width: 18px; height: 1px; background: var(--ink);
+    transition: all 0.3s ease;
+  }
+  .menu-btn:hover .bars span:nth-child(1) { width: 22px; }
+  .menu-btn:hover .bars span:nth-child(2) { width: 14px; }
+
+  .logo {
+    text-align: center;
+    line-height: 1.1;
+  }
+  .logo .mark {
+    font-family: var(--f-serif-jp);
+    font-size: 22px;
+    letter-spacing: 0.3em;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .logo .sub {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+
+  .nav-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 32px;
+    font-family: var(--f-serif-en);
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .nav-actions a { position: relative; padding-bottom: 3px; }
+  .nav-actions a::after {
+    content: ''; position: absolute; left: 0; bottom: 0;
+    width: 100%; height: 1px; background: var(--ink);
+    transform: scaleX(0); transform-origin: right;
+    transition: transform 0.4s ease;
+  }
+  .nav-actions a:hover::after { transform: scaleX(1); transform-origin: left; }
+  .cart-count {
+    margin-left: 6px;
+    display: inline-block;
+    width: 18px; height: 18px;
+    line-height: 18px; text-align: center;
+    border-radius: 50%;
+    background: var(--ink); color: var(--bg);
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    min-height: 100vh;
+    padding: 160px 48px 100px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 100px;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.4em;
+    color: var(--accent);
+    margin-bottom: 36px;
+    text-transform: uppercase;
+    opacity: 0;
+    animation: fadeUp 1s 0.2s forwards;
+  }
+  .hero-title {
+    font-family: var(--f-serif-jp);
+    font-weight: 400;
+    font-size: clamp(40px, 5.2vw, 68px);
+    line-height: 1.35;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 1s 0.4s forwards;
+  }
+  .hero-title em {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-weight: 300;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  .hero-desc {
+    font-size: 15px;
+    line-height: 2.1;
+    color: var(--ink-soft);
+    max-width: 440px;
+    margin-bottom: 52px;
+    font-weight: 300;
+    opacity: 0;
+    animation: fadeUp 1s 0.6s forwards;
+  }
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 36px;
+    border: 1px solid var(--ink);
+    font-family: var(--f-serif-en);
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    color: var(--ink);
+    transition: all 0.4s ease;
+    opacity: 0;
+    animation: fadeUp 1s 0.8s forwards;
+    text-transform: uppercase;
+  }
+  .hero-cta:hover { background: var(--ink); color: var(--bg); }
+  .hero-cta .arrow { transition: transform 0.4s ease; }
+  .hero-cta:hover .arrow { transform: translateX(6px); }
+
+  .hero-visual {
+    position: relative;
+    height: 72vh;
+    min-height: 500px;
+    opacity: 0;
+    animation: fadeIn 1.2s 0.4s forwards;
+  }
+  .hero-visual .frame {
+    position: absolute;
+    inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+    filter: grayscale(10%) contrast(0.96);
+  }
+  .hero-visual .vertical-text {
+    position: absolute;
+    top: 50px; right: -16px;
+    writing-mode: vertical-rl;
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    letter-spacing: 0.7em;
+    color: var(--ink-soft);
+    background: var(--bg);
+    padding: 22px 10px;
+  }
+  .hero-visual .stamp {
+    position: absolute;
+    bottom: 32px; left: 32px;
+    background: var(--bg);
+    padding: 16px 22px;
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 0.28em;
+    color: var(--ink);
+  }
+  .hero-visual .stamp span { color: var(--accent); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ===== Section base ===== */
+  section { padding: 130px 48px; max-width: 1400px; margin: 0 auto; }
+
+  .section-head {
+    text-align: center;
+    margin-bottom: 90px;
+  }
+  .section-eyebrow {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.4em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .section-title {
+    font-family: var(--f-serif-jp);
+    font-weight: 400;
+    font-size: clamp(30px, 3.6vw, 44px);
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    margin-bottom: 18px;
+  }
+  .section-sub {
+    font-size: 14px;
+    color: var(--ink-soft);
+    max-width: 520px;
+    margin: 24px auto 0;
+    line-height: 2;
+    font-weight: 300;
+  }
+  .section-divider {
+    width: 40px; height: 1px;
+    background: var(--ink-faint);
+    margin: 28px auto 0;
+  }
+
+  /* ===== Concept ===== */
+  .concept-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 100px;
+    margin-top: 60px;
+  }
+  .concept-item { text-align: center; }
+  .concept-item .icon {
+    width: 64px; height: 64px;
+    margin: 0 auto 32px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s ease;
+  }
+  .concept-item:hover .icon {
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .concept-item:hover .icon svg { stroke: var(--bg); }
+  .concept-item .icon svg {
+    width: 26px; height: 26px;
+    stroke: var(--ink);
+    fill: none;
+    stroke-width: 1;
+    transition: stroke 0.4s ease;
+  }
+  .concept-item h3 {
+    font-family: var(--f-serif-jp);
+    font-weight: 500;
+    font-size: 20px;
+    letter-spacing: 0.2em;
+    margin-bottom: 8px;
+  }
+  .concept-item .en {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 0.35em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  .concept-item p {
+    font-size: 14px;
+    line-height: 2.1;
+    color: var(--ink-soft);
+    font-weight: 300;
+  }
+
+  /* ===== Recommend (circular cards) ===== */
+  .recommend {
+    background: var(--bg-soft);
+    max-width: none;
+    padding: 130px 48px;
+  }
+  .recommend-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .recommend-banner {
+    display: flex;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 56px;
+    margin-bottom: 70px;
+    align-items: baseline;
+  }
+  .recommend-banner span {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: clamp(34px, 4.2vw, 52px);
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    font-weight: 300;
+  }
+  .recommend-banner small {
+    font-family: var(--f-serif-tc);
+    font-size: 13px;
+    letter-spacing: 0.35em;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+
+  .product-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+  }
+  .product-card {
+    background: var(--bg-card);
+    padding: 36px 32px 30px;
+    transition: transform 0.5s ease;
+    position: relative;
+  }
+  .product-card:hover { transform: translateY(-8px); }
+
+  .product-card .tag {
+    position: absolute;
+    top: 28px; left: 28px;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 10px 16px;
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    z-index: 2;
+    line-height: 1.4;
+  }
+
+  .product-circle {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .product-circle img {
+    width: 72%; height: 72%;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: transform 0.6s ease;
+  }
+  .product-card:hover .product-circle img { transform: scale(1.05); }
+
+  .product-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-top: 18px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .product-info .price {
+    font-family: var(--f-serif-en);
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+  .product-info .price small {
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.2em;
+    margin-left: 4px;
+  }
+  .add-btn {
+    padding: 10px 22px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--f-serif-jp);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    border-radius: 24px;
+    transition: background 0.3s ease;
+  }
+  .add-btn:hover { background: var(--accent-deep); }
+
+  .product-meta {
+    margin-top: 22px;
+    display: flex;
+    gap: 28px;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.18em;
+  }
+  .product-meta .label { color: var(--ink-soft); }
+
+  .recommend-foot {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 60px;
+  }
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--f-serif-en);
+    font-size: 13px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .text-link .arrow { transition: transform 0.3s ease; }
+  .text-link:hover .arrow { transform: translateX(6px); }
+
+  /* ===== Subscription ===== */
+  .subscription {
+    padding: 150px 48px;
+    background: var(--bg);
+    position: relative;
+  }
+  .subscription::before {
+    content: '定期便';
+    position: absolute;
+    top: 80px; right: 48px;
+    font-family: var(--f-serif-jp);
+    font-size: clamp(80px, 11vw, 140px);
+    color: var(--bg-soft);
+    line-height: 1;
+    letter-spacing: 0.05em;
+    z-index: 0;
+    user-select: none;
+  }
+  .subscription-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .sub-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 80px;
+  }
+  .sub-card {
+    background: var(--bg-card);
+    padding: 52px 38px 44px;
+    position: relative;
+    transition: all 0.5s ease;
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+  }
+  .sub-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 28px 70px -22px rgba(26, 26, 26, 0.12);
+    border-color: transparent;
+  }
+  .sub-card.featured {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .sub-card.featured .sub-divider { background: rgba(253, 253, 251, 0.2); }
+  .sub-card.featured .sub-feature { color: rgba(253, 253, 251, 0.72); }
+  .sub-card.featured .sub-feature .check { stroke: var(--accent); }
+  .sub-card.featured .sub-btn {
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .sub-card.featured .sub-btn:hover { background: var(--accent); color: var(--bg); }
+
+  .sub-badge {
+    position: absolute;
+    top: -12px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: var(--bg);
+    padding: 7px 18px;
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .sub-name-jp {
+    font-family: var(--f-serif-jp);
+    font-size: 22px;
+    letter-spacing: 0.18em;
+    margin-bottom: 6px;
+  }
+  .sub-name-en {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    opacity: 0.55;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+  }
+  .sub-price {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .sub-price .currency {
+    font-family: var(--f-serif-en);
+    font-size: 16px;
+    opacity: 0.55;
+  }
+  .sub-price .amount {
+    font-family: var(--f-serif-en);
+    font-size: 60px;
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+  .sub-price .period {
+    font-size: 13px;
+    opacity: 0.55;
+    letter-spacing: 0.12em;
+  }
+  .sub-tagline {
+    font-size: 13px;
+    opacity: 0.65;
+    margin-bottom: 30px;
+    letter-spacing: 0.08em;
+  }
+  .sub-divider {
+    height: 1px;
+    background: var(--line);
+    margin: 0 0 30px;
+  }
+  .sub-features {
+    list-style: none;
+    margin-bottom: 38px;
+    flex-grow: 1;
+  }
+  .sub-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+  }
+  .sub-feature .check {
+    width: 14px; height: 14px;
+    stroke: var(--accent);
+    fill: none;
+    stroke-width: 1.5;
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+  .sub-btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    text-align: center;
+    transition: all 0.4s ease;
+  }
+  .sub-btn:hover { background: var(--accent-deep); }
+
+  .sub-note {
+    text-align: center;
+    margin-top: 52px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.1em;
+  }
+  .sub-note span {
+    margin: 0 14px;
+    color: var(--line);
+  }
+
+  /* ===== Shop Grid ===== */
+  .shop {
+    padding: 150px 48px;
+    background: var(--bg-soft);
+    max-width: none;
+  }
+  .shop-inner { max-width: 1400px; margin: 0 auto; }
+  .shop-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 70px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .shop-title-block .eyebrow {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.4em;
+    color: var(--accent);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    display: block;
+  }
+  .shop-title {
+    font-family: var(--f-serif-jp);
+    font-size: clamp(28px, 3.4vw, 38px);
+    letter-spacing: 0.18em;
+    font-weight: 400;
+  }
+  .shop-filters {
+    display: flex;
+    gap: 32px;
+    font-family: var(--f-serif-en);
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .shop-filters a { padding-bottom: 5px; transition: color 0.3s ease; }
+  .shop-filters a.active { color: var(--ink); border-bottom: 1px solid var(--ink); }
+  .shop-filters a:hover { color: var(--ink); }
+
+  .shop-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 56px 36px;
+  }
+  .shop-item {
+    cursor: pointer;
+  }
+  .shop-item .thumb {
+    aspect-ratio: 1;
+    background: var(--bg);
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .shop-item .thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+    filter: grayscale(8%);
+  }
+  .shop-item:hover .thumb img { transform: scale(1.05); }
+  .shop-item .thumb::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--ink);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .shop-item:hover .thumb::after { opacity: 0.03; }
+
+  .shop-item .origin {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .shop-item h4 {
+    font-family: var(--f-serif-jp);
+    font-weight: 400;
+    font-size: 16px;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+  }
+  .shop-item .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.12em;
+  }
+  .shop-item .price-tag {
+    font-family: var(--f-serif-en);
+    font-size: 16px;
+    color: var(--ink);
+    font-weight: 400;
+  }
+
+  .shop-foot {
+    display: flex;
+    justify-content: center;
+    margin-top: 80px;
+  }
+
+  /* ===== About ===== */
+  .about {
+    padding: 150px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 100px;
+    align-items: center;
+    max-width: 1400px;
+  }
+  .about-img {
+    aspect-ratio: 4/5;
+    background-image: url('https://images.unsplash.com/photo-1442975631115-c4f7b05b8a2c?w=1000&q=80');
+    background-size: cover;
+    background-position: center;
+    filter: grayscale(15%);
+  }
+  .about-text .eyebrow {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.4em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+  .about-text h2 {
+    font-family: var(--f-serif-jp);
+    font-weight: 400;
+    font-size: clamp(28px, 3.2vw, 40px);
+    line-height: 1.55;
+    letter-spacing: 0.1em;
+    margin-bottom: 36px;
+  }
+  .about-text h2 em {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-weight: 300;
+    color: var(--accent);
+  }
+  .about-text p {
+    font-size: 15px;
+    line-height: 2.1;
+    color: var(--ink-soft);
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+  .about-signature {
+    margin-top: 40px;
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink);
+    letter-spacing: 0.08em;
+  }
+
+  /* ===== Footer ===== */
+  footer {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 90px 48px 36px;
+  }
+  .footer-inner { max-width: 1400px; margin: 0 auto; }
+  .footer-top {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 60px;
+    padding-bottom: 60px;
+    border-bottom: 1px solid rgba(253, 253, 251, 0.12);
+  }
+  .footer-brand .mark {
+    font-family: var(--f-serif-jp);
+    font-size: 22px;
+    letter-spacing: 0.28em;
+    margin-bottom: 6px;
+  }
+  .footer-brand .en {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 0.32em;
+    opacity: 0.5;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+  }
+  .footer-brand p {
+    font-size: 13px;
+    line-height: 2;
+    opacity: 0.65;
+    max-width: 360px;
+    margin-bottom: 26px;
+  }
+  .pay-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .pay-row span {
+    padding: 5px 12px;
+    border: 1px solid rgba(253, 253, 251, 0.2);
+    border-radius: 3px;
+    font-family: var(--f-serif-en);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    opacity: 0.8;
+  }
+  .footer-col h5 {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 0.32em;
+    margin-bottom: 22px;
+    opacity: 0.5;
+    text-transform: uppercase;
+  }
+  .footer-col ul { list-style: none; }
+  .footer-col li {
+    font-size: 13px;
+    line-height: 2.4;
+    opacity: 0.75;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+  }
+  .footer-col li:hover { opacity: 1; }
+
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 36px;
+    font-family: var(--f-serif-en);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    opacity: 0.45;
+    text-transform: uppercase;
+  }
+
+  /* ===== Reveal ===== */
+  .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  /* ===== Contact ===== */
+  .contact {
+    background: var(--bg-soft);
+    padding: 130px 48px;
+    max-width: none;
+  }
+  .contact-inner { max-width: 1100px; margin: 0 auto; }
+  .contact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 60px;
+    margin-top: 60px;
+  }
+  .contact-item { text-align: center; }
+  .contact-item .label {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: block;
+  }
+  .contact-item .value {
+    font-family: var(--f-serif-jp);
+    font-size: 17px;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    line-height: 1.8;
+  }
+  .contact-item .value a { color: inherit; border-bottom: 1px solid var(--ink-faint); padding-bottom: 2px; transition: border-color 0.3s ease; }
+  .contact-item .value a:hover { border-color: var(--accent); }
+  .contact-item .sub {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  /* ===== Mobile Drawer ===== */
+  .drawer-bg {
+    position: fixed; inset: 0;
+    background: rgba(26, 26, 26, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 150;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  .drawer-bg.show { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 320px; max-width: 85vw;
+    height: 100vh;
+    background: var(--bg);
+    z-index: 151;
+    transform: translateX(-100%);
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    padding: 32px 32px 24px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .drawer.show { transform: translateX(0); }
+  .drawer .drawer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 28px; margin-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .drawer .drawer-mark {
+    font-family: var(--f-serif-jp);
+    font-size: 18px;
+    letter-spacing: 0.28em;
+  }
+  .drawer .drawer-close {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink); font-size: 22px;
+    cursor: pointer;
+  }
+  .drawer ul { list-style: none; }
+  .drawer ul li {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-family: var(--f-serif-jp);
+    font-size: 15px;
+    letter-spacing: 0.18em;
+  }
+  .drawer ul li a {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--ink);
+  }
+  .drawer ul li .en {
+    font-family: var(--f-serif-en); font-style: italic;
+    font-size: 11px; letter-spacing: 0.28em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .drawer .drawer-foot {
+    margin-top: auto;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-family: var(--f-serif-en);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .drawer .drawer-foot a {
+    color: var(--ink-soft);
+    display: inline-block;
+    padding: 6px 0;
+    margin-right: 18px;
+  }
+
+  /* ===== Modal ===== */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(26, 26, 26, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  .modal-bg.show { opacity: 1; pointer-events: auto; }
+  .modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -45%);
+    background: var(--bg-card);
+    padding: 52px 44px 44px;
+    width: 90%;
+    max-width: 440px;
+    z-index: 201;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.5s ease;
+  }
+  .modal.show { transform: translate(-50%, -50%); opacity: 1; pointer-events: auto; }
+  .modal h3 {
+    font-family: var(--f-serif-jp);
+    font-size: 20px;
+    letter-spacing: 0.18em;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .modal .modal-sub {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 12px;
+    letter-spacing: 0.32em;
+    color: var(--ink-faint);
+    text-align: center;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+  }
+  .modal p {
+    font-size: 14px;
+    line-height: 2;
+    color: var(--ink-soft);
+    margin-bottom: 32px;
+    font-weight: 300;
+  }
+  .modal .pay-options {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .modal .pay-options span {
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    font-family: var(--f-serif-en);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+  }
+  .modal-close {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    text-align: center;
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 960px) {
+    header { padding: 18px 24px; }
+    .nav { grid-template-columns: 1fr 1fr 1fr; }
+    .hero { grid-template-columns: 1fr; gap: 50px; padding: 130px 24px 70px; }
+    .hero-visual { height: 60vh; }
+    section { padding: 90px 24px; }
+    .concept-grid, .sub-grid, .product-row, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
+    .about { grid-template-columns: 1fr; padding: 90px 24px; gap: 50px; }
+    .recommend, .shop, .subscription { padding: 90px 24px; }
+    .footer-top { grid-template-columns: 1fr 1fr; gap: 40px; }
+    .shop-head { flex-direction: column; align-items: flex-start; gap: 24px; }
+    .nav-actions { gap: 20px; font-size: 12px; }
+    .nav-actions .hide-mobile { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header id="header">
+  <nav class="nav">
+    <button class="menu-btn" onclick="openDrawer()">
+      <div class="bars"><span></span><span></span><span></span></div>
+      <span>Menu</span>
+    </button>
+    <a href="#top" class="logo">
+      <div class="mark">一坨咖啡</div>
+      <span class="sub">Jibu Coffee &amp; Lifestyle</span>
+    </a>
+    <div class="nav-actions">
+      <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener" class="hide-mobile">Instagram</a>
+      <a href="#contact" class="hide-mobile">Contact</a>
+      <a href="#" onclick="openCart(event)">Cart<span class="cart-count" id="cartCount">0</span></a>
+    </div>
+  </nav>
+</header>
+
+<!-- ===== Mobile Drawer ===== -->
+<div class="drawer-bg" id="drawerBg" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-mark">一坨咖啡</div>
+    <button class="drawer-close" onclick="closeDrawer()" aria-label="關閉選單">×</button>
+  </div>
+  <ul>
+    <li><a href="#concept" onclick="closeDrawer()"><span>關於 一坨</span><span class="en">Concept</span></a></li>
+    <li><a href="#recommend" onclick="closeDrawer()"><span>店主推薦</span><span class="en">Recommend</span></a></li>
+    <li><a href="#subscription" onclick="closeDrawer()"><span>定期配送</span><span class="en">Subscription</span></a></li>
+    <li><a href="#shop" onclick="closeDrawer()"><span>選物商店</span><span class="en">Shop</span></a></li>
+    <li><a href="#about" onclick="closeDrawer()"><span>品牌故事</span><span class="en">About</span></a></li>
+    <li><a href="#contact" onclick="closeDrawer()"><span>聯絡我們</span><span class="en">Contact</span></a></li>
+  </ul>
+  <div class="drawer-foot">
+    <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">Instagram</a>
+    <a href="mailto:hello@jibucafe.com">Email</a>
+  </div>
+</aside>
+
+<!-- ===== Hero ===== -->
+<section class="hero">
+  <div class="hero-text">
+    <div class="hero-eyebrow">Slow Coffee · Daily Ritual</div>
+    <h1 class="hero-title">
+      日々のひと匙、<br>
+      <em>a quiet</em> 餘白。
+    </h1>
+    <p class="hero-desc">
+      一坨咖啡是一間關於日常的小店。<br>
+      我們相信，一杯好的咖啡，<br>
+      是清晨醒來的儀式，也是夜裡靜下來的呼吸。
+    </p>
+    <a href="#subscription" class="hero-cta">
+      <span>Coffee Subscription</span>
+      <span class="arrow">→</span>
+    </a>
+  </div>
+  <div class="hero-visual">
+    <div class="frame"></div>
+    <div class="vertical-text">毎日に、ひと匙の餘白を</div>
+    <div class="stamp">Est. <span>2025</span> · Taipei</div>
+  </div>
+</section>
+
+<!-- ===== Concept ===== -->
+<section class="concept reveal" id="concept">
+  <div class="section-head">
+    <div class="section-eyebrow">Our Concept</div>
+    <h2 class="section-title">關於 一坨</h2>
+    <div class="section-divider"></div>
+  </div>
+  <div class="concept-grid">
+    <div class="concept-item">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><path d="M6 8 c0 4 0 8 6 12 c6-4 6-8 6-12 M9 8 c0-3 6-3 6 0"/></svg>
+      </div>
+      <h3>選豆</h3>
+      <div class="en">Curated Beans</div>
+      <p>我們親自走訪小型莊園與精品烘豆師，挑選風味細緻、可以細細品味的單品豆。</p>
+    </div>
+    <div class="concept-item">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><path d="M8 4 v16 M16 4 v16 M5 8 h14 M5 16 h14"/></svg>
+      </div>
+      <h3>慢沖</h3>
+      <div class="en">Slow Brewing</div>
+      <p>每一包濾掛皆於小批量現場烘焙、手工填裝，保留豆子最完整的香氣與層次。</p>
+    </div>
+    <div class="concept-item">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4 v16 M4 12 h16"/></svg>
+      </div>
+      <h3>生活</h3>
+      <div class="en">Daily Lifestyle</div>
+      <p>除了咖啡，我們也分享日系生活選物——讓沖一杯咖啡的時光，成為一天最安靜的儀式。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Recommend ===== -->
+<section class="recommend reveal" id="recommend">
+  <div class="recommend-inner">
+    <div class="recommend-banner">
+      <span><em style="font-style:italic">Recommend</em></span>
+      <small>／ 店からのおすすめ</small>
+      <span><em style="font-style:italic">Recommend</em></span>
+      <small>／ 店からのおすすめ</small>
+      <span><em style="font-style:italic">Recommend</em></span>
+    </div>
+
+    <div class="product-row">
+      <div class="product-card">
+        <div class="tag">一坨經典<br>【深焙】</div>
+        <div class="product-circle">
+          <img src="https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=600&q=80" alt="一坨經典">
+        </div>
+        <div class="product-info">
+          <div class="price">NT$55<small>／包</small></div>
+          <button class="add-btn" onclick="addToCart('一坨經典')">バッグに入れる</button>
+        </div>
+        <div class="product-meta">
+          <span class="label">產地</span>
+          <span>衣索比亞 ／ 巴西</span>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="tag">草莓淡雪<br>【淺焙】</div>
+        <div class="product-circle">
+          <img src="https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&q=80" alt="草莓淡雪">
+        </div>
+        <div class="product-info">
+          <div class="price">NT$65<small>／包</small></div>
+          <button class="add-btn" onclick="addToCart('草莓淡雪')">バッグに入れる</button>
+        </div>
+        <div class="product-meta">
+          <span class="label">產地</span>
+          <span>巴拿馬 藝伎</span>
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="tag">月光夜釀<br>【中焙】</div>
+        <div class="product-circle">
+          <img src="https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=600&q=80" alt="月光夜釀">
+        </div>
+        <div class="product-info">
+          <div class="price">NT$75<small>／包</small></div>
+          <button class="add-btn" onclick="addToCart('月光夜釀')">バッグに入れる</button>
+        </div>
+        <div class="product-meta">
+          <span class="label">產地</span>
+          <span>哥倫比亞 厭氧</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="recommend-foot">
+      <a href="#shop" class="text-link">
+        全部商品をみる
+        <span class="arrow">→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Subscription ===== -->
+<section class="subscription reveal" id="subscription">
+  <div class="subscription-inner">
+    <div class="section-head">
+      <div class="section-eyebrow">Coffee Subscription</div>
+      <h2 class="section-title">定期配送</h2>
+      <p class="section-sub">
+        每個月，讓我們把當季最對味的咖啡，悄悄寄到你的桌上。<br>
+        隨時可以暫停、可以更換、可以取消。
+      </p>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="sub-grid">
+      <!-- Plan 1 -->
+      <div class="sub-card">
+        <div class="sub-name-jp">一坨日常</div>
+        <div class="sub-name-en">Daily Plan</div>
+        <div class="sub-price">
+          <span class="currency">NT$</span>
+          <span class="amount">250</span>
+          <span class="period">／月</span>
+        </div>
+        <div class="sub-tagline">適合一個人的清晨</div>
+        <div class="sub-divider"></div>
+        <ul class="sub-features">
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>每月 5 包精選濾掛咖啡</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>店主每月推薦單品</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>免運費寄送</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>隨時暫停 ／ 取消</span>
+          </li>
+        </ul>
+        <button class="sub-btn" onclick="subscribe('Daily')">選擇此方案</button>
+      </div>
+
+      <!-- Plan 2 (featured) -->
+      <div class="sub-card featured">
+        <div class="sub-badge">Most Loved</div>
+        <div class="sub-name-jp">一坨精選</div>
+        <div class="sub-name-en">Curated Plan</div>
+        <div class="sub-price">
+          <span class="currency">NT$</span>
+          <span class="amount">480</span>
+          <span class="period">／月</span>
+        </div>
+        <div class="sub-tagline">適合與所愛的人共享</div>
+        <div class="sub-divider"></div>
+        <ul class="sub-features">
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>每月 10 包精選濾掛咖啡</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>含一款訂閱限定豆款</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>每月隨贈一份手寫風味卡</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>選物商品 9 折</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>免運費寄送・隨時暫停</span>
+          </li>
+        </ul>
+        <button class="sub-btn" onclick="subscribe('Curated')">選擇此方案</button>
+      </div>
+
+      <!-- Plan 3 -->
+      <div class="sub-card">
+        <div class="sub-name-jp">一坨深度</div>
+        <div class="sub-name-en">Explorer Plan</div>
+        <div class="sub-price">
+          <span class="currency">NT$</span>
+          <span class="amount">880</span>
+          <span class="period">／月</span>
+        </div>
+        <div class="sub-tagline">給熱愛探索風味的你</div>
+        <div class="sub-divider"></div>
+        <ul class="sub-features">
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>每月 20 包精選濾掛咖啡</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>含兩款訂閱限定豆款</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>隨贈一份日系選物</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>選物商品 85 折</span>
+          </li>
+          <li class="sub-feature">
+            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
+            <span>免運費寄送・隨時暫停</span>
+          </li>
+        </ul>
+        <button class="sub-btn" onclick="subscribe('Explorer')">選擇此方案</button>
+      </div>
+    </div>
+
+    <div class="sub-note">
+      支援信用卡定期定額<span>·</span>VISA ／ MasterCard ／ JCB<span>·</span>隨時可登入會員調整方案
+    </div>
+  </div>
+</section>
+
+<!-- ===== Shop ===== -->
+<section class="shop reveal" id="shop">
+  <div class="shop-inner">
+    <div class="shop-head">
+      <div class="shop-title-block">
+        <span class="eyebrow">Shop &amp; Lifestyle</span>
+        <h2 class="shop-title">選物 ／ Shop</h2>
+      </div>
+      <div class="shop-filters">
+        <a href="#" class="active" data-filter="all">All</a>
+        <a href="#" data-filter="coffee">Coffee</a>
+        <a href="#" data-filter="japan">Japan</a>
+        <a href="#" data-filter="korea">Korea</a>
+        <a href="#" data-filter="goods">Goods</a>
+      </div>
+    </div>
+
+    <div class="shop-grid">
+      <div class="shop-item" data-cat="coffee">
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=600&q=80" alt=""></div>
+        <div class="origin">Coffee · Taipei</div>
+        <h4>一坨經典 濾掛</h4>
+        <div class="meta"><span>Drip Bag</span><span class="price-tag">NT$55</span></div>
+      </div>
+      <div class="shop-item" data-cat="coffee">
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&q=80" alt=""></div>
+        <div class="origin">Coffee · Taipei</div>
+        <h4>草莓淡雪 濾掛</h4>
+        <div class="meta"><span>Drip Bag</span><span class="price-tag">NT$65</span></div>
+      </div>
+      <div class="shop-item" data-cat="japan goods">
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1542181961-9590d0c79dab?w=600&q=80" alt=""></div>
+        <div class="origin">Japan · Hasami</div>
+        <h4>波佐見燒 手作陶瓷濾杯</h4>
+        <div class="meta"><span>Ceramic</span><span class="price-tag">NT$680</span></div>
+      </div>
+      <div class="shop-item" data-cat="japan goods">
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80" alt=""></div>
+        <div class="origin">Japan · Aderia</div>
+        <h4>石塚硝子 江戶貓玻璃杯</h4>
+        <div class="meta"><span>Glassware</span><span class="price-tag">NT$890</span></div>
+      </div>
+      <div class="shop-item" data-cat="korea goods">
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=80" alt=""></div>
+        <div class="origin">Korea · Seoul</div>
+        <h4>韓國復古鐵盤</h4>
+        <div class="meta"><span>Tray</span><span class="price-tag">NT$580</span></div>
+      </div>
+      <div class="shop-item" data-cat="japan goods">
+        <div class="thumb"><img src="https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=600&q=80" alt=""></div>
+        <div class="origin">Japan · Tools</div>
+        <h4>日製不鏽鋼細口手沖壺</h4>
+        <div class="meta"><span>600ml</span><span class="price-tag">NT$1,280</span></div>
+      </div>
+    </div>
+
+    <div class="shop-foot">
+      <a href="#" class="text-link">
+        View All Goods
+        <span class="arrow">→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== About ===== -->
+<section class="about reveal" id="about">
+  <div class="about-img"></div>
+  <div class="about-text">
+    <div class="eyebrow">About Jibu</div>
+    <h2>一坨，是<br>生活的<em>餘白</em>。</h2>
+    <p>
+      我們的店名來自一個小小的玩笑，但我們相信生活就該有這樣的鬆弛感。
+      在每一杯咖啡裡，我們想留下一點點呼吸的空間——讓忙碌的日子，也能有片刻的停留。
+    </p>
+    <p>
+      從選豆、烘焙、到包裝，每一個環節都是我們親手完成。
+      我們也從日本、韓國，慢慢蒐集一些有意思的生活小物——
+      希望這杯咖啡與這些器物，能成為你一天當中最溫柔的時光。
+    </p>
+    <div class="about-signature">— 一坨咖啡，2025</div>
+  </div>
+</section>
+
+<!-- ===== Contact ===== -->
+<section class="contact reveal" id="contact">
+  <div class="contact-inner">
+    <div class="section-head">
+      <div class="section-eyebrow">Visit Us</div>
+      <h2 class="section-title">聯絡 一坨</h2>
+      <p class="section-sub">關於商品、訂購、合作邀請，都歡迎與我們聯繫。</p>
+      <div class="section-divider"></div>
+    </div>
+    <div class="contact-grid">
+      <div class="contact-item">
+        <span class="label">Instagram</span>
+        <div class="value"><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a></div>
+        <div class="sub">每日更新．日常分享</div>
+      </div>
+      <div class="contact-item">
+        <span class="label">Email</span>
+        <div class="value"><a href="mailto:hello@jibucafe.com">hello@jibucafe.com</a></div>
+        <div class="sub">合作 ／ 採訪 ／ 商品詢問</div>
+      </div>
+      <div class="contact-item">
+        <span class="label">Order</span>
+        <div class="value"><a href="https://www.jibucafe.com" target="_blank" rel="noopener">jibucafe.com</a></div>
+        <div class="sub">線上訂購．宅配到家</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="mark">一坨咖啡</div>
+        <div class="en">Jibu Coffee &amp; Lifestyle</div>
+        <p>一杯咖啡的時間，是一天當中最安靜的儀式。<br>我們相信，慢一點，也是一種前進。</p>
+        <div class="pay-row">
+          <span>VISA</span>
+          <span>MASTER</span>
+          <span>JCB</span>
+          <span>LINE Pay</span>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h5>Shop</h5>
+        <ul>
+          <li>濾掛咖啡</li>
+          <li>原豆</li>
+          <li>日本選物</li>
+          <li>韓國選物</li>
+          <li>定期配送</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>About</h5>
+        <ul>
+          <li><a href="#about" style="color:inherit;">一坨是誰</a></li>
+          <li><a href="#contact" style="color:inherit;">聯絡我們</a></li>
+          <li><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener" style="color:inherit;">Instagram</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Help</h5>
+        <ul>
+          <li>隱私條款</li>
+          <li>退款政策</li>
+          <li>配送說明</li>
+          <li>FAQ</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2025 Jibu Coffee. All Rights Reserved.</div>
+      <div>Designed with 餘白</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ===== Modal ===== -->
+<div class="modal-bg" id="modalBg" onclick="closeModal()"></div>
+<div class="modal" id="modal">
+  <h3 id="modalTitle">已加入購物袋</h3>
+  <div class="modal-sub">Cart Updated</div>
+  <p id="modalText">這是預覽版的購物流程。實際上線後，這裡會連接金流系統，讓客人可以使用 Visa、MasterCard、JCB 等信用卡安全結帳。</p>
+  <div class="pay-options">
+    <span>VISA</span>
+    <span>MasterCard</span>
+    <span>JCB</span>
+    <span>LINE Pay</span>
+  </div>
+  <button class="modal-close" onclick="closeModal()">確定</button>
+</div>
+
+<script>
+  // Header scroll
+  const header = document.getElementById('header');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 30) header.classList.add('scrolled');
+    else header.classList.remove('scrolled');
+  });
+
+  // Reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(el => io.observe(el));
+
+  // Cart
+  let cart = 0;
+  function addToCart(name) {
+    cart++;
+    document.getElementById('cartCount').textContent = cart;
+    document.getElementById('modalTitle').textContent = '已加入購物袋';
+    document.getElementById('modalText').textContent = `已將「${name}」加入購物袋。實際上線後會接續信用卡金流結帳，支援 Visa、MasterCard、JCB、LINE Pay。`;
+    showModal();
+  }
+  function subscribe(plan) {
+    const names = { 'Daily': '一坨日常', 'Curated': '一坨精選', 'Explorer': '一坨深度' };
+    document.getElementById('modalTitle').textContent = `訂閱「${names[plan]}」`;
+    document.getElementById('modalText').textContent = `準備為你建立每月「${names[plan]}」定期配送。上線後將連接信用卡定期定額服務（綠界 ／ Stripe），讓你能安心訂閱、隨時暫停或取消。`;
+    showModal();
+  }
+  function openCart(e) {
+    e.preventDefault();
+    document.getElementById('modalTitle').textContent = '購物袋';
+    document.getElementById('modalText').textContent = cart > 0 ? `目前購物袋裡有 ${cart} 件商品。實際上線後將進入結帳頁面。` : '購物袋裡還沒有商品，去逛逛吧。';
+    showModal();
+  }
+  function showModal() {
+    document.getElementById('modalBg').classList.add('show');
+    document.getElementById('modal').classList.add('show');
+  }
+  function closeModal() {
+    document.getElementById('modalBg').classList.remove('show');
+    document.getElementById('modal').classList.remove('show');
+  }
+
+  // Mobile drawer
+  function openDrawer() {
+    document.getElementById('drawerBg').classList.add('show');
+    document.getElementById('drawer').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    document.getElementById('drawerBg').classList.remove('show');
+    document.getElementById('drawer').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  // Esc 關 drawer / modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeDrawer(); closeModal(); }
+  });
+
+  // Shop filter（真的依 data-cat 過濾）
+  document.querySelectorAll('.shop-filters a').forEach(a => {
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      this.parentElement.querySelectorAll('a').forEach(s => s.classList.remove('active'));
+      this.classList.add('active');
+      const f = this.dataset.filter || 'all';
+      document.querySelectorAll('.shop-item').forEach(item => {
+        const cat = (item.dataset.cat || '').toLowerCase();
+        const show = f === 'all' || cat.includes(f);
+        item.style.display = show ? '' : 'none';
+      });
+    });
+  });
+
+  // Smooth scroll for nav anchors
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    const href = a.getAttribute('href');
+    if (href === '#' || href === '') return;
+    a.addEventListener('click', function(e) {
+      const target = document.querySelector(href);
+      if (target) {
+        e.preventDefault();
+        const offset = 80;
+        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
