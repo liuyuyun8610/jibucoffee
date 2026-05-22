@@ -93,7 +93,6 @@
   .btn.outline:hover { color: var(--ink); border-color: var(--ink); background: transparent; }
   .btn.danger { background: var(--danger); }
   .btn.danger:hover { background: #a03e2c; }
-  .btn.sm { padding: 6px 12px; font-size: 12px; }
 
   main { max-width: 1280px; margin: 0 auto; padding: 32px; }
 
@@ -113,16 +112,8 @@
     border-radius: 16px;
     padding: 40px 32px;
   }
-  .login-card h1 {
-    font-size: 22px;
-    font-weight: 500;
-    margin-bottom: 6px;
-  }
-  .login-card .sub {
-    color: var(--ink-soft);
-    margin-bottom: 28px;
-    font-size: 13px;
-  }
+  .login-card h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; }
+  .login-card .sub { color: var(--ink-soft); margin-bottom: 28px; font-size: 13px; }
   .login-card label {
     display: block;
     font-size: 12px;
@@ -131,12 +122,7 @@
     margin-top: 14px;
     letter-spacing: 0.05em;
   }
-  .login-card .btn {
-    width: 100%;
-    margin-top: 24px;
-    padding: 12px;
-    font-size: 14px;
-  }
+  .login-card .btn { width: 100%; margin-top: 24px; padding: 12px; font-size: 14px; }
   .login-error {
     margin-top: 14px;
     padding: 10px 14px;
@@ -147,47 +133,52 @@
     display: none;
   }
 
-  /* ===== List ===== */
+  /* ===== Tabs ===== */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 14px;
+  }
+  .tab {
+    padding: 9px 22px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    border-radius: 999px;
+    transition: all 0.2s;
+  }
+  .tab:hover { background: var(--bg-soft); color: var(--ink); }
+  .tab.active { background: var(--ink); color: var(--bg); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== Toolbar ===== */
   .toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
   }
-  .toolbar h2 {
-    font-size: 22px;
-    font-weight: 500;
-  }
-  .toolbar .stats {
-    color: var(--ink-soft);
-    font-size: 13px;
-    margin-top: 4px;
-  }
+  .toolbar h2 { font-size: 22px; font-weight: 500; }
+  .toolbar .stats { color: var(--ink-soft); font-size: 13px; margin-top: 4px; }
 
+  /* ===== Product table ===== */
   .table-wrap {
     background: var(--bg-card);
     border: 1px solid var(--line);
     border-radius: 16px;
     overflow: hidden;
   }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  thead {
-    background: var(--bg-soft);
-  }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--bg-soft); }
   th, td {
     padding: 14px 18px;
     text-align: left;
     font-size: 13px;
     border-bottom: 1px solid var(--line);
   }
-  th {
-    color: var(--ink-soft);
-    font-weight: 500;
-    letter-spacing: 0.05em;
-  }
+  th { color: var(--ink-soft); font-weight: 500; letter-spacing: 0.05em; }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover { background: var(--bg-soft); }
   td .thumb {
@@ -202,15 +193,8 @@
     color: var(--ink-faint);
     font-size: 11px;
   }
-  td .thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  td.actions {
-    text-align: right;
-    white-space: nowrap;
-  }
+  td .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  td.actions { text-align: right; white-space: nowrap; }
   td.actions button {
     padding: 6px 12px;
     font-size: 12px;
@@ -232,11 +216,99 @@
   }
   .badge.active { background: #e3eee3; color: var(--ok); }
   .badge.inactive { background: #f0e8e3; color: var(--ink-faint); }
+  .empty { padding: 60px 32px; text-align: center; color: var(--ink-faint); }
 
-  .empty {
-    padding: 60px 32px;
+  /* ===== Calendar ===== */
+  .cal-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 720px;
+  }
+  .cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .cal-head .month-title { font-size: 18px; font-weight: 500; }
+  .cal-nav {
+    display: flex;
+    gap: 6px;
+  }
+  .cal-nav button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    font-size: 16px;
+    color: var(--ink-soft);
+    transition: all 0.2s;
+  }
+  .cal-nav button:hover { background: var(--accent); color: var(--bg); }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-dow {
     text-align: center;
+    font-size: 11px;
     color: var(--ink-faint);
+    letter-spacing: 0.1em;
+    padding: 8px 0 12px;
+    font-weight: 500;
+  }
+  .cal-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+    border: 1px solid transparent;
+  }
+  .cal-cell:hover:not(.cal-empty) {
+    background: var(--bg-soft);
+    border-color: var(--line);
+  }
+  .cal-cell.cal-empty { cursor: default; }
+  .cal-cell.cal-today {
+    font-weight: 600;
+    color: var(--accent-deep);
+    border-color: var(--accent);
+  }
+  .cal-cell.cal-closed {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .cal-cell.cal-closed:hover {
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+  }
+  .cal-cell.cal-past:not(.cal-closed) { color: var(--ink-faint); }
+  .cal-hint {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .cal-hint .swatch {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 4px;
+    vertical-align: middle;
   }
 
   /* ===== Modal ===== */
@@ -250,8 +322,7 @@
   .modal-bg.show { display: block; }
   .modal {
     position: fixed;
-    top: 50%;
-    left: 50%;
+    top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     width: 100%;
     max-width: 580px;
@@ -271,11 +342,7 @@
     align-items: center;
   }
   .modal-head h3 { font-size: 18px; font-weight: 500; }
-  .modal-head .close {
-    color: var(--ink-faint);
-    font-size: 22px;
-    line-height: 1;
-  }
+  .modal-head .close { color: var(--ink-faint); font-size: 22px; line-height: 1; }
   .modal-body { padding: 24px 28px; }
   .modal-foot {
     padding: 18px 28px;
@@ -293,11 +360,7 @@
     margin-bottom: 6px;
     letter-spacing: 0.05em;
   }
-  .form-row .help {
-    font-size: 11px;
-    color: var(--ink-faint);
-    margin-top: 4px;
-  }
+  .form-row .help { font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
   .form-grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -325,14 +388,8 @@
     display: block;
   }
   .image-upload input[type=file] { display: none; }
-  .image-upload .placeholder {
-    color: var(--ink-faint);
-    font-size: 13px;
-  }
-  .image-upload .uploading {
-    color: var(--accent);
-    font-size: 13px;
-  }
+  .image-upload .placeholder { color: var(--ink-faint); font-size: 13px; }
+  .image-upload .uploading { color: var(--accent); font-size: 13px; }
   .checkbox-row {
     display: flex;
     align-items: center;
@@ -340,12 +397,7 @@
     padding: 12px 0;
   }
   .checkbox-row input { width: auto; }
-  .checkbox-row label {
-    font-size: 14px;
-    color: var(--ink);
-    margin: 0;
-    cursor: pointer;
-  }
+  .checkbox-row label { font-size: 14px; color: var(--ink); margin: 0; cursor: pointer; }
 
   .toast {
     position: fixed;
@@ -362,10 +414,7 @@
     z-index: 200;
     pointer-events: none;
   }
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.err { background: var(--danger); }
 
   @media (max-width: 720px) {
@@ -374,6 +423,7 @@
     .table-wrap { overflow-x: auto; }
     table { min-width: 720px; }
     .form-grid-2 { grid-template-columns: 1fr; }
+    .cal-wrap { padding: 18px; }
   }
 </style>
 </head>
@@ -394,7 +444,7 @@
 <div class="login-wrap" id="loginView">
   <div class="login-card">
     <h1>後台登入</h1>
-    <div class="sub">一坨咖啡 商品管理</div>
+    <div class="sub">一坨咖啡 商品 + 公休管理</div>
     <form id="loginForm" onsubmit="login(event)">
       <label>Email</label>
       <input type="email" id="loginEmail" required autocomplete="email">
@@ -406,37 +456,71 @@
   </div>
 </div>
 
-<!-- ===== 商品列表 ===== -->
+<!-- ===== 後台 ===== -->
 <main id="adminView" style="display:none">
-  <div class="toolbar">
-    <div>
-      <h2>商品管理</h2>
-      <div class="stats" id="productStats"></div>
-    </div>
-    <button class="btn" onclick="openEditor()">+ 新增商品</button>
-  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="products" onclick="switchTab('products')">商品</button>
+    <button class="tab" data-tab="dates" onclick="switchTab('dates')">公休日曆</button>
+  </nav>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:50px">排序</th>
-          <th style="width:80px">圖片</th>
-          <th>商品名稱</th>
-          <th style="width:120px">分類</th>
-          <th style="width:110px">價格</th>
-          <th style="width:90px">狀態</th>
-          <th style="width:140px"></th>
-        </tr>
-      </thead>
-      <tbody id="productList">
-        <tr><td colspan="7" class="empty">載入中...</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <!-- ===== 商品 ===== -->
+  <section class="tab-panel active" data-panel="products">
+    <div class="toolbar">
+      <div>
+        <h2>商品管理</h2>
+        <div class="stats" id="productStats"></div>
+      </div>
+      <button class="btn" onclick="openEditor()">+ 新增商品</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:50px">排序</th>
+            <th style="width:80px">圖片</th>
+            <th>商品名稱</th>
+            <th style="width:120px">分類</th>
+            <th style="width:110px">價格</th>
+            <th style="width:90px">狀態</th>
+            <th style="width:140px"></th>
+          </tr>
+        </thead>
+        <tbody id="productList">
+          <tr><td colspan="7" class="empty">載入中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 公休日曆 ===== -->
+  <section class="tab-panel" data-panel="dates">
+    <div class="toolbar">
+      <div>
+        <h2>公休日曆</h2>
+        <div class="stats" id="closedStats">點選日期切換公休／營業狀態</div>
+      </div>
+    </div>
+
+    <div class="cal-wrap">
+      <div class="cal-head">
+        <div class="month-title" id="calMonthTitle"></div>
+        <div class="cal-nav">
+          <button onclick="changeMonth(-1)" aria-label="上個月">‹</button>
+          <button onclick="goToday()" aria-label="今天">今</button>
+          <button onclick="changeMonth(1)" aria-label="下個月">›</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-hint">
+        <span class="swatch"></span>
+        <span>標示 = 公休日（前台會自動公告）。點公休日可恢復營業。</span>
+      </div>
+    </div>
+  </section>
 </main>
 
-<!-- ===== 編輯 Modal ===== -->
+<!-- ===== 商品編輯 Modal ===== -->
 <div class="modal-bg" id="modalBg" onclick="closeEditor()"></div>
 <div class="modal" id="editModal">
   <div class="modal-head">
@@ -446,8 +530,6 @@
   <div class="modal-body">
     <form id="editorForm" onsubmit="saveProduct(event)">
       <input type="hidden" id="productId">
-
-      <!-- 圖片上傳 -->
       <div class="form-row">
         <label>商品圖片</label>
         <div class="image-upload" id="imageUpload" onclick="document.getElementById('imageFile').click()">
@@ -457,35 +539,25 @@
         <input type="hidden" id="imageUrl">
         <div class="help">直接拍照上傳，會自動縮成 1200×1200。</div>
       </div>
-
-      <!-- 名稱 -->
       <div class="form-row">
         <label>商品名稱（中文）</label>
         <input type="text" id="name" required placeholder="例：一坨經典 濾掛">
       </div>
-
-      <!-- 日文名稱 -->
       <div class="form-row">
         <label>商品名稱（日文／英文，可選）</label>
         <input type="text" id="nameJp" placeholder="例：JIBU Classic">
       </div>
-
       <div class="form-grid-2">
-        <!-- 價格 -->
         <div class="form-row">
           <label>價格（NT$）</label>
           <input type="number" id="price" required min="0" placeholder="例：1380">
         </div>
-
-        <!-- 排序 -->
         <div class="form-row">
           <label>排序（小的在前）</label>
           <input type="number" id="sortOrder" value="0">
         </div>
       </div>
-
       <div class="form-grid-2">
-        <!-- 分類 -->
         <div class="form-row">
           <label>分類</label>
           <select id="category">
@@ -495,35 +567,25 @@
             <option value="goods">Goods（生活選物）</option>
           </select>
         </div>
-
-        <!-- 產地標籤 -->
         <div class="form-row">
           <label>產地／品牌標籤</label>
           <input type="text" id="origin" placeholder="例：Coffee · Taipei">
         </div>
       </div>
-
-      <!-- 規格 -->
       <div class="form-row">
         <label>規格簡述</label>
         <input type="text" id="metaLeft" placeholder="例：Drip Bag / 280ml Ceramic">
         <div class="help">會顯示在卡片價格旁邊，建議短一點。</div>
       </div>
-
-      <!-- 描述 -->
       <div class="form-row">
         <label>商品描述（可選）</label>
         <textarea id="description" placeholder="商品故事、規格說明、產地..."></textarea>
       </div>
-
-      <!-- 外部連結 -->
       <div class="form-row">
         <label>外部購買連結（可選）</label>
         <input type="url" id="externalUrl" placeholder="https://...">
         <div class="help">如果是寄售或代理商品，可以填外部站連結。等綠界金流接好後可空白。</div>
       </div>
-
-      <!-- 顯示開關 -->
       <div class="checkbox-row">
         <input type="checkbox" id="isActive" checked>
         <label for="isActive">在前台顯示這個商品</label>
@@ -591,6 +653,7 @@
     document.getElementById('userInfo').style.display = 'flex';
     document.getElementById('userEmail').textContent = user.email;
     await loadProducts();
+    await loadClosedDates();
   }
 
   function showLogin() {
@@ -599,7 +662,13 @@
     document.getElementById('userInfo').style.display = 'none';
   }
 
-  // ===== List =====
+  // ===== Tabs =====
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === name));
+  }
+
+  // ===== Products =====
   async function loadProducts() {
     const tbody = document.getElementById('productList');
     tbody.innerHTML = '<tr><td colspan="7" class="empty">載入中...</td></tr>';
@@ -643,10 +712,10 @@
   }
   function escapeHtml(s) {
     if (!s) return '';
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // ===== Editor =====
+  // ===== Product Editor =====
   function openEditor(product = null) {
     document.getElementById('editorTitle').textContent = product ? '編輯商品' : '新增商品';
     document.getElementById('productId').value = product?.id || '';
@@ -661,16 +730,13 @@
     document.getElementById('externalUrl').value = product?.external_url || '';
     document.getElementById('isActive').checked = product?.is_active ?? true;
     setImagePreview(product?.image_url || '');
-
     document.getElementById('modalBg').classList.add('show');
     document.getElementById('editModal').classList.add('show');
   }
-
   function closeEditor() {
     document.getElementById('modalBg').classList.remove('show');
     document.getElementById('editModal').classList.remove('show');
   }
-
   function setImagePreview(url) {
     const upload = document.getElementById('imageUpload');
     const placeholder = document.getElementById('imagePlaceholder');
@@ -689,21 +755,18 @@
     }
   }
 
-  // ===== 圖片上傳 =====
   async function handleImageUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     const placeholder = document.getElementById('imagePlaceholder');
     placeholder.innerHTML = '<span class="uploading">壓縮中...</span>';
-
     try {
       const blob = await resizeImage(file, 1200, 0.82);
       placeholder.innerHTML = '<span class="uploading">上傳中...</span>';
       const ext = file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
       const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext === 'jpg' || ext === 'jpeg' ? 'jpg' : ext}`;
       const { error } = await sb.storage.from('product-images').upload(fileName, blob, {
-        contentType: blob.type,
-        upsert: false,
+        contentType: blob.type, upsert: false,
       });
       if (error) throw error;
       const { data: pub } = sb.storage.from('product-images').getPublicUrl(fileName);
@@ -716,7 +779,6 @@
     e.target.value = '';
   }
 
-  // canvas 縮圖
   function resizeImage(file, maxSize, quality) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -748,12 +810,10 @@
     });
   }
 
-  // ===== Save =====
   async function saveProduct(e) {
     e.preventDefault();
     const form = document.getElementById('editorForm');
     if (!form.checkValidity()) { form.reportValidity(); return; }
-
     const id = document.getElementById('productId').value;
     const payload = {
       name: document.getElementById('name').value.trim(),
@@ -768,41 +828,108 @@
       image_url: document.getElementById('imageUrl').value || null,
       is_active: document.getElementById('isActive').checked,
     };
-
     const btn = document.getElementById('saveBtn');
-    btn.disabled = true;
-    btn.textContent = '儲存中...';
-
+    btn.disabled = true; btn.textContent = '儲存中...';
     let resp;
-    if (id) {
-      resp = await sb.from('products').update(payload).eq('id', id);
-    } else {
-      resp = await sb.from('products').insert(payload);
-    }
-
-    btn.disabled = false;
-    btn.textContent = '儲存';
-
-    if (resp.error) {
-      toast('儲存失敗：' + resp.error.message, true);
-      return;
-    }
-
+    if (id) resp = await sb.from('products').update(payload).eq('id', id);
+    else resp = await sb.from('products').insert(payload);
+    btn.disabled = false; btn.textContent = '儲存';
+    if (resp.error) { toast('儲存失敗：' + resp.error.message, true); return; }
     toast(id ? '已更新' : '已新增');
     closeEditor();
     await loadProducts();
   }
 
-  // ===== Delete =====
   async function deleteProduct(id, name) {
     if (!confirm(`確定刪除「${name}」？此動作無法復原。`)) return;
     const { error } = await sb.from('products').delete().eq('id', id);
-    if (error) {
-      toast('刪除失敗：' + error.message, true);
-      return;
-    }
+    if (error) { toast('刪除失敗：' + error.message, true); return; }
     toast('已刪除');
     await loadProducts();
+  }
+
+  // ===== Calendar (公休日) =====
+  let calMonth = new Date();
+  calMonth.setDate(1);
+  let closedDates = new Set();
+
+  async function loadClosedDates() {
+    const { data, error } = await sb.from('closed_dates').select('date');
+    if (error) {
+      toast('載入公休失敗：' + error.message, true);
+      return;
+    }
+    closedDates = new Set((data || []).map(d => d.date));
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const year = calMonth.getFullYear();
+    const month = calMonth.getMonth();
+    const firstDow = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = todayLocalISO();
+
+    document.getElementById('calMonthTitle').textContent = `${year} 年 ${month + 1} 月`;
+
+    const dows = ['日', '一', '二', '三', '四', '五', '六'];
+    let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+    for (let i = 0; i < firstDow; i++) {
+      html += '<div class="cal-cell cal-empty"></div>';
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const classes = ['cal-cell'];
+      if (dateStr < todayStr) classes.push('cal-past');
+      if (dateStr === todayStr) classes.push('cal-today');
+      if (closedDates.has(dateStr)) classes.push('cal-closed');
+      html += `<div class="${classes.join(' ')}" onclick="toggleClosedDate('${dateStr}')">${d}</div>`;
+    }
+    document.getElementById('calGrid').innerHTML = html;
+    updateClosedStats();
+  }
+
+  function todayLocalISO() {
+    const t = new Date();
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+
+  function changeMonth(delta) {
+    calMonth.setMonth(calMonth.getMonth() + delta);
+    renderCalendar();
+  }
+  function goToday() {
+    calMonth = new Date();
+    calMonth.setDate(1);
+    renderCalendar();
+  }
+
+  async function toggleClosedDate(dateStr) {
+    const isClosed = closedDates.has(dateStr);
+    if (isClosed) {
+      const { error } = await sb.from('closed_dates').delete().eq('date', dateStr);
+      if (error) { toast('取消失敗：' + error.message, true); return; }
+      closedDates.delete(dateStr);
+      toast(`${dateStr} 已恢復營業`);
+    } else {
+      const { error } = await sb.from('closed_dates').insert({ date: dateStr });
+      if (error) { toast('設定失敗：' + error.message, true); return; }
+      closedDates.add(dateStr);
+      toast(`${dateStr} 已設為公休`);
+    }
+    renderCalendar();
+  }
+
+  function updateClosedStats() {
+    const todayStr = todayLocalISO();
+    const upcoming = Array.from(closedDates).filter(d => d >= todayStr).sort();
+    if (upcoming.length === 0) {
+      document.getElementById('closedStats').textContent = '今日起未設定任何公休日。';
+    } else {
+      document.getElementById('closedStats').textContent =
+        `今日起共有 ${upcoming.length} 天公休（最近一次：${upcoming[0]}）`;
+    }
   }
 
   // ===== Init =====
@@ -813,11 +940,7 @@
       return;
     }
     const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      showAdmin();
-    } else {
-      showLogin();
-    }
+    if (session) showAdmin(); else showLogin();
   })();
 </script>
 </body>

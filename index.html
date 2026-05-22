@@ -1285,9 +1285,8 @@
     <div class="section-eyebrow">Operation Notice</div>
     <h2 class="notice-title">休假公告</h2>
     <div class="section-divider"></div>
-    <p class="notice-body">
-      目前無休假安排，店內正常營業。<br>
-      如遇臨時公休或特殊調整，會於 Instagram <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a> 第一時間公告。
+    <p class="notice-body" id="noticeBody">
+      載入中…
     </p>
   </div>
 </section>
@@ -1754,7 +1753,7 @@
   });
 </script>
 
-<!-- ===== Supabase 動態載入 Shop 商品 ===== -->
+<!-- ===== Supabase 動態載入：Shop + 休假公告 ===== -->
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -1762,15 +1761,21 @@
     if (!window.JIBU_CONFIG || !window.supabase) return;
     const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.JIBU_CONFIG;
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    await Promise.all([loadShop(sb), loadNotice(sb)]);
+  })();
+
+  function esc(s) {
+    return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  async function loadShop(sb) {
     const grid = document.getElementById('shopGrid');
     if (!grid) return;
-
     const { data, error } = await sb
       .from('products')
       .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
-
     if (error || !data) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px">商品載入失敗，請稍後重試。</div>';
       return;
@@ -1779,10 +1784,7 @@
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px">商品準備中，敬請期待。</div>';
       return;
     }
-
-    const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const fmt = n => 'NT$' + Number(n).toLocaleString();
-
     grid.innerHTML = data.map(p => `
       <div class="shop-item" data-cat="${esc(p.category)}" onclick="addToCart('${esc(p.name).replace(/'/g, "\\'")}')">
         <div class="thumb"><img src="${esc(p.image_url || '')}" alt="${esc(p.name)}" loading="lazy"></div>
@@ -1794,7 +1796,62 @@
         </div>
       </div>
     `).join('');
-  })();
+  }
+
+  async function loadNotice(sb) {
+    const body = document.getElementById('noticeBody');
+    if (!body) return;
+    const today = new Date();
+    const t0 = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const future = new Date(today);
+    future.setDate(future.getDate() + 90);
+    const t1 = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
+
+    const igLink = 'Instagram <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a>';
+    const fallback = `目前無休假安排，店內正常營業。<br>如遇臨時公休或特殊調整，會於 ${igLink} 第一時間公告。`;
+
+    const { data, error } = await sb
+      .from('closed_dates')
+      .select('date,note')
+      .gte('date', t0)
+      .lte('date', t1)
+      .order('date', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+      body.innerHTML = fallback;
+      return;
+    }
+
+    // 連續日期 + 相同 note 合併成一個 range
+    const ranges = [];
+    for (const d of data) {
+      const last = ranges[ranges.length - 1];
+      if (last && (last.note || '') === (d.note || '') && nextDay(last.end) === d.date) {
+        last.end = d.date;
+      } else {
+        ranges.push({ start: d.date, end: d.date, note: d.note });
+      }
+    }
+    const lines = ranges.map(formatRange);
+    body.innerHTML = lines.join('<br>') + `<br><br><span style="color:var(--ink-faint);font-size:13px">如有調整，會於 ${igLink} 第一時間公告。</span>`;
+  }
+
+  function nextDay(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  function formatRange(r) {
+    const dows = ['日', '一', '二', '三', '四', '五', '六'];
+    const s = new Date(r.start + 'T00:00:00');
+    const e = new Date(r.end + 'T00:00:00');
+    const sLabel = `${s.getMonth() + 1}/${s.getDate()}（${dows[s.getDay()]}）`;
+    if (r.start === r.end) {
+      return r.note ? `${sLabel} 公休 — ${esc(r.note)}` : `${sLabel} 公休`;
+    }
+    const eLabel = `${e.getMonth() + 1}/${e.getDate()}（${dows[e.getDay()]}）`;
+    return r.note ? `${sLabel} – ${eLabel} 公休 — ${esc(r.note)}` : `${sLabel} – ${eLabel} 公休`;
+  }
 </script>
 
 </body>
