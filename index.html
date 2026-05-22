@@ -1351,14 +1351,10 @@
       <h2 class="section-title">聯絡 一坨</h2>
       <div class="section-divider"></div>
     </div>
-    <div class="contact-grid contact-grid-2">
+    <div class="contact-grid contact-grid-2" id="contactGrid">
       <div class="contact-item">
         <span class="label">Instagram</span>
         <div class="value"><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a></div>
-      </div>
-      <div class="contact-item">
-        <span class="label">Address</span>
-        <div class="value">新北市林口區<br>文化三路一段 375 號 1F</div>
       </div>
     </div>
   </div>
@@ -1371,11 +1367,11 @@
       <div class="footer-brand">
         <div class="mark">一坨咖啡</div>
         <div class="en">Jibu Coffee &amp; Lifestyle</div>
-        <p>一杯咖啡的時間，是一天當中最安靜的儀式。<br>我們相信，慢一點，也是一種前進。</p>
+        <p id="footerBrandText">一杯咖啡的時間，是一天當中最安靜的儀式。<br>我們相信，慢一點，也是一種前進。</p>
       </div>
       <div class="footer-col">
         <h5>Shop</h5>
-        <ul>
+        <ul id="footerShopList">
           <li>濾掛咖啡</li>
           <li>原豆</li>
           <li>日本選物</li>
@@ -1385,14 +1381,14 @@
       </div>
       <div class="footer-col">
         <h5>About</h5>
-        <ul>
+        <ul id="footerAboutList">
           <li><a href="#contact" style="color:inherit;">聯絡我們</a></li>
           <li><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener" style="color:inherit;">Instagram</a></li>
         </ul>
       </div>
       <div class="footer-col">
         <h5>Help</h5>
-        <ul>
+        <ul id="footerHelpList">
           <li>隱私條款</li>
           <li>退款政策</li>
           <li>配送說明</li>
@@ -1565,6 +1561,7 @@
     await Promise.all([
       loadShop(sb).catch(err => console.error('loadShop failed', err)),
       loadNotice(sb).catch(err => console.error('loadNotice failed', err)),
+      loadSiteSettings(sb).catch(err => console.error('loadSiteSettings failed', err)),
     ]);
     try {
       sb.auth.onAuthStateChange(() => refreshAuthUI());
@@ -1769,6 +1766,58 @@
     }
     const eLabel = `${e.getMonth() + 1}/${e.getDate()}（${dows[e.getDay()]}）`;
     return r.note ? `${sLabel} – ${eLabel} 公休 — ${esc(r.note)}` : `${sLabel} – ${eLabel} 公休`;
+  }
+
+  // ===== Site Settings =====
+  async function loadSiteSettings(sb) {
+    const { data, error } = await sb.from('site_settings').select('*').eq('id', 1).maybeSingle();
+    if (error || !data) return;
+    // footer brand tagline
+    const brandEl = document.getElementById('footerBrandText');
+    if (brandEl && data.brand_tagline) {
+      brandEl.innerHTML = data.brand_tagline.split('\n').map(esc).join('<br>');
+    }
+    // footer columns
+    renderFooterList('footerShopList', data.shop_items);
+    renderFooterList('footerAboutList', data.about_items);
+    renderFooterList('footerHelpList', data.help_items);
+    // contact (Instagram 始終保留，再依設定補 Visit 區塊)
+    renderContact(data);
+  }
+
+  function renderFooterList(id, raw) {
+    const ul = document.getElementById(id);
+    if (!ul || !raw) return;
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    ul.innerHTML = lines.map(line => {
+      const idx = line.indexOf('|');
+      if (idx > 0) {
+        const label = line.slice(0, idx).trim();
+        const href = line.slice(idx + 1).trim();
+        const external = /^https?:/i.test(href);
+        return `<li><a href="${esc(href)}"${external ? ' target="_blank" rel="noopener"' : ''} style="color:inherit;">${esc(label)}</a></li>`;
+      }
+      return `<li>${esc(line)}</li>`;
+    }).join('');
+  }
+
+  function renderContact(s) {
+    const grid = document.getElementById('contactGrid');
+    if (!grid) return;
+    const igHtml = `<div class="contact-item"><span class="label">Instagram</span><div class="value"><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a></div></div>`;
+    const parts = [];
+    if (s.address) parts.push(`<div><span class="label" style="display:block;margin-bottom:6px;font-size:10px;color:var(--accent);letter-spacing:0.3em;font-style:italic">ADDRESS</span>${esc(s.address).replace(/\n/g, '<br>')}</div>`);
+    if (s.hours) parts.push(`<div><span class="label" style="display:block;margin-bottom:6px;font-size:10px;color:var(--accent);letter-spacing:0.3em;font-style:italic">HOURS</span>${esc(s.hours).replace(/\n/g, '<br>')}</div>`);
+    if (s.phone) parts.push(`<div><span class="label" style="display:block;margin-bottom:6px;font-size:10px;color:var(--accent);letter-spacing:0.3em;font-style:italic">PHONE</span>${esc(s.phone)}</div>`);
+    if (parts.length === 0) {
+      grid.innerHTML = igHtml;
+      grid.className = 'contact-grid contact-grid-2';
+      return;
+    }
+    const visitHtml = `<div class="contact-item"><span class="label">Visit</span><div class="value" style="display:flex;flex-direction:column;gap:18px;font-size:15px">${parts.join('')}</div></div>`;
+    grid.innerHTML = igHtml + visitHtml;
+    grid.className = 'contact-grid contact-grid-2';
   }
 </script>
 

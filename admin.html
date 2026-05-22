@@ -414,8 +414,20 @@
     z-index: 200;
     pointer-events: none;
   }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
   .toast.err { background: var(--danger); }
+  .toast-undo {
+    margin-left: 14px;
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.18);
+    color: var(--bg);
+    border: none;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .toast-undo:hover { background: rgba(255,255,255,0.3); }
 
   @media (max-width: 720px) {
     header { padding: 14px 18px; }
@@ -461,6 +473,7 @@
   <nav class="tabs">
     <button class="tab active" data-tab="products" onclick="switchTab('products')">商品</button>
     <button class="tab" data-tab="dates" onclick="switchTab('dates')">公休日曆</button>
+    <button class="tab" data-tab="site" onclick="switchTab('site')">網站設定</button>
   </nav>
 
   <!-- ===== 商品 ===== -->
@@ -515,6 +528,57 @@
       <div class="cal-hint">
         <span class="swatch"></span>
         <span>標示 = 公休日（前台會自動公告）。點公休日可恢復營業。</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 網站設定 ===== -->
+  <section class="tab-panel" data-panel="site">
+    <div class="toolbar">
+      <div>
+        <h2>網站設定</h2>
+        <div class="stats">footer 文案、店家資訊、Shop / About / Help 三組清單</div>
+      </div>
+      <button class="btn" onclick="saveSiteSettings()" id="siteSaveBtn">儲存</button>
+    </div>
+
+    <div class="site-form">
+      <div class="form-row">
+        <label>品牌標語（footer 左側那段；換行就會斷行）</label>
+        <textarea id="ss_brand_tagline" rows="3" placeholder="一杯咖啡的時間…"></textarea>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>地址（Contact 區塊顯示）</label>
+          <input type="text" id="ss_address" placeholder="新北市林口區文化三路一段 375 號 1F">
+        </div>
+        <div class="form-row">
+          <label>電話</label>
+          <input type="text" id="ss_phone" placeholder="02-xxxx-xxxx">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>營業時間（每行一條）</label>
+        <textarea id="ss_hours" rows="3" placeholder="平日 10:00 – 18:00&#10;六日 11:00 – 19:00"></textarea>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Shop 清單（每行一項）</label>
+          <textarea id="ss_shop_items" rows="6"></textarea>
+        </div>
+        <div class="form-row">
+          <label>About 清單（每行一項；可寫「文字|連結」）</label>
+          <textarea id="ss_about_items" rows="6" placeholder="聯絡我們|#contact&#10;Instagram|https://instagram.com/jibucoffee"></textarea>
+          <div class="help">沒有 | 的就純文字，有就會變成可點連結。</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Help 清單（每行一項；可寫「文字|連結」）</label>
+        <textarea id="ss_help_items" rows="5"></textarea>
       </div>
     </div>
   </section>
@@ -610,13 +674,30 @@
 
   // ===== Toast =====
   let toastTimer;
-  function toast(msg, isErr = false) {
+  function toast(msg, optOrErr) {
+    const opts = (optOrErr && typeof optOrErr === 'object') ? optOrErr : { isErr: !!optOrErr };
     const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.toggle('err', isErr);
+    t.classList.toggle('err', !!opts.isErr);
+    if (opts.undo) {
+      t.innerHTML = '';
+      const text = document.createElement('span');
+      text.textContent = msg;
+      const btn = document.createElement('button');
+      btn.className = 'toast-undo';
+      btn.textContent = '復原';
+      btn.onclick = () => {
+        clearTimeout(toastTimer);
+        t.classList.remove('show');
+        opts.undo();
+      };
+      t.appendChild(text);
+      t.appendChild(btn);
+    } else {
+      t.textContent = msg;
+    }
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+    toastTimer = setTimeout(() => t.classList.remove('show'), opts.duration || 2400);
   }
 
   // ===== Auth =====
@@ -654,6 +735,7 @@
     document.getElementById('userEmail').textContent = user.email;
     await loadProducts();
     await loadClosedDates();
+    await loadSiteSettings();
   }
 
   function showLogin() {
@@ -848,6 +930,33 @@
     await loadProducts();
   }
 
+  // ===== Site Settings =====
+  const SITE_FIELDS = ['brand_tagline', 'address', 'phone', 'hours', 'shop_items', 'about_items', 'help_items'];
+
+  async function loadSiteSettings() {
+    const { data, error } = await sb.from('site_settings').select('*').eq('id', 1).maybeSingle();
+    if (error) { toast('載入網站設定失敗：' + error.message, true); return; }
+    const row = data || {};
+    SITE_FIELDS.forEach(f => {
+      const el = document.getElementById('ss_' + f);
+      if (el) el.value = row[f] ?? '';
+    });
+  }
+
+  async function saveSiteSettings() {
+    const payload = {};
+    SITE_FIELDS.forEach(f => {
+      const el = document.getElementById('ss_' + f);
+      payload[f] = el ? el.value : '';
+    });
+    const btn = document.getElementById('siteSaveBtn');
+    btn.disabled = true; btn.textContent = '儲存中...';
+    const { error } = await sb.from('site_settings').update(payload).eq('id', 1);
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { toast('儲存失敗：' + error.message, true); return; }
+    toast('已儲存');
+  }
+
   // ===== Calendar (公休日) =====
   let calMonth = new Date();
   calMonth.setDate(1);
@@ -905,20 +1014,28 @@
     renderCalendar();
   }
 
-  async function toggleClosedDate(dateStr) {
-    const isClosed = closedDates.has(dateStr);
-    if (isClosed) {
-      const { error } = await sb.from('closed_dates').delete().eq('date', dateStr);
-      if (error) { toast('取消失敗：' + error.message, true); return; }
-      closedDates.delete(dateStr);
-      toast(`${dateStr} 已恢復營業`);
-    } else {
+  async function applyClosedDate(dateStr, makeClosed) {
+    if (makeClosed) {
       const { error } = await sb.from('closed_dates').insert({ date: dateStr });
-      if (error) { toast('設定失敗：' + error.message, true); return; }
+      if (error) return { error };
       closedDates.add(dateStr);
-      toast(`${dateStr} 已設為公休`);
+    } else {
+      const { error } = await sb.from('closed_dates').delete().eq('date', dateStr);
+      if (error) return { error };
+      closedDates.delete(dateStr);
     }
     renderCalendar();
+    return {};
+  }
+
+  async function toggleClosedDate(dateStr) {
+    const wasClosed = closedDates.has(dateStr);
+    const { error } = await applyClosedDate(dateStr, !wasClosed);
+    if (error) { toast((wasClosed ? '取消失敗：' : '設定失敗：') + error.message, true); return; }
+    toast(wasClosed ? `${dateStr} 已恢復營業` : `${dateStr} 已設為公休`, {
+      undo: () => applyClosedDate(dateStr, wasClosed),
+      duration: 5000,
+    });
   }
 
   function updateClosedStats() {
