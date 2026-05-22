@@ -1568,9 +1568,17 @@
     const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.JIBU_CONFIG;
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window._sb = sb;
-    sb.auth.onAuthStateChange(() => refreshAuthUI());
-    refreshAuthUI();
-    await Promise.all([loadShop(sb), loadNotice(sb)]);
+    // 先把資料載入跑掉，再接 auth（避免 auth 任何問題卡到內容載入）
+    await Promise.all([
+      loadShop(sb).catch(err => console.error('loadShop failed', err)),
+      loadNotice(sb).catch(err => console.error('loadNotice failed', err)),
+    ]);
+    try {
+      sb.auth.onAuthStateChange(() => refreshAuthUI());
+      await refreshAuthUI();
+    } catch (err) {
+      console.error('auth init failed', err);
+    }
   })();
 
   // ===== Customer Auth =====
