@@ -928,10 +928,100 @@
   /* ===== Reveal ===== */
   .reveal {
     opacity: 0;
-    transform: translateY(40px);
-    transition: opacity 0.9s ease, transform 0.9s ease;
+    transition: opacity 0.6s ease;
   }
-  .reveal.in { opacity: 1; transform: translateY(0); }
+  .reveal.in { opacity: 1; }
+
+  /* ===== Notice ===== */
+  .notice {
+    padding: 130px 48px 90px;
+    background: var(--bg-soft);
+    text-align: center;
+  }
+  .notice-inner { max-width: 720px; margin: 0 auto; }
+  .notice .section-eyebrow { margin-bottom: 8px; }
+  .notice-title {
+    font-family: var(--f-serif-tc);
+    font-size: clamp(36px, 5vw, 56px);
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    margin: 4px 0 0;
+  }
+  .notice-body {
+    margin-top: 36px;
+    font-size: 15px;
+    color: var(--ink-soft);
+    line-height: 2.1;
+  }
+  .notice-body a {
+    color: var(--accent-deep);
+    border-bottom: 1px solid var(--accent);
+  }
+
+  /* ===== Menu Section ===== */
+  .menu-section {
+    padding: 130px 48px 110px;
+    background: var(--bg);
+  }
+  .menu-section .section-head {
+    text-align: center;
+    margin-bottom: 70px;
+  }
+  .menu-section .section-sub {
+    margin-top: 22px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.9;
+  }
+  .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .menu-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 44px 32px 40px;
+    text-align: center;
+    transition: border-color 0.4s, transform 0.4s;
+  }
+  .menu-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+  }
+  .menu-cat-jp {
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    color: var(--ink-faint);
+    letter-spacing: 0.18em;
+  }
+  .menu-card h3 {
+    font-family: var(--f-serif-tc);
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    margin: 14px 0 4px;
+  }
+  .menu-cat-en {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-faint);
+    letter-spacing: 0.2em;
+  }
+  .menu-items {
+    list-style: none;
+    margin-top: 26px;
+    padding-top: 26px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 2;
+  }
 
   /* ===== Contact ===== */
   .contact {
@@ -1133,6 +1223,9 @@
     .hero-visual { height: 60vh; }
     section { padding: 90px 24px; }
     .concept-grid, .sub-grid, .product-row, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
+    .menu-grid { grid-template-columns: 1fr; gap: 16px; }
+    .notice { padding: 110px 24px 70px; }
+    .menu-section { padding: 90px 24px; }
     .sub-card.featured, .sub-card.featured:hover { transform: none; }
     .sub-card:hover { transform: none; }
     .about { grid-template-columns: 1fr; padding: 90px 24px; gap: 50px; }
@@ -1173,7 +1266,7 @@
     <button class="drawer-close" onclick="closeDrawer()" aria-label="關閉選單">×</button>
   </div>
   <ul>
-    <li><a href="#concept" onclick="closeDrawer()"><span>關於 一坨</span><span class="en">Concept</span></a></li>
+    <li><a href="#menu" onclick="closeDrawer()"><span>店內菜單</span><span class="en">In-Store Menu</span></a></li>
     <li><a href="#recommend" onclick="closeDrawer()"><span>店主推薦</span><span class="en">Recommend</span></a></li>
     <li><a href="#subscription" onclick="closeDrawer()"><span>定期配送</span><span class="en">Subscription</span></a></li>
     <li><a href="#shop" onclick="closeDrawer()"><span>選物商店</span><span class="en">Shop</span></a></li>
@@ -1186,62 +1279,45 @@
   </div>
 </aside>
 
-<!-- ===== Hero ===== -->
-<section class="hero">
-  <div class="hero-text">
-    <div class="hero-eyebrow">Slow Coffee · Daily Ritual</div>
-    <h1 class="hero-title">
-      日々のひと匙、<br>
-      静かな餘白。
-    </h1>
-    <p class="hero-desc">
-      一坨咖啡是一間關於日常的小店。<br>
-      我們相信，一杯好的咖啡，<br>
-      是清晨醒來的儀式，也是夜裡靜下來的呼吸。
+<!-- ===== Notice ===== -->
+<section class="notice reveal" id="notice">
+  <div class="notice-inner">
+    <div class="section-eyebrow">Operation Notice</div>
+    <h2 class="notice-title">休假公告</h2>
+    <div class="section-divider"></div>
+    <p class="notice-body">
+      目前無休假安排，店內正常營業。<br>
+      如遇臨時公休或特殊調整，會於 Instagram <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a> 第一時間公告。
     </p>
-    <a href="#subscription" class="hero-cta">
-      <span>Coffee Subscription</span>
-      <span class="arrow">→</span>
-    </a>
-  </div>
-  <div class="hero-visual">
-    <div class="frame"></div>
-    <div class="vertical-text">毎日に、ひと匙の餘白を</div>
-    <div class="stamp">Est. <span>2025</span> · Taipei</div>
   </div>
 </section>
 
-<!-- ===== Concept ===== -->
-<section class="concept reveal" id="concept">
+<!-- ===== In-Store Menu ===== -->
+<section class="menu-section reveal" id="menu">
   <div class="section-head">
-    <div class="section-eyebrow">Our Concept</div>
-    <h2 class="section-title">關於 一坨</h2>
+    <div class="section-eyebrow">In-Store Menu</div>
+    <h2 class="section-title">店內菜單</h2>
     <div class="section-divider"></div>
+    <p class="section-sub">店內現點現做，菜單隨季節微調。最新品項以店內公告為準。</p>
   </div>
-  <div class="concept-grid">
-    <div class="concept-item">
-      <div class="icon">
-        <svg viewBox="0 0 24 24"><path d="M6 8 c0 4 0 8 6 12 c6-4 6-8 6-12 M9 8 c0-3 6-3 6 0"/></svg>
-      </div>
-      <h3>選豆</h3>
-      <div class="en">Curated Beans</div>
-      <p>我們親自走訪小型莊園與精品烘豆師，挑選風味細緻、可以細細品味的單品豆。</p>
+  <div class="menu-grid">
+    <div class="menu-card">
+      <div class="menu-cat-jp">ハンドドリップ</div>
+      <h3>手沖咖啡</h3>
+      <div class="menu-cat-en">Hand Drip</div>
+      <ul class="menu-items"><li>品項準備中</li></ul>
     </div>
-    <div class="concept-item">
-      <div class="icon">
-        <svg viewBox="0 0 24 24"><path d="M8 4 v16 M16 4 v16 M5 8 h14 M5 16 h14"/></svg>
-      </div>
-      <h3>慢沖</h3>
-      <div class="en">Slow Brewing</div>
-      <p>每一包濾掛皆於小批量現場烘焙、手工填裝，保留豆子最完整的香氣與層次。</p>
+    <div class="menu-card">
+      <div class="menu-cat-jp">エスプレッソ</div>
+      <h3>義式咖啡</h3>
+      <div class="menu-cat-en">Espresso</div>
+      <ul class="menu-items"><li>品項準備中</li></ul>
     </div>
-    <div class="concept-item">
-      <div class="icon">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4 v16 M4 12 h16"/></svg>
-      </div>
-      <h3>生活</h3>
-      <div class="en">Daily Lifestyle</div>
-      <p>除了咖啡，我們也分享日系生活選物——讓沖一杯咖啡的時光，成為一天最安靜的儀式。</p>
+    <div class="menu-card">
+      <div class="menu-cat-jp">ノンコーヒー</div>
+      <h3>非咖啡類</h3>
+      <div class="menu-cat-en">Non-Coffee</div>
+      <ul class="menu-items"><li>品項準備中</li></ul>
     </div>
   </div>
 </section>
