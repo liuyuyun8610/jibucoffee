@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一坨咖啡 ｜ 後台</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfb;
+    --bg-soft: #f6f2ea;
+    --bg-card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #6b665e;
+    --ink-faint: #a8a299;
+    --line: #e8e3d8;
+    --accent: #8b6f47;
+    --accent-deep: #5c4830;
+    --danger: #c2533c;
+    --ok: #6b8e6b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans TC', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  a { color: var(--accent-deep); text-decoration: none; }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 14px;
+  }
+  input, textarea, select {
+    font-family: inherit;
+    font-size: 14px;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    background: var(--bg-card);
+    color: var(--ink);
+    border-radius: 8px;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 32px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--line);
+  }
+  header .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+  }
+  header .brand img { height: 32px; }
+  header .user-info {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+  .btn {
+    padding: 9px 18px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: var(--accent-deep); }
+  .btn.outline {
+    background: transparent;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+  }
+  .btn.outline:hover { color: var(--ink); border-color: var(--ink); background: transparent; }
+  .btn.danger { background: var(--danger); }
+  .btn.danger:hover { background: #a03e2c; }
+  .btn.sm { padding: 6px 12px; font-size: 12px; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 32px; }
+
+  /* ===== Login ===== */
+  .login-wrap {
+    min-height: calc(100vh - 65px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+  }
+  .login-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 40px 32px;
+  }
+  .login-card h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .login-card .sub {
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+    font-size: 13px;
+  }
+  .login-card label {
+    display: block;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    margin-top: 14px;
+    letter-spacing: 0.05em;
+  }
+  .login-card .btn {
+    width: 100%;
+    margin-top: 24px;
+    padding: 12px;
+    font-size: 14px;
+  }
+  .login-error {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: #fbe9e5;
+    color: var(--danger);
+    border-radius: 8px;
+    font-size: 13px;
+    display: none;
+  }
+
+  /* ===== List ===== */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .toolbar h2 {
+    font-size: 22px;
+    font-weight: 500;
+  }
+  .toolbar .stats {
+    color: var(--ink-soft);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead {
+    background: var(--bg-soft);
+  }
+  th, td {
+    padding: 14px 18px;
+    text-align: left;
+    font-size: 13px;
+    border-bottom: 1px solid var(--line);
+  }
+  th {
+    color: var(--ink-soft);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--bg-soft); }
+  td .thumb {
+    width: 56px;
+    height: 56px;
+    background: var(--bg-soft);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-faint);
+    font-size: 11px;
+  }
+  td .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  td.actions {
+    text-align: right;
+    white-space: nowrap;
+  }
+  td.actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-radius: 6px;
+    margin-left: 4px;
+  }
+  td.actions button:hover { background: var(--bg-soft); color: var(--ink); }
+  td.actions button.del:hover { background: #fbe9e5; color: var(--danger); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    background: var(--bg-soft);
+    color: var(--ink-soft);
+  }
+  .badge.active { background: #e3eee3; color: var(--ok); }
+  .badge.inactive { background: #f0e8e3; color: var(--ink-faint); }
+
+  .empty {
+    padding: 60px 32px;
+    text-align: center;
+    color: var(--ink-faint);
+  }
+
+  /* ===== Modal ===== */
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 26, 26, 0.4);
+    display: none;
+    z-index: 100;
+  }
+  .modal-bg.show { display: block; }
+  .modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 580px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border-radius: 16px;
+    z-index: 101;
+    display: none;
+  }
+  .modal.show { display: block; }
+  .modal-head {
+    padding: 22px 28px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-head h3 { font-size: 18px; font-weight: 500; }
+  .modal-head .close {
+    color: var(--ink-faint);
+    font-size: 22px;
+    line-height: 1;
+  }
+  .modal-body { padding: 24px 28px; }
+  .modal-foot {
+    padding: 18px 28px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .form-row { margin-bottom: 16px; }
+  .form-row label {
+    display: block;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    letter-spacing: 0.05em;
+  }
+  .form-row .help {
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-top: 4px;
+  }
+  .form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  textarea { min-height: 70px; resize: vertical; }
+
+  .image-upload {
+    border: 2px dashed var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg);
+    position: relative;
+  }
+  .image-upload:hover { border-color: var(--accent); background: var(--bg-soft); }
+  .image-upload.has-image { padding: 0; border-style: solid; }
+  .image-upload img {
+    width: 100%;
+    max-height: 240px;
+    object-fit: contain;
+    border-radius: 10px;
+    display: block;
+  }
+  .image-upload input[type=file] { display: none; }
+  .image-upload .placeholder {
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+  .image-upload .uploading {
+    color: var(--accent);
+    font-size: 13px;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 0;
+  }
+  .checkbox-row input { width: auto; }
+  .checkbox-row label {
+    font-size: 14px;
+    color: var(--ink);
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-size: 13px;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.err { background: var(--danger); }
+
+  @media (max-width: 720px) {
+    header { padding: 14px 18px; }
+    main { padding: 20px 14px; }
+    .table-wrap { overflow-x: auto; }
+    table { min-width: 720px; }
+    .form-grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <img src="logo.png" alt="一坨咖啡">
+    <span>後台</span>
+  </div>
+  <div class="user-info" id="userInfo" style="display:none">
+    <span id="userEmail"></span>
+    <button class="btn outline" onclick="logout()">登出</button>
+  </div>
+</header>
+
+<!-- ===== 登入畫面 ===== -->
+<div class="login-wrap" id="loginView">
+  <div class="login-card">
+    <h1>後台登入</h1>
+    <div class="sub">一坨咖啡 商品管理</div>
+    <form id="loginForm" onsubmit="login(event)">
+      <label>Email</label>
+      <input type="email" id="loginEmail" required autocomplete="email">
+      <label>密碼</label>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+      <button type="submit" class="btn" id="loginBtn">登入</button>
+    </form>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ===== 商品列表 ===== -->
+<main id="adminView" style="display:none">
+  <div class="toolbar">
+    <div>
+      <h2>商品管理</h2>
+      <div class="stats" id="productStats"></div>
+    </div>
+    <button class="btn" onclick="openEditor()">+ 新增商品</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:50px">排序</th>
+          <th style="width:80px">圖片</th>
+          <th>商品名稱</th>
+          <th style="width:120px">分類</th>
+          <th style="width:110px">價格</th>
+          <th style="width:90px">狀態</th>
+          <th style="width:140px"></th>
+        </tr>
+      </thead>
+      <tbody id="productList">
+        <tr><td colspan="7" class="empty">載入中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- ===== 編輯 Modal ===== -->
+<div class="modal-bg" id="modalBg" onclick="closeEditor()"></div>
+<div class="modal" id="editModal">
+  <div class="modal-head">
+    <h3 id="editorTitle">新增商品</h3>
+    <button class="close" onclick="closeEditor()">×</button>
+  </div>
+  <div class="modal-body">
+    <form id="editorForm" onsubmit="saveProduct(event)">
+      <input type="hidden" id="productId">
+
+      <!-- 圖片上傳 -->
+      <div class="form-row">
+        <label>商品圖片</label>
+        <div class="image-upload" id="imageUpload" onclick="document.getElementById('imageFile').click()">
+          <input type="file" id="imageFile" accept="image/*" onchange="handleImageUpload(event)">
+          <div class="placeholder" id="imagePlaceholder">點此上傳商品圖（自動壓縮）</div>
+        </div>
+        <input type="hidden" id="imageUrl">
+        <div class="help">直接拍照上傳，會自動縮成 1200×1200。</div>
+      </div>
+
+      <!-- 名稱 -->
+      <div class="form-row">
+        <label>商品名稱（中文）</label>
+        <input type="text" id="name" required placeholder="例：一坨經典 濾掛">
+      </div>
+
+      <!-- 日文名稱 -->
+      <div class="form-row">
+        <label>商品名稱（日文／英文，可選）</label>
+        <input type="text" id="nameJp" placeholder="例：JIBU Classic">
+      </div>
+
+      <div class="form-grid-2">
+        <!-- 價格 -->
+        <div class="form-row">
+          <label>價格（NT$）</label>
+          <input type="number" id="price" required min="0" placeholder="例：1380">
+        </div>
+
+        <!-- 排序 -->
+        <div class="form-row">
+          <label>排序（小的在前）</label>
+          <input type="number" id="sortOrder" value="0">
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <!-- 分類 -->
+        <div class="form-row">
+          <label>分類</label>
+          <select id="category">
+            <option value="coffee">Coffee（咖啡）</option>
+            <option value="japan">Japan（日本選物）</option>
+            <option value="korea">Korea（韓國選物）</option>
+            <option value="goods">Goods（生活選物）</option>
+          </select>
+        </div>
+
+        <!-- 產地標籤 -->
+        <div class="form-row">
+          <label>產地／品牌標籤</label>
+          <input type="text" id="origin" placeholder="例：Coffee · Taipei">
+        </div>
+      </div>
+
+      <!-- 規格 -->
+      <div class="form-row">
+        <label>規格簡述</label>
+        <input type="text" id="metaLeft" placeholder="例：Drip Bag / 280ml Ceramic">
+        <div class="help">會顯示在卡片價格旁邊，建議短一點。</div>
+      </div>
+
+      <!-- 描述 -->
+      <div class="form-row">
+        <label>商品描述（可選）</label>
+        <textarea id="description" placeholder="商品故事、規格說明、產地..."></textarea>
+      </div>
+
+      <!-- 外部連結 -->
+      <div class="form-row">
+        <label>外部購買連結（可選）</label>
+        <input type="url" id="externalUrl" placeholder="https://...">
+        <div class="help">如果是寄售或代理商品，可以填外部站連結。等綠界金流接好後可空白。</div>
+      </div>
+
+      <!-- 顯示開關 -->
+      <div class="checkbox-row">
+        <input type="checkbox" id="isActive" checked>
+        <label for="isActive">在前台顯示這個商品</label>
+      </div>
+    </form>
+  </div>
+  <div class="modal-foot">
+    <button class="btn outline" onclick="closeEditor()">取消</button>
+    <button class="btn" onclick="saveProduct(event)" id="saveBtn">儲存</button>
+  </div>
+</div>
+
+<!-- ===== Toast ===== -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== Scripts ===== -->
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.JIBU_CONFIG;
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ===== Toast =====
+  let toastTimer;
+  function toast(msg, isErr = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.toggle('err', isErr);
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  // ===== Auth =====
+  async function login(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = '登入中...';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false;
+    btn.textContent = '登入';
+    if (error) {
+      errEl.textContent = error.message;
+      errEl.style.display = 'block';
+      return;
+    }
+    showAdmin();
+  }
+
+  async function logout() {
+    await sb.auth.signOut();
+    location.reload();
+  }
+
+  async function showAdmin() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) { showLogin(); return; }
+    document.getElementById('loginView').style.display = 'none';
+    document.getElementById('adminView').style.display = 'block';
+    document.getElementById('userInfo').style.display = 'flex';
+    document.getElementById('userEmail').textContent = user.email;
+    await loadProducts();
+  }
+
+  function showLogin() {
+    document.getElementById('loginView').style.display = 'flex';
+    document.getElementById('adminView').style.display = 'none';
+    document.getElementById('userInfo').style.display = 'none';
+  }
+
+  // ===== List =====
+  async function loadProducts() {
+    const tbody = document.getElementById('productList');
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">載入中...</td></tr>';
+    const { data, error } = await sb
+      .from('products')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">載入失敗：${error.message}</td></tr>`;
+      return;
+    }
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">還沒有商品，按右上「+ 新增商品」開始建立。</td></tr>';
+      document.getElementById('productStats').textContent = '0 個商品';
+      return;
+    }
+    const activeCount = data.filter(p => p.is_active).length;
+    document.getElementById('productStats').textContent = `共 ${data.length} 個商品（前台顯示 ${activeCount} 個）`;
+    tbody.innerHTML = data.map(p => `
+      <tr>
+        <td>${p.sort_order}</td>
+        <td><div class="thumb">${p.image_url ? `<img src="${escapeHtml(p.image_url)}" alt="">` : '無圖'}</div></td>
+        <td>
+          <div style="font-weight:500">${escapeHtml(p.name)}</div>
+          ${p.name_jp ? `<div style="font-size:11px;color:var(--ink-faint);margin-top:2px">${escapeHtml(p.name_jp)}</div>` : ''}
+        </td>
+        <td><span class="badge">${categoryLabel(p.category)}</span></td>
+        <td>NT$${p.price.toLocaleString()}</td>
+        <td>${p.is_active ? '<span class="badge active">顯示中</span>' : '<span class="badge inactive">已隱藏</span>'}</td>
+        <td class="actions">
+          <button onclick='openEditor(${JSON.stringify(p).replace(/'/g, "&apos;")})'>編輯</button>
+          <button class="del" onclick="deleteProduct('${p.id}', '${escapeHtml(p.name).replace(/'/g, "\\'")}')">刪除</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function categoryLabel(c) {
+    return { coffee: 'Coffee', japan: 'Japan', korea: 'Korea', goods: 'Goods' }[c] || c;
+  }
+  function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ===== Editor =====
+  function openEditor(product = null) {
+    document.getElementById('editorTitle').textContent = product ? '編輯商品' : '新增商品';
+    document.getElementById('productId').value = product?.id || '';
+    document.getElementById('name').value = product?.name || '';
+    document.getElementById('nameJp').value = product?.name_jp || '';
+    document.getElementById('price').value = product?.price ?? '';
+    document.getElementById('sortOrder').value = product?.sort_order ?? 0;
+    document.getElementById('category').value = product?.category || 'goods';
+    document.getElementById('origin').value = product?.origin || '';
+    document.getElementById('metaLeft').value = product?.meta_left || '';
+    document.getElementById('description').value = product?.description || '';
+    document.getElementById('externalUrl').value = product?.external_url || '';
+    document.getElementById('isActive').checked = product?.is_active ?? true;
+    setImagePreview(product?.image_url || '');
+
+    document.getElementById('modalBg').classList.add('show');
+    document.getElementById('editModal').classList.add('show');
+  }
+
+  function closeEditor() {
+    document.getElementById('modalBg').classList.remove('show');
+    document.getElementById('editModal').classList.remove('show');
+  }
+
+  function setImagePreview(url) {
+    const upload = document.getElementById('imageUpload');
+    const placeholder = document.getElementById('imagePlaceholder');
+    document.getElementById('imageUrl').value = url || '';
+    if (url) {
+      upload.classList.add('has-image');
+      placeholder.innerHTML = '';
+      upload.querySelector('img')?.remove();
+      const img = document.createElement('img');
+      img.src = url;
+      upload.appendChild(img);
+    } else {
+      upload.classList.remove('has-image');
+      upload.querySelector('img')?.remove();
+      placeholder.textContent = '點此上傳商品圖（自動壓縮）';
+    }
+  }
+
+  // ===== 圖片上傳 =====
+  async function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const placeholder = document.getElementById('imagePlaceholder');
+    placeholder.innerHTML = '<span class="uploading">壓縮中...</span>';
+
+    try {
+      const blob = await resizeImage(file, 1200, 0.82);
+      placeholder.innerHTML = '<span class="uploading">上傳中...</span>';
+      const ext = file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext === 'jpg' || ext === 'jpeg' ? 'jpg' : ext}`;
+      const { error } = await sb.storage.from('product-images').upload(fileName, blob, {
+        contentType: blob.type,
+        upsert: false,
+      });
+      if (error) throw error;
+      const { data: pub } = sb.storage.from('product-images').getPublicUrl(fileName);
+      setImagePreview(pub.publicUrl);
+      toast('圖片上傳成功');
+    } catch (err) {
+      toast('上傳失敗：' + err.message, true);
+      placeholder.textContent = '點此上傳商品圖（自動壓縮）';
+    }
+    e.target.value = '';
+  }
+
+  // canvas 縮圖
+  function resizeImage(file, maxSize, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > maxSize) {
+            height = Math.round(height * maxSize / width);
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = Math.round(width * maxSize / height);
+            height = maxSize;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error('壓縮失敗')), 'image/jpeg', quality);
+        };
+        img.onerror = () => reject(new Error('圖片讀取失敗'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('檔案讀取失敗'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ===== Save =====
+  async function saveProduct(e) {
+    e.preventDefault();
+    const form = document.getElementById('editorForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    const id = document.getElementById('productId').value;
+    const payload = {
+      name: document.getElementById('name').value.trim(),
+      name_jp: document.getElementById('nameJp').value.trim() || null,
+      price: parseInt(document.getElementById('price').value, 10),
+      sort_order: parseInt(document.getElementById('sortOrder').value, 10) || 0,
+      category: document.getElementById('category').value,
+      origin: document.getElementById('origin').value.trim() || null,
+      meta_left: document.getElementById('metaLeft').value.trim() || null,
+      description: document.getElementById('description').value.trim() || null,
+      external_url: document.getElementById('externalUrl').value.trim() || null,
+      image_url: document.getElementById('imageUrl').value || null,
+      is_active: document.getElementById('isActive').checked,
+    };
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = '儲存中...';
+
+    let resp;
+    if (id) {
+      resp = await sb.from('products').update(payload).eq('id', id);
+    } else {
+      resp = await sb.from('products').insert(payload);
+    }
+
+    btn.disabled = false;
+    btn.textContent = '儲存';
+
+    if (resp.error) {
+      toast('儲存失敗：' + resp.error.message, true);
+      return;
+    }
+
+    toast(id ? '已更新' : '已新增');
+    closeEditor();
+    await loadProducts();
+  }
+
+  // ===== Delete =====
+  async function deleteProduct(id, name) {
+    if (!confirm(`確定刪除「${name}」？此動作無法復原。`)) return;
+    const { error } = await sb.from('products').delete().eq('id', id);
+    if (error) {
+      toast('刪除失敗：' + error.message, true);
+      return;
+    }
+    toast('已刪除');
+    await loadProducts();
+  }
+
+  // ===== Init =====
+  (async () => {
+    if (SUPABASE_ANON_KEY === 'REPLACE_ME_WITH_ANON_KEY') {
+      document.getElementById('loginError').textContent = '尚未設定 Supabase anon key，請通知工程師。';
+      document.getElementById('loginError').style.display = 'block';
+      return;
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      showAdmin();
+    } else {
+      showLogin();
+    }
+  })();
+</script>
+</body>
+</html>
