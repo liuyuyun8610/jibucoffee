@@ -380,91 +380,6 @@
     font-weight: 300;
   }
 
-  /* ===== Recommend (circular cards) ===== */
-  .recommend {
-    background: var(--bg);
-    max-width: none;
-    padding: 6px 48px 130px;
-  }
-  .recommend-inner {
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  .product-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 40px;
-    max-width: 980px;
-    margin: 0 auto;
-  }
-  .product-card {
-    background: var(--bg-card);
-    padding: 36px 32px 30px;
-    transition: transform 0.5s ease;
-    position: relative;
-  }
-  .product-card:hover { transform: translateY(-8px); }
-
-  .product-card .name {
-    font-family: var(--f-serif-jp);
-    font-weight: 400;
-    font-size: 17px;
-    letter-spacing: 0.12em;
-    margin-bottom: 18px;
-    line-height: 1.4;
-  }
-
-  .product-circle {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 12px;
-    margin-bottom: 32px;
-    position: relative;
-    overflow: hidden;
-  }
-  .product-circle img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    transition: transform 0.6s ease;
-  }
-  .product-card:hover .product-circle img { transform: scale(1.05); }
-
-  .product-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding-top: 18px;
-    border-top: 1px solid var(--line-soft);
-  }
-  .product-info .price {
-    font-family: var(--f-serif-en);
-    font-size: 28px;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-  }
-  .product-info .price small {
-    font-size: 11px;
-    color: var(--ink-soft);
-    letter-spacing: 0.2em;
-    margin-left: 4px;
-  }
-  .add-btn {
-    padding: 10px 22px;
-    background: var(--ink);
-    color: var(--bg);
-    font-family: var(--f-serif-jp);
-    font-size: 12px;
-    letter-spacing: 0.2em;
-    border-radius: 24px;
-    transition: background 0.3s ease;
-  }
-  .add-btn:hover { background: var(--accent-deep); }
-
-  .recommend-foot {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 60px;
-  }
   .text-link {
     display: inline-flex;
     align-items: center;
@@ -640,7 +555,7 @@
 
   /* ===== Shop Grid ===== */
   .shop {
-    padding: 150px 48px;
+    padding: 6px 48px 150px;
     background: var(--bg);
     max-width: none;
   }
@@ -791,21 +706,6 @@
     opacity: 0.65;
     max-width: 360px;
     margin-bottom: 26px;
-  }
-  .pay-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .pay-row span {
-    padding: 5px 12px;
-    border: 1px solid rgba(253, 253, 251, 0.2);
-    border-radius: 3px;
-    font-family: var(--f-serif-en);
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    opacity: 0.8;
   }
   .footer-col h5 {
     font-family: var(--f-serif-en);
@@ -1222,14 +1122,14 @@
     .hero { grid-template-columns: 1fr; gap: 50px; padding: 130px 24px 70px; }
     .hero-visual { height: 60vh; }
     section { padding: 90px 24px; }
-    .concept-grid, .sub-grid, .product-row, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
+    .concept-grid, .sub-grid, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
     .menu-grid { grid-template-columns: 1fr; gap: 16px; }
     .notice { padding: 110px 24px 4px; }
     .menu-section { padding: 90px 24px; }
     .sub-card.featured, .sub-card.featured:hover { transform: none; }
     .sub-card:hover { transform: none; }
-    .recommend { padding: 6px 24px 90px; }
-    .shop, .subscription { padding: 90px 24px; }
+    .shop { padding: 6px 24px 90px; }
+    .subscription { padding: 90px 24px; }
     .footer-top { grid-template-columns: 1fr 1fr; gap: 40px; }
     .shop-head { flex-direction: column; align-items: flex-start; gap: 24px; }
     .nav-actions { gap: 14px; font-size: 12px; }
@@ -1243,9 +1143,8 @@
 <!-- ===== Header ===== -->
 <header id="header">
   <nav class="nav">
-    <button class="menu-btn" onclick="openDrawer()">
+    <button class="menu-btn" onclick="openDrawer()" aria-label="開啟選單">
       <div class="bars"><span></span><span></span><span></span></div>
-      <span>Menu</span>
     </button>
     <a href="#top" class="logo">
       <div class="mark">一坨</div>
@@ -1296,16 +1195,29 @@
   </div>
 </section>
 
-<!-- ===== Recommend ===== -->
-<section class="recommend reveal" id="recommend">
-  <div class="recommend-inner">
-    <div class="product-row" id="recommendRow">
-      <div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px">Loading…</div>
+<!-- ===== Shop ===== -->
+<section class="shop reveal" id="shop">
+  <div class="shop-inner">
+    <div class="shop-head">
+      <div class="shop-title-block">
+        <span class="eyebrow">Shop &amp; Lifestyle</span>
+        <h2 class="shop-title">選物 ／ Shop</h2>
+      </div>
+      <div class="shop-filters">
+        <a href="#" class="active" data-filter="all">All</a>
+        <a href="#" data-filter="coffee">Coffee</a>
+        <a href="#" data-filter="korea">Korea</a>
+        <a href="#" data-filter="goods">Goods</a>
+      </div>
     </div>
 
-    <div class="recommend-foot">
-      <a href="#shop" class="text-link">
-        全部商品をみる
+    <div class="shop-grid" id="shopGrid">
+      <div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px;letter-spacing:0.15em">Loading…</div>
+    </div>
+
+    <div class="shop-foot">
+      <a href="#" class="text-link">
+        View All Goods
         <span class="arrow">→</span>
       </a>
     </div>
@@ -1438,35 +1350,6 @@
   </div>
 </section>
 
-<!-- ===== Shop ===== -->
-<section class="shop reveal" id="shop">
-  <div class="shop-inner">
-    <div class="shop-head">
-      <div class="shop-title-block">
-        <span class="eyebrow">Shop &amp; Lifestyle</span>
-        <h2 class="shop-title">選物 ／ Shop</h2>
-      </div>
-      <div class="shop-filters">
-        <a href="#" class="active" data-filter="all">All</a>
-        <a href="#" data-filter="coffee">Coffee</a>
-        <a href="#" data-filter="korea">Korea</a>
-        <a href="#" data-filter="goods">Goods</a>
-      </div>
-    </div>
-
-    <div class="shop-grid" id="shopGrid">
-      <div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px;letter-spacing:0.15em">Loading…</div>
-    </div>
-
-    <div class="shop-foot">
-      <a href="#" class="text-link">
-        View All Goods
-        <span class="arrow">→</span>
-      </a>
-    </div>
-  </div>
-</section>
-
 <!-- ===== Contact ===== -->
 <section class="contact reveal" id="contact">
   <div class="contact-inner">
@@ -1496,12 +1379,6 @@
         <div class="mark">一坨咖啡</div>
         <div class="en">Jibu Coffee &amp; Lifestyle</div>
         <p>一杯咖啡的時間，是一天當中最安靜的儀式。<br>我們相信，慢一點，也是一種前進。</p>
-        <div class="pay-row">
-          <span>VISA</span>
-          <span>MASTER</span>
-          <span>JCB</span>
-          <span>LINE Pay</span>
-        </div>
       </div>
       <div class="footer-col">
         <h5>Shop</h5>
@@ -1510,7 +1387,7 @@
           <li>原豆</li>
           <li>日本選物</li>
           <li>韓國選物</li>
-          <li>定期配送</li>
+          <li>咖啡訂閱</li>
         </ul>
       </div>
       <div class="footer-col">
@@ -1693,7 +1570,7 @@
     window._sb = sb;
     sb.auth.onAuthStateChange(() => refreshAuthUI());
     refreshAuthUI();
-    await Promise.all([loadShop(sb), loadNotice(sb), loadRecommend(sb)]);
+    await Promise.all([loadShop(sb), loadNotice(sb)]);
   })();
 
   // ===== Customer Auth =====
@@ -1837,34 +1714,6 @@
     `).join('');
   }
 
-  async function loadRecommend(sb) {
-    const row = document.getElementById('recommendRow');
-    if (!row) return;
-    const { data, error } = await sb
-      .from('products')
-      .select('*')
-      .eq('is_active', true)
-      .eq('is_featured', true)
-      .order('sort_order', { ascending: true })
-      .limit(2);
-    if (error || !data || data.length === 0) {
-      row.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px">店主推薦準備中</div>';
-      return;
-    }
-    const fmt = n => 'NT$' + Number(n).toLocaleString();
-    row.innerHTML = data.map(p => `
-      <div class="product-card">
-        <div class="product-circle">
-          <img src="${esc(p.image_url || '')}" alt="${esc(p.name)}" loading="lazy">
-        </div>
-        <h3 class="name">${esc(p.name)}</h3>
-        <div class="product-info">
-          <div class="price">${fmt(p.price)}${p.meta_left ? `<small>／${esc(p.meta_left)}</small>` : ''}</div>
-          <button class="add-btn" onclick="addToCart('${esc(p.name).replace(/'/g, "\\'")}')">加入購物車</button>
-        </div>
-      </div>
-    `).join('');
-  }
 
   async function loadNotice(sb) {
     const body = document.getElementById('noticeBody');

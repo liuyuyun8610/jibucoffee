@@ -590,10 +590,6 @@
         <input type="checkbox" id="isActive" checked>
         <label for="isActive">在前台顯示這個商品</label>
       </div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="isFeatured">
-        <label for="isFeatured">設為「店主推薦」（首頁推薦區塊顯示）</label>
-      </div>
     </form>
   </div>
   <div class="modal-foot">
@@ -691,14 +687,13 @@
       return;
     }
     const activeCount = data.filter(p => p.is_active).length;
-    const featuredCount = data.filter(p => p.is_featured).length;
-    document.getElementById('productStats').textContent = `共 ${data.length} 個商品（前台顯示 ${activeCount} 個 · 店主推薦 ${featuredCount}／2）`;
+    document.getElementById('productStats').textContent = `共 ${data.length} 個商品（前台顯示 ${activeCount} 個）`;
     tbody.innerHTML = data.map(p => `
       <tr>
         <td>${p.sort_order}</td>
         <td><div class="thumb">${p.image_url ? `<img src="${escapeHtml(p.image_url)}" alt="">` : '無圖'}</div></td>
         <td>
-          <div style="font-weight:500">${p.is_featured ? '<span style="color:var(--accent);margin-right:6px" title="店主推薦">★</span>' : ''}${escapeHtml(p.name)}</div>
+          <div style="font-weight:500">${escapeHtml(p.name)}</div>
           ${p.name_jp ? `<div style="font-size:11px;color:var(--ink-faint);margin-top:2px">${escapeHtml(p.name_jp)}</div>` : ''}
         </td>
         <td><span class="badge">${categoryLabel(p.category)}</span></td>
@@ -734,7 +729,6 @@
     document.getElementById('description').value = product?.description || '';
     document.getElementById('externalUrl').value = product?.external_url || '';
     document.getElementById('isActive').checked = product?.is_active ?? true;
-    document.getElementById('isFeatured').checked = product?.is_featured ?? false;
     setImagePreview(product?.image_url || '');
     document.getElementById('modalBg').classList.add('show');
     document.getElementById('editModal').classList.add('show');
@@ -821,14 +815,6 @@
     const form = document.getElementById('editorForm');
     if (!form.checkValidity()) { form.reportValidity(); return; }
     const id = document.getElementById('productId').value;
-    const isFeatured = document.getElementById('isFeatured').checked;
-    if (isFeatured) {
-      const { count } = await sb.from('products').select('id', { count: 'exact', head: true }).eq('is_featured', true).neq('id', id || '00000000-0000-0000-0000-000000000000');
-      if ((count ?? 0) >= 2) {
-        toast('店主推薦最多 2 個，請先取消其他商品的推薦', true);
-        return;
-      }
-    }
     const payload = {
       name: document.getElementById('name').value.trim(),
       name_jp: document.getElementById('nameJp').value.trim() || null,
@@ -841,7 +827,6 @@
       external_url: document.getElementById('externalUrl').value.trim() || null,
       image_url: document.getElementById('imageUrl').value || null,
       is_active: document.getElementById('isActive').checked,
-      is_featured: document.getElementById('isFeatured').checked,
     };
     const btn = document.getElementById('saveBtn');
     btn.disabled = true; btn.textContent = '儲存中...';
