@@ -140,12 +140,34 @@
     transition: transform 0.4s ease;
   }
   .nav-actions a:hover::after { transform: scaleX(1); transform-origin: left; }
+  .icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    color: var(--ink);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+  }
+  .icon-btn:hover { opacity: 0.6; }
+  .icon-btn svg { width: 22px; height: 22px; display: block; }
+  .icon-btn .auth-label {
+    font-family: var(--f-serif-en);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
   .cart-count {
-    margin-left: 6px;
+    position: absolute;
+    top: -2px; right: -4px;
     display: inline-block;
-    width: 18px; height: 18px;
-    line-height: 18px; text-align: center;
-    border-radius: 50%;
+    min-width: 16px; height: 16px;
+    line-height: 16px; padding: 0 4px;
+    text-align: center;
+    border-radius: 999px;
     background: var(--ink); color: var(--bg);
     font-size: 10px;
     letter-spacing: 0;
@@ -360,9 +382,9 @@
 
   /* ===== Recommend (circular cards) ===== */
   .recommend {
-    background: var(--bg-soft);
+    background: var(--bg);
     max-width: none;
-    padding: 130px 48px;
+    padding: 6px 48px 130px;
   }
   .recommend-inner {
     max-width: 1400px;
@@ -370,8 +392,10 @@
   }
   .product-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 40px;
+    max-width: 980px;
+    margin: 0 auto;
   }
   .product-card {
     background: var(--bg-card);
@@ -617,7 +641,7 @@
   /* ===== Shop Grid ===== */
   .shop {
     padding: 150px 48px;
-    background: var(--bg-soft);
+    background: var(--bg);
     max-width: none;
   }
   .shop-inner { max-width: 1400px; margin: 0 auto; }
@@ -732,61 +756,6 @@
     margin-top: 80px;
   }
 
-  /* ===== About ===== */
-  .about {
-    padding: 150px 48px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 100px;
-    align-items: center;
-    max-width: 1400px;
-  }
-  .about-img {
-    aspect-ratio: 4/5;
-    background-image: url('https://images.unsplash.com/photo-1442975631115-c4f7b05b8a2c?w=1000&q=80');
-    background-size: cover;
-    background-position: center;
-    filter: grayscale(15%);
-  }
-  .about-text .eyebrow {
-    font-family: var(--f-serif-en);
-    font-style: italic;
-    font-size: 13px;
-    letter-spacing: 0.4em;
-    color: var(--accent);
-    text-transform: uppercase;
-    margin-bottom: 22px;
-  }
-  .about-text h2 {
-    font-family: var(--f-serif-jp);
-    font-weight: 400;
-    font-size: clamp(28px, 3.2vw, 40px);
-    line-height: 1.55;
-    letter-spacing: 0.1em;
-    margin-bottom: 36px;
-  }
-  .about-text h2 em {
-    font-family: var(--f-serif-en);
-    font-style: italic;
-    font-weight: 300;
-    color: var(--accent);
-  }
-  .about-text p {
-    font-size: 15px;
-    line-height: 2.1;
-    color: var(--ink-soft);
-    margin-bottom: 20px;
-    font-weight: 300;
-  }
-  .about-signature {
-    margin-top: 40px;
-    font-family: var(--f-serif-en);
-    font-style: italic;
-    font-size: 14px;
-    color: var(--ink);
-    letter-spacing: 0.08em;
-  }
-
   /* ===== Footer ===== */
   footer {
     background: var(--ink);
@@ -878,8 +847,8 @@
 
   /* ===== Notice ===== */
   .notice {
-    padding: 130px 48px 90px;
-    background: var(--bg-soft);
+    padding: 130px 48px 4px;
+    background: var(--bg);
     text-align: center;
   }
   .notice-inner { max-width: 720px; margin: 0 auto; }
@@ -969,7 +938,7 @@
 
   /* ===== Contact ===== */
   .contact {
-    background: var(--bg-soft);
+    background: var(--bg);
     padding: 130px 48px;
     max-width: none;
   }
@@ -1165,6 +1134,87 @@
     text-align: center;
   }
 
+  /* ===== Auth Modal ===== */
+  .auth-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .auth-tab {
+    flex: 1;
+    padding: 12px 0;
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .auth-tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+  .auth-form { display: flex; flex-direction: column; gap: 14px; }
+  .auth-form label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .auth-form input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .auth-form input:focus { border-color: var(--ink); }
+  .auth-submit {
+    margin-top: 8px;
+    padding: 14px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .auth-submit:hover { background: var(--accent-deep); }
+  .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-msg {
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    display: none;
+  }
+  .auth-msg.show { display: block; }
+  .auth-msg.err { background: #fbe9e6; color: #a03e2c; }
+  .auth-msg.ok { background: #e7efe7; color: #4a6b4a; }
+  .auth-logged {
+    text-align: center;
+    padding: 16px 0 8px;
+  }
+  .auth-logged .who {
+    font-size: 14px;
+    color: var(--ink);
+    margin-bottom: 18px;
+    word-break: break-all;
+  }
+  .auth-logged .who small { display: block; color: var(--ink-soft); font-size: 11px; letter-spacing: 0.2em; margin-bottom: 6px; }
+
   /* ===== Responsive ===== */
   @media (max-width: 960px) {
     header { padding: 18px 24px; }
@@ -1174,16 +1224,17 @@
     section { padding: 90px 24px; }
     .concept-grid, .sub-grid, .product-row, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
     .menu-grid { grid-template-columns: 1fr; gap: 16px; }
-    .notice { padding: 110px 24px 70px; }
+    .notice { padding: 110px 24px 4px; }
     .menu-section { padding: 90px 24px; }
     .sub-card.featured, .sub-card.featured:hover { transform: none; }
     .sub-card:hover { transform: none; }
-    .about { grid-template-columns: 1fr; padding: 90px 24px; gap: 50px; }
-    .recommend, .shop, .subscription { padding: 90px 24px; }
+    .recommend { padding: 6px 24px 90px; }
+    .shop, .subscription { padding: 90px 24px; }
     .footer-top { grid-template-columns: 1fr 1fr; gap: 40px; }
     .shop-head { flex-direction: column; align-items: flex-start; gap: 24px; }
-    .nav-actions { gap: 20px; font-size: 12px; }
+    .nav-actions { gap: 14px; font-size: 12px; }
     .nav-actions .hide-mobile { display: none; }
+    .icon-btn .auth-label { display: none; }
   }
 </style>
 </head>
@@ -1203,7 +1254,14 @@
     <div class="nav-actions">
       <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener" class="hide-mobile">Instagram</a>
       <a href="#contact" class="hide-mobile">Contact</a>
-      <a href="#" onclick="openCart(event)">Cart<span class="cart-count" id="cartCount">0</span></a>
+      <button class="icon-btn" onclick="openAuth(event)" id="authBtn" aria-label="登入／註冊">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <span class="auth-label" id="authLabel">登入</span>
+      </button>
+      <button class="icon-btn cart-btn" onclick="openCart(event)" aria-label="購物車">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7L6 7z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
+        <span class="cart-count" id="cartCount">0</span>
+      </button>
     </div>
   </nav>
 </header>
@@ -1217,7 +1275,6 @@
   </div>
   <ul>
     <li><a href="menu.html"><span>店內菜單</span><span class="en">In-Store Menu</span></a></li>
-    <li><a href="#recommend" onclick="closeDrawer()"><span>店主推薦</span><span class="en">Recommend</span></a></li>
     <li><a href="#subscription" onclick="closeDrawer()"><span>訂閱咖啡</span><span class="en">Subscription</span></a></li>
     <li><a href="#shop" onclick="closeDrawer()"><span>選物商店</span><span class="en">Shop</span></a></li>
     <li><a href="#contact" onclick="closeDrawer()"><span>聯絡我們</span><span class="en">Contact</span></a></li>
@@ -1410,25 +1467,6 @@
   </div>
 </section>
 
-<!-- ===== About ===== -->
-<section class="about reveal" id="about">
-  <div class="about-img"></div>
-  <div class="about-text">
-    <div class="eyebrow">About Jibu</div>
-    <h2>一坨，是<br>生活的<em>餘白</em>。</h2>
-    <p>
-      我們的店名來自一個小小的玩笑，但我們相信生活就該有這樣的鬆弛感。
-      在每一杯咖啡裡，我們想留下一點點呼吸的空間——讓忙碌的日子，也能有片刻的停留。
-    </p>
-    <p>
-      從選豆、烘焙、到包裝，每一個環節都是我們親手完成。
-      我們也從日本、韓國，慢慢蒐集一些有意思的生活小物——
-      希望這杯咖啡與這些器物，能成為你一天當中最溫柔的時光。
-    </p>
-    <div class="about-signature">— 一坨咖啡，2025</div>
-  </div>
-</section>
-
 <!-- ===== Contact ===== -->
 <section class="contact reveal" id="contact">
   <div class="contact-inner">
@@ -1478,7 +1516,6 @@
       <div class="footer-col">
         <h5>About</h5>
         <ul>
-          <li><a href="#about" style="color:inherit;">一坨是誰</a></li>
           <li><a href="#contact" style="color:inherit;">聯絡我們</a></li>
           <li><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener" style="color:inherit;">Instagram</a></li>
         </ul>
@@ -1513,6 +1550,39 @@
     <span>LINE Pay</span>
   </div>
   <button class="modal-close" onclick="closeModal()">確定</button>
+</div>
+
+<!-- ===== Auth Modal ===== -->
+<div class="modal-bg" id="authBg" onclick="closeAuth()"></div>
+<div class="modal" id="authModal">
+  <h3 id="authTitle">登入</h3>
+  <div class="modal-sub" id="authSub">Welcome Back</div>
+
+  <div id="authFormWrap">
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" data-tab="signin" onclick="switchAuthTab('signin')">登入</button>
+      <button type="button" class="auth-tab" data-tab="signup" onclick="switchAuthTab('signup')">註冊</button>
+    </div>
+
+    <div class="auth-msg" id="authMsg"></div>
+
+    <form class="auth-form" id="authForm" onsubmit="handleAuth(event)">
+      <div>
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" required autocomplete="email" placeholder="you@example.com">
+      </div>
+      <div>
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" placeholder="至少 6 個字元">
+      </div>
+      <button type="submit" class="auth-submit" id="authSubmit">登入</button>
+    </form>
+  </div>
+
+  <div id="authLoggedWrap" class="auth-logged" style="display:none">
+    <div class="who"><small>目前登入</small><span id="authWho"></span></div>
+    <button class="modal-close" onclick="handleLogout()">登出</button>
+  </div>
 </div>
 
 <script>
@@ -1620,8 +1690,118 @@
     if (!window.JIBU_CONFIG || !window.supabase) return;
     const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.JIBU_CONFIG;
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window._sb = sb;
+    sb.auth.onAuthStateChange(() => refreshAuthUI());
+    refreshAuthUI();
     await Promise.all([loadShop(sb), loadNotice(sb), loadRecommend(sb)]);
   })();
+
+  // ===== Customer Auth =====
+  async function refreshAuthUI() {
+    const sb = window._sb;
+    if (!sb) return;
+    const { data: { user } } = await sb.auth.getUser();
+    const label = document.getElementById('authLabel');
+    if (user) {
+      const short = user.email ? user.email.split('@')[0].slice(0, 8) : '會員';
+      label.textContent = short;
+    } else {
+      label.textContent = '登入';
+    }
+  }
+
+  function openAuth(e) {
+    if (e) e.preventDefault();
+    const sb = window._sb;
+    sb.auth.getUser().then(({ data: { user } }) => {
+      const formWrap = document.getElementById('authFormWrap');
+      const loggedWrap = document.getElementById('authLoggedWrap');
+      const title = document.getElementById('authTitle');
+      const sub = document.getElementById('authSub');
+      if (user) {
+        formWrap.style.display = 'none';
+        loggedWrap.style.display = 'block';
+        title.textContent = '會員中心';
+        sub.textContent = 'My Account';
+        document.getElementById('authWho').textContent = user.email || '';
+      } else {
+        formWrap.style.display = 'block';
+        loggedWrap.style.display = 'none';
+        switchAuthTab('signin');
+        document.getElementById('authMsg').classList.remove('show', 'err', 'ok');
+        document.getElementById('authForm').reset();
+      }
+      document.getElementById('authBg').classList.add('show');
+      document.getElementById('authModal').classList.add('show');
+    });
+  }
+
+  function closeAuth() {
+    document.getElementById('authBg').classList.remove('show');
+    document.getElementById('authModal').classList.remove('show');
+  }
+
+  function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    const title = document.getElementById('authTitle');
+    const sub = document.getElementById('authSub');
+    const submit = document.getElementById('authSubmit');
+    const pwd = document.getElementById('authPassword');
+    if (tab === 'signup') {
+      title.textContent = '註冊';
+      sub.textContent = 'Create Account';
+      submit.textContent = '建立帳號';
+      pwd.setAttribute('autocomplete', 'new-password');
+    } else {
+      title.textContent = '登入';
+      sub.textContent = 'Welcome Back';
+      submit.textContent = '登入';
+      pwd.setAttribute('autocomplete', 'current-password');
+    }
+    document.getElementById('authForm').dataset.mode = tab;
+    document.getElementById('authMsg').classList.remove('show', 'err', 'ok');
+  }
+
+  function showAuthMsg(text, type) {
+    const el = document.getElementById('authMsg');
+    el.textContent = text;
+    el.classList.remove('err', 'ok');
+    el.classList.add('show', type);
+  }
+
+  async function handleAuth(e) {
+    e.preventDefault();
+    const sb = window._sb;
+    const form = document.getElementById('authForm');
+    const mode = form.dataset.mode || 'signin';
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const submit = document.getElementById('authSubmit');
+    submit.disabled = true;
+    const orig = submit.textContent;
+    submit.textContent = '處理中...';
+    try {
+      if (mode === 'signup') {
+        const { error } = await sb.auth.signUp({ email, password });
+        if (error) { showAuthMsg(error.message, 'err'); return; }
+        showAuthMsg('已寄出確認信，請收信完成註冊。', 'ok');
+      } else {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) { showAuthMsg(error.message, 'err'); return; }
+        showAuthMsg('登入成功', 'ok');
+        setTimeout(closeAuth, 600);
+      }
+    } finally {
+      submit.disabled = false;
+      submit.textContent = orig;
+    }
+  }
+
+  async function handleLogout() {
+    const sb = window._sb;
+    await sb.auth.signOut();
+    closeAuth();
+  }
 
   function esc(s) {
     return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1664,11 +1844,11 @@
       .from('products')
       .select('*')
       .eq('is_active', true)
-      .eq('category', 'coffee')
+      .eq('is_featured', true)
       .order('sort_order', { ascending: true })
-      .limit(3);
+      .limit(2);
     if (error || !data || data.length === 0) {
-      row.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px">咖啡商品準備中</div>';
+      row.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px">店主推薦準備中</div>';
       return;
     }
     const fmt = n => 'NT$' + Number(n).toLocaleString();
