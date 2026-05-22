@@ -368,31 +368,6 @@
     max-width: 1400px;
     margin: 0 auto;
   }
-  .recommend-banner {
-    display: flex;
-    overflow: hidden;
-    white-space: nowrap;
-    gap: 56px;
-    margin-bottom: 70px;
-    align-items: baseline;
-  }
-  .recommend-banner span {
-    font-family: var(--f-serif-en);
-    font-style: italic;
-    font-size: clamp(34px, 4.2vw, 52px);
-    color: var(--ink);
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-    font-weight: 300;
-  }
-  .recommend-banner small {
-    font-family: var(--f-serif-tc);
-    font-size: 13px;
-    letter-spacing: 0.35em;
-    color: var(--ink-soft);
-    flex-shrink: 0;
-  }
-
   .product-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -422,19 +397,14 @@
   .product-circle {
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 50%;
-    background: var(--bg-soft);
+    border-radius: 12px;
     margin-bottom: 32px;
     position: relative;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   .product-circle img {
-    width: 72%; height: 72%;
+    width: 100%; height: 100%;
     object-fit: cover;
-    border-radius: 8px;
     transition: transform 0.6s ease;
   }
   .product-card:hover .product-circle img { transform: scale(1.05); }
@@ -1298,14 +1268,6 @@
 <!-- ===== Recommend ===== -->
 <section class="recommend reveal" id="recommend">
   <div class="recommend-inner">
-    <div class="recommend-banner">
-      <span><em style="font-style:italic">Recommend</em></span>
-      <small>／ 店からのおすすめ</small>
-      <span><em style="font-style:italic">Recommend</em></span>
-      <small>／ 店からのおすすめ</small>
-      <span><em style="font-style:italic">Recommend</em></span>
-    </div>
-
     <div class="product-row" id="recommendRow">
       <div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px">Loading…</div>
     </div>
