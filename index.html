@@ -381,16 +381,12 @@
   }
   .product-card:hover { transform: translateY(-8px); }
 
-  .product-card .tag {
-    position: absolute;
-    top: 28px; left: 28px;
-    background: var(--ink);
-    color: var(--bg);
-    padding: 10px 16px;
+  .product-card .name {
     font-family: var(--f-serif-jp);
-    font-size: 13px;
-    letter-spacing: 0.15em;
-    z-index: 2;
+    font-weight: 400;
+    font-size: 17px;
+    letter-spacing: 0.12em;
+    margin-bottom: 18px;
     line-height: 1.4;
   }
 
@@ -439,16 +435,6 @@
     transition: background 0.3s ease;
   }
   .add-btn:hover { background: var(--accent-deep); }
-
-  .product-meta {
-    margin-top: 22px;
-    display: flex;
-    gap: 28px;
-    font-size: 11px;
-    color: var(--ink-faint);
-    letter-spacing: 0.18em;
-  }
-  .product-meta .label { color: var(--ink-soft); }
 
   .recommend-foot {
     display: flex;
@@ -1700,15 +1686,14 @@
     const fmt = n => 'NT$' + Number(n).toLocaleString();
     row.innerHTML = data.map(p => `
       <div class="product-card">
-        <div class="tag">${esc(p.name)}</div>
         <div class="product-circle">
           <img src="${esc(p.image_url || '')}" alt="${esc(p.name)}" loading="lazy">
         </div>
+        <h3 class="name">${esc(p.name)}</h3>
         <div class="product-info">
           <div class="price">${fmt(p.price)}${p.meta_left ? `<small>／${esc(p.meta_left)}</small>` : ''}</div>
-          <button class="add-btn" onclick="addToCart('${esc(p.name).replace(/'/g, "\\'")}')">バッグに入れる</button>
+          <button class="add-btn" onclick="addToCart('${esc(p.name).replace(/'/g, "\\'")}')">加入購物車</button>
         </div>
-        ${p.origin ? `<div class="product-meta"><span class="label">產地</span><span>${esc(p.origin)}</span></div>` : ''}
       </div>
     `).join('');
   }
