@@ -1036,6 +1036,12 @@
     gap: 60px;
     margin-top: 60px;
   }
+  .contact-grid.contact-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
   .contact-item { text-align: center; }
   .contact-item .label {
     font-family: var(--f-serif-en);
@@ -1247,7 +1253,7 @@
       <span>Menu</span>
     </button>
     <a href="#top" class="logo">
-      <div class="mark">一坨咖啡</div>
+      <div class="mark">一坨</div>
       <span class="sub">Jibu Coffee &amp; Lifestyle</span>
     </a>
     <div class="nav-actions">
@@ -1262,20 +1268,18 @@
 <div class="drawer-bg" id="drawerBg" onclick="closeDrawer()"></div>
 <aside class="drawer" id="drawer">
   <div class="drawer-head">
-    <div class="drawer-mark">一坨咖啡</div>
+    <div class="drawer-mark">一坨</div>
     <button class="drawer-close" onclick="closeDrawer()" aria-label="關閉選單">×</button>
   </div>
   <ul>
-    <li><a href="#menu" onclick="closeDrawer()"><span>店內菜單</span><span class="en">In-Store Menu</span></a></li>
+    <li><a href="menu.html"><span>店內菜單</span><span class="en">In-Store Menu</span></a></li>
     <li><a href="#recommend" onclick="closeDrawer()"><span>店主推薦</span><span class="en">Recommend</span></a></li>
-    <li><a href="#subscription" onclick="closeDrawer()"><span>定期配送</span><span class="en">Subscription</span></a></li>
+    <li><a href="#subscription" onclick="closeDrawer()"><span>訂閱咖啡</span><span class="en">Subscription</span></a></li>
     <li><a href="#shop" onclick="closeDrawer()"><span>選物商店</span><span class="en">Shop</span></a></li>
-    <li><a href="#about" onclick="closeDrawer()"><span>品牌故事</span><span class="en">About</span></a></li>
     <li><a href="#contact" onclick="closeDrawer()"><span>聯絡我們</span><span class="en">Contact</span></a></li>
   </ul>
   <div class="drawer-foot">
     <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">Instagram</a>
-    <a href="mailto:hello@jibucafe.com">Email</a>
   </div>
 </aside>
 
@@ -1291,36 +1295,6 @@
   </div>
 </section>
 
-<!-- ===== In-Store Menu ===== -->
-<section class="menu-section reveal" id="menu">
-  <div class="section-head">
-    <div class="section-eyebrow">In-Store Menu</div>
-    <h2 class="section-title">店內菜單</h2>
-    <div class="section-divider"></div>
-    <p class="section-sub">店內現點現做，菜單隨季節微調。最新品項以店內公告為準。</p>
-  </div>
-  <div class="menu-grid">
-    <div class="menu-card">
-      <div class="menu-cat-jp">ハンドドリップ</div>
-      <h3>手沖咖啡</h3>
-      <div class="menu-cat-en">Hand Drip</div>
-      <ul class="menu-items"><li>品項準備中</li></ul>
-    </div>
-    <div class="menu-card">
-      <div class="menu-cat-jp">エスプレッソ</div>
-      <h3>義式咖啡</h3>
-      <div class="menu-cat-en">Espresso</div>
-      <ul class="menu-items"><li>品項準備中</li></ul>
-    </div>
-    <div class="menu-card">
-      <div class="menu-cat-jp">ノンコーヒー</div>
-      <h3>非咖啡類</h3>
-      <div class="menu-cat-en">Non-Coffee</div>
-      <ul class="menu-items"><li>品項準備中</li></ul>
-    </div>
-  </div>
-</section>
-
 <!-- ===== Recommend ===== -->
 <section class="recommend reveal" id="recommend">
   <div class="recommend-inner">
@@ -1332,51 +1306,8 @@
       <span><em style="font-style:italic">Recommend</em></span>
     </div>
 
-    <div class="product-row">
-      <div class="product-card">
-        <div class="tag">一坨經典<br>【深焙】</div>
-        <div class="product-circle">
-          <img src="https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=600&q=80" alt="一坨經典">
-        </div>
-        <div class="product-info">
-          <div class="price">NT$55<small>／包</small></div>
-          <button class="add-btn" onclick="addToCart('一坨經典')">バッグに入れる</button>
-        </div>
-        <div class="product-meta">
-          <span class="label">產地</span>
-          <span>衣索比亞 ／ 巴西</span>
-        </div>
-      </div>
-
-      <div class="product-card">
-        <div class="tag">草莓淡雪<br>【淺焙】</div>
-        <div class="product-circle">
-          <img src="https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&q=80" alt="草莓淡雪">
-        </div>
-        <div class="product-info">
-          <div class="price">NT$65<small>／包</small></div>
-          <button class="add-btn" onclick="addToCart('草莓淡雪')">バッグに入れる</button>
-        </div>
-        <div class="product-meta">
-          <span class="label">產地</span>
-          <span>巴拿馬 藝伎</span>
-        </div>
-      </div>
-
-      <div class="product-card">
-        <div class="tag">月光夜釀<br>【中焙】</div>
-        <div class="product-circle">
-          <img src="https://images.unsplash.com/photo-1497935586351-b67a49e012bf?w=600&q=80" alt="月光夜釀">
-        </div>
-        <div class="product-info">
-          <div class="price">NT$75<small>／包</small></div>
-          <button class="add-btn" onclick="addToCart('月光夜釀')">バッグに入れる</button>
-        </div>
-        <div class="product-meta">
-          <span class="label">產地</span>
-          <span>哥倫比亞 厭氧</span>
-        </div>
-      </div>
+    <div class="product-row" id="recommendRow">
+      <div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px">Loading…</div>
     </div>
 
     <div class="recommend-foot">
@@ -1393,7 +1324,7 @@
   <div class="subscription-inner">
     <div class="section-head">
       <div class="section-eyebrow">Coffee Subscription</div>
-      <h2 class="section-title">定期配送</h2>
+      <h2 class="section-title">訂閱咖啡</h2>
       <p class="section-sub">
         每個月，讓我們把當季最對味的咖啡，悄悄寄到你的桌上。<br>
         隨時可以暫停、可以更換、可以取消。
@@ -1568,24 +1499,16 @@
     <div class="section-head">
       <div class="section-eyebrow">Visit Us</div>
       <h2 class="section-title">聯絡 一坨</h2>
-      <p class="section-sub">關於商品、訂購、合作邀請，都歡迎與我們聯繫。</p>
       <div class="section-divider"></div>
     </div>
-    <div class="contact-grid">
+    <div class="contact-grid contact-grid-2">
       <div class="contact-item">
         <span class="label">Instagram</span>
         <div class="value"><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a></div>
-        <div class="sub">每日更新．日常分享</div>
       </div>
       <div class="contact-item">
-        <span class="label">Email</span>
-        <div class="value"><a href="mailto:hello@jibucafe.com">hello@jibucafe.com</a></div>
-        <div class="sub">合作 ／ 採訪 ／ 商品詢問</div>
-      </div>
-      <div class="contact-item">
-        <span class="label">Order</span>
-        <div class="value"><a href="https://www.jibucafe.com" target="_blank" rel="noopener">jibucafe.com</a></div>
-        <div class="sub">線上訂購．宅配到家</div>
+        <span class="label">Address</span>
+        <div class="value">新北市林口區<br>文化三路一段 375 號 1F</div>
       </div>
     </div>
   </div>
@@ -1761,7 +1684,7 @@
     if (!window.JIBU_CONFIG || !window.supabase) return;
     const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.JIBU_CONFIG;
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    await Promise.all([loadShop(sb), loadNotice(sb)]);
+    await Promise.all([loadShop(sb), loadNotice(sb), loadRecommend(sb)]);
   })();
 
   function esc(s) {
@@ -1794,6 +1717,36 @@
           <span>${esc(p.meta_left || '')}</span>
           <span class="price-tag">${fmt(p.price)}</span>
         </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadRecommend(sb) {
+    const row = document.getElementById('recommendRow');
+    if (!row) return;
+    const { data, error } = await sb
+      .from('products')
+      .select('*')
+      .eq('is_active', true)
+      .eq('category', 'coffee')
+      .order('sort_order', { ascending: true })
+      .limit(3);
+    if (error || !data || data.length === 0) {
+      row.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px">咖啡商品準備中</div>';
+      return;
+    }
+    const fmt = n => 'NT$' + Number(n).toLocaleString();
+    row.innerHTML = data.map(p => `
+      <div class="product-card">
+        <div class="tag">${esc(p.name)}</div>
+        <div class="product-circle">
+          <img src="${esc(p.image_url || '')}" alt="${esc(p.name)}" loading="lazy">
+        </div>
+        <div class="product-info">
+          <div class="price">${fmt(p.price)}${p.meta_left ? `<small>／${esc(p.meta_left)}</small>` : ''}</div>
+          <button class="add-btn" onclick="addToCart('${esc(p.name).replace(/'/g, "\\'")}')">バッグに入れる</button>
+        </div>
+        ${p.origin ? `<div class="product-meta"><span class="label">產地</span><span>${esc(p.origin)}</span></div>` : ''}
       </div>
     `).join('');
   }

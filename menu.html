@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+<title>店內菜單 ｜ 一坨咖啡與生活選物</title>
+<meta name="description" content="一坨咖啡店內菜單：手沖咖啡、義式咖啡、非咖啡類飲品。">
+<meta property="og:title" content="店內菜單 ｜ 一坨">
+<meta property="og:description" content="店內現點現做，菜單會隨季節微調。">
+<meta property="og:image" content="logo.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400&family=Noto+Serif+TC:wght@300;400;500;600&family=Shippori+Mincho:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdfdfb;
+    --bg-soft: #f6f2ea;
+    --bg-card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #6b665e;
+    --ink-faint: #a8a299;
+    --line: #e8e3d8;
+    --accent: #8b6f47;
+    --accent-deep: #5c4830;
+    --f-serif-tc: 'Noto Serif TC', serif;
+    --f-serif-en: 'Cormorant Garamond', serif;
+    --f-serif-jp: 'Shippori Mincho', 'Noto Serif TC', serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--f-serif-tc);
+    font-weight: 300;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 22px 48px;
+    background: rgba(253, 253, 251, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .back {
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.1em;
+    transition: color 0.2s;
+  }
+  .back:hover { color: var(--ink); }
+  .logo .mark {
+    font-family: var(--f-serif-tc);
+    font-size: 18px;
+    letter-spacing: 0.18em;
+    font-weight: 500;
+  }
+  .logo .sub {
+    display: block;
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--ink-faint);
+    text-align: center;
+    margin-top: 1px;
+  }
+  .nav-spacer { width: 70px; }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 90px 48px 120px;
+  }
+
+  .menu-head {
+    text-align: center;
+    margin-bottom: 80px;
+  }
+  .eyebrow {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.32em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  h1 {
+    font-family: var(--f-serif-tc);
+    font-size: clamp(36px, 5vw, 52px);
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    margin: 14px 0 22px;
+  }
+  .divider {
+    width: 56px;
+    height: 1px;
+    background: var(--ink-faint);
+    margin: 0 auto 28px;
+  }
+  .head-sub {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.9;
+  }
+
+  .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .menu-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 44px 32px 40px;
+    text-align: center;
+    transition: border-color 0.4s, transform 0.4s;
+  }
+  .menu-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+  }
+  .cat-jp {
+    font-family: var(--f-serif-jp);
+    font-size: 13px;
+    color: var(--ink-faint);
+    letter-spacing: 0.18em;
+  }
+  .menu-card h2 {
+    font-family: var(--f-serif-tc);
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    margin: 14px 0 4px;
+  }
+  .cat-en {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-faint);
+    letter-spacing: 0.2em;
+  }
+  .items {
+    list-style: none;
+    margin-top: 26px;
+    padding-top: 26px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 2.2;
+  }
+  .items li.placeholder {
+    color: var(--ink-faint);
+    font-style: italic;
+    font-size: 13px;
+  }
+  .items li .price {
+    color: var(--accent-deep);
+    margin-left: 6px;
+  }
+
+  .foot-note {
+    text-align: center;
+    margin-top: 70px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 2;
+  }
+  .foot-note a {
+    color: var(--accent-deep);
+    border-bottom: 1px solid var(--accent);
+  }
+
+  @media (max-width: 720px) {
+    header { padding: 16px 20px; }
+    main { padding: 60px 20px 90px; }
+    .menu-grid { grid-template-columns: 1fr; gap: 16px; }
+    .menu-head { margin-bottom: 50px; }
+    .menu-card { padding: 36px 26px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="back">← 回首頁</a>
+  <a href="/" class="logo">
+    <div class="mark">一坨</div>
+    <span class="sub">Jibu Coffee &amp; Lifestyle</span>
+  </a>
+  <div class="nav-spacer"></div>
+</header>
+
+<main>
+  <div class="menu-head">
+    <div class="eyebrow">In-Store Menu</div>
+    <h1>店內菜單</h1>
+    <div class="divider"></div>
+    <p class="head-sub">店內現點現做，菜單會隨季節微調。<br>最新品項以店內公告為準。</p>
+  </div>
+
+  <div class="menu-grid">
+    <div class="menu-card">
+      <div class="cat-jp">ハンドドリップ</div>
+      <h2>手沖咖啡</h2>
+      <div class="cat-en">Hand Drip</div>
+      <ul class="items">
+        <li class="placeholder">品項即將公布</li>
+      </ul>
+    </div>
+    <div class="menu-card">
+      <div class="cat-jp">エスプレッソ</div>
+      <h2>義式咖啡</h2>
+      <div class="cat-en">Espresso</div>
+      <ul class="items">
+        <li class="placeholder">品項即將公布</li>
+      </ul>
+    </div>
+    <div class="menu-card">
+      <div class="cat-jp">ノンコーヒー</div>
+      <h2>非咖啡類</h2>
+      <div class="cat-en">Non-Coffee</div>
+      <ul class="items">
+        <li class="placeholder">品項即將公布</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="foot-note">
+    最新菜單與當日品項，<br>
+    請追蹤 Instagram <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a>。
+  </p>
+</main>
+
+</body>
+</html>
