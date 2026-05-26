@@ -742,6 +742,16 @@
         <div class="help">每天可設一段時段，或勾「公休」整天不營業。前台會自動格式化呈現。</div>
       </div>
 
+      <div class="form-row">
+        <label>地圖圖片（首頁底部 Location 區）</label>
+        <div class="image-upload" id="mapImageUpload" onclick="document.getElementById('mapImageFile').click()">
+          <input type="file" id="mapImageFile" accept="image/*" onchange="handleMapImageUpload(event)">
+          <div class="placeholder" id="mapImagePlaceholder">點此上傳地圖圖（自動壓縮到 1600px）</div>
+        </div>
+        <input type="hidden" id="ss_map_image_url">
+        <div class="help">建議橫圖（4:3 或 16:9 比例），可截 Google Map 或畫插畫地圖。前台地圖區會等比例顯示。</div>
+      </div>
+
       <div class="form-grid-2">
         <div class="form-row">
           <label>Shop 清單（每行一項）</label>
@@ -1172,7 +1182,50 @@
   }
 
   // ===== Site Settings =====
-  const SITE_FIELDS = ['brand_tagline', 'address', 'phone', 'hours', 'shop_items', 'about_items', 'help_items'];
+  const SITE_FIELDS = ['brand_tagline', 'address', 'phone', 'hours', 'shop_items', 'about_items', 'help_items', 'map_image_url'];
+
+  function setMapImagePreview(url) {
+    const upload = document.getElementById('mapImageUpload');
+    const placeholder = document.getElementById('mapImagePlaceholder');
+    document.getElementById('ss_map_image_url').value = url || '';
+    upload.querySelector('img')?.remove();
+    if (url) {
+      placeholder.style.display = 'none';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      upload.appendChild(img);
+      upload.classList.add('has-image');
+    } else {
+      placeholder.style.display = '';
+      placeholder.textContent = '點此上傳地圖圖（自動壓縮到 1600px）';
+      upload.classList.remove('has-image');
+    }
+  }
+
+  async function handleMapImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const placeholder = document.getElementById('mapImagePlaceholder');
+    placeholder.innerHTML = '<span class="uploading">壓縮中...</span>';
+    try {
+      const blob = await resizeImage(file, 1600, 0.85);
+      placeholder.innerHTML = '<span class="uploading">上傳中...</span>';
+      const ext = file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const fileName = `map_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext === 'jpg' || ext === 'jpeg' ? 'jpg' : ext}`;
+      const { error } = await sb.storage.from('product-images').upload(fileName, blob, {
+        contentType: blob.type, upsert: false,
+      });
+      if (error) throw error;
+      const { data: pub } = sb.storage.from('product-images').getPublicUrl(fileName);
+      setMapImagePreview(pub.publicUrl);
+      toast('地圖圖片上傳成功');
+    } catch (err) {
+      toast('上傳失敗：' + err.message, true);
+      placeholder.textContent = '點此上傳地圖圖（自動壓縮到 1600px）';
+    }
+    e.target.value = '';
+  }
 
   // ----- Hours builder (7 天下拉) -----
   const DAYS = ['週一','週二','週三','週四','週五','週六','週日'];
@@ -1283,6 +1336,9 @@
       if (f === 'hours') {
         applyHoursToUI(row.hours ?? '');
         el.value = row.hours ?? '';
+      } else if (f === 'map_image_url') {
+        el.value = row.map_image_url ?? '';
+        setMapImagePreview(row.map_image_url ?? '');
       } else {
         el.value = row[f] ?? '';
       }
