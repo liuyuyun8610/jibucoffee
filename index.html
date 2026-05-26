@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>一坨咖啡與生活選物</title>
-<meta name="description" content="一坨咖啡是一間關於日常的小店。精選小型莊園單品豆、小批量手工烘焙濾掛，與日韓選物。每月可訂閱定期配送。">
-<meta name="keywords" content="一坨咖啡, jibu cafe, 濾掛咖啡, 精品咖啡, 咖啡訂閱, 定期配送, 日本選物, 韓國選物, 台北咖啡">
+<meta name="description" content="一坨咖啡是一間關於日常的小店。精選小型莊園單品豆、小批量手工烘焙濾掛，與日韓選物。">
+<meta name="keywords" content="一坨咖啡, jibu cafe, 濾掛咖啡, 精品咖啡, 日本選物, 韓國選物, 台北咖啡">
 <meta name="theme-color" content="#fdfdfb">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -882,6 +882,142 @@
     letter-spacing: 0.1em;
   }
 
+  /* ===== Location ===== */
+  .location {
+    background: var(--bg-soft);
+    padding: 120px 48px;
+  }
+  .location-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  .location-grid {
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: 56px;
+    margin-top: 56px;
+    align-items: stretch;
+  }
+  .loc-info {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 44px 38px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .loc-info .store-name {
+    font-family: var(--f-serif-tc);
+    font-size: 26px;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    margin-bottom: 6px;
+  }
+  .loc-info .store-sub {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 0.24em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .loc-info .loc-divider {
+    width: 40px;
+    height: 1px;
+    background: var(--accent);
+    margin-bottom: 28px;
+  }
+  .loc-info .loc-row {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .loc-info .loc-row:last-of-type { border-bottom: none; }
+  .loc-info .loc-row .lbl {
+    font-family: var(--f-serif-en);
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .loc-info .loc-row .val {
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.85;
+    letter-spacing: 0.04em;
+  }
+  .loc-info .loc-row .val .small {
+    color: var(--ink-soft);
+    font-size: 12px;
+    display: block;
+    margin-top: 2px;
+  }
+  .loc-info .loc-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+  }
+  .loc-btn {
+    padding: 12px 22px;
+    background: var(--ink);
+    color: var(--bg);
+    border-radius: 999px;
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: background 0.3s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .loc-btn:hover { background: var(--accent-deep); }
+  .loc-btn.outline {
+    background: transparent;
+    border: 1px solid var(--ink-faint);
+    color: var(--ink);
+  }
+  .loc-btn.outline:hover {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .loc-map {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    min-height: 480px;
+    border: 1px solid var(--line);
+  }
+  .loc-map iframe {
+    width: 100%;
+    height: 100%;
+    min-height: 480px;
+    border: 0;
+    display: block;
+    filter: sepia(0.18) saturate(0.85) contrast(0.96) brightness(1.02);
+  }
+
+  @media (max-width: 900px) {
+    .location-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .location { padding: 90px 24px; }
+    .loc-info { padding: 36px 28px; }
+    .loc-info .store-name { font-size: 22px; }
+    .loc-map, .loc-map iframe { min-height: 360px; }
+  }
+
   /* ===== Mobile Drawer ===== */
   .drawer-bg {
     position: fixed; inset: 0;
@@ -1174,7 +1310,6 @@
   </div>
   <ul>
     <li><a href="menu.html"><span>店內菜單</span><span class="en">In-Store Menu</span></a></li>
-    <li><a href="#subscription" onclick="closeDrawer()"><span>訂閱咖啡</span><span class="en">Subscription</span></a></li>
     <li><a href="#shop" onclick="closeDrawer()"><span>選物商店</span><span class="en">Shop</span></a></li>
     <li><a href="#contact" onclick="closeDrawer()"><span>聯絡我們</span><span class="en">Contact</span></a></li>
   </ul>
@@ -1217,144 +1352,52 @@
   </div>
 </section>
 
-<!-- ===== Subscription ===== -->
-<section class="subscription reveal" id="subscription">
-  <div class="subscription-inner">
-    <div class="section-head">
-      <div class="section-eyebrow">Coffee Subscription</div>
-      <h2 class="section-title">訂閱咖啡</h2>
-      <p class="section-sub">
-        每個月，讓我們把當季最對味的咖啡，悄悄寄到你的桌上。<br>
-        隨時可以暫停、可以更換、可以取消。
-      </p>
-      <div class="section-divider"></div>
-    </div>
-
-    <div class="sub-grid">
-      <!-- Plan 1 -->
-      <div class="sub-card">
-        <div class="sub-name-jp">一坨日常</div>
-        <div class="sub-name-en">Daily Plan</div>
-        <div class="sub-price">
-          <span class="currency">NT$</span>
-          <span class="amount">250</span>
-          <span class="period">／月</span>
-        </div>
-        <div class="sub-tagline">適合一個人的清晨</div>
-        <div class="sub-divider"></div>
-        <ul class="sub-features">
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>每月 5 包精選濾掛咖啡</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>店主每月推薦單品</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>免運費寄送</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>隨時暫停 ／ 取消</span>
-          </li>
-        </ul>
-        <button class="sub-btn" onclick="subscribe('Daily')">選擇此方案</button>
-      </div>
-
-      <!-- Plan 2 (featured) -->
-      <div class="sub-card featured">
-        <div class="sub-badge">Most Loved</div>
-        <div class="sub-name-jp">一坨精選</div>
-        <div class="sub-name-en">Curated Plan</div>
-        <div class="sub-price">
-          <span class="currency">NT$</span>
-          <span class="amount">480</span>
-          <span class="period">／月</span>
-        </div>
-        <div class="sub-tagline">適合與所愛的人共享</div>
-        <div class="sub-divider"></div>
-        <ul class="sub-features">
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>每月 10 包精選濾掛咖啡</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>含一款訂閱限定豆款</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>每月隨贈一份手寫風味卡</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>選物商品 9 折</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>免運費寄送・隨時暫停</span>
-          </li>
-        </ul>
-        <button class="sub-btn" onclick="subscribe('Curated')">選擇此方案</button>
-      </div>
-
-      <!-- Plan 3 -->
-      <div class="sub-card">
-        <div class="sub-name-jp">一坨深度</div>
-        <div class="sub-name-en">Explorer Plan</div>
-        <div class="sub-price">
-          <span class="currency">NT$</span>
-          <span class="amount">880</span>
-          <span class="period">／月</span>
-        </div>
-        <div class="sub-tagline">給熱愛探索風味的你</div>
-        <div class="sub-divider"></div>
-        <ul class="sub-features">
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>每月 20 包精選濾掛咖啡</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>含兩款訂閱限定豆款</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>隨贈一份日系選物</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>選物商品 85 折</span>
-          </li>
-          <li class="sub-feature">
-            <svg class="check" viewBox="0 0 14 14"><path d="M2 7 L6 11 L12 3" stroke-linecap="round"/></svg>
-            <span>免運費寄送・隨時暫停</span>
-          </li>
-        </ul>
-        <button class="sub-btn" onclick="subscribe('Explorer')">選擇此方案</button>
-      </div>
-    </div>
-
-    <div class="sub-note">
-      支援信用卡定期定額<span>·</span>VISA ／ MasterCard ／ JCB<span>·</span>隨時可登入會員調整方案
-    </div>
-  </div>
-</section>
-
-<!-- ===== Contact ===== -->
-<section class="contact reveal" id="contact">
-  <div class="contact-inner">
+<!-- ===== Location ===== -->
+<section class="location reveal" id="contact">
+  <div class="location-inner">
     <div class="section-head">
       <div class="section-eyebrow">Visit Us</div>
-      <h2 class="section-title">聯絡 一坨</h2>
+      <h2 class="section-title">來找一坨</h2>
       <div class="section-divider"></div>
     </div>
-    <div class="contact-grid contact-grid-2" id="contactGrid">
-      <div class="contact-item">
-        <span class="label">Instagram</span>
-        <div class="value"><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a></div>
+    <div class="location-grid">
+      <div class="loc-info">
+        <div class="store-name">一坨咖啡</div>
+        <div class="store-sub">Jibu Coffee · Linkou</div>
+        <div class="loc-divider"></div>
+
+        <div class="loc-row">
+          <span class="lbl">Address</span>
+          <span class="val" id="locAddress">新北市林口區文化三路一段 375 號 1F</span>
+        </div>
+        <div class="loc-row">
+          <span class="lbl">Hours</span>
+          <span class="val" id="locHours">週一二四五 12:00 – 19:00<span class="small">週三公休 ・ 假日 11:00 – 19:00</span></span>
+        </div>
+        <div class="loc-row" id="locPhoneRow" style="display:none">
+          <span class="lbl">Phone</span>
+          <span class="val" id="locPhone">—</span>
+        </div>
+        <div class="loc-row">
+          <span class="lbl">IG</span>
+          <span class="val"><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener" style="border-bottom:1px solid var(--ink-faint);padding-bottom:1px">@jibucoffee</a></span>
+        </div>
+
+        <div class="loc-actions">
+          <a class="loc-btn" id="locDirBtn"
+             href="https://www.google.com/maps/dir/?api=1&destination=%E4%B8%80%E5%9D%A8%E5%92%96%E5%95%A1+%E6%96%B0%E5%8C%97%E5%B8%82%E6%9E%97%E5%8F%A3%E5%8D%80%E6%96%87%E5%8C%96%E4%B8%89%E8%B7%AF%E4%B8%80%E6%AE%B5375%E8%99%9F"
+             target="_blank" rel="noopener">→ 帶我前往</a>
+          <a class="loc-btn outline" href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">Instagram</a>
+        </div>
+      </div>
+
+      <div class="loc-map">
+        <iframe
+          id="locMap"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          src="https://www.google.com/maps?q=%E4%B8%80%E5%9D%A8%E5%92%96%E5%95%A1+%E6%96%B0%E5%8C%97%E5%B8%82%E6%9E%97%E5%8F%A3%E5%8D%80%E6%96%87%E5%8C%96%E4%B8%89%E8%B7%AF%E4%B8%80%E6%AE%B5375&output=embed"
+          allowfullscreen></iframe>
       </div>
     </div>
   </div>
@@ -1376,7 +1419,6 @@
           <li>原豆</li>
           <li>日本選物</li>
           <li>韓國選物</li>
-          <li>咖啡訂閱</li>
         </ul>
       </div>
       <div class="footer-col">
@@ -1480,13 +1522,7 @@
     document.getElementById('modalText').textContent = `已將「${name}」加入購物袋。實際上線後會接續信用卡金流結帳，支援 Visa、MasterCard、JCB、LINE Pay。`;
     showModal();
   }
-  function subscribe(plan) {
-    const names = { 'Daily': '一坨日常', 'Curated': '一坨精選', 'Explorer': '一坨深度' };
-    document.getElementById('modalTitle').textContent = `訂閱「${names[plan]}」`;
-    document.getElementById('modalText').textContent = `準備為你建立每月「${names[plan]}」定期配送。上線後將連接信用卡定期定額服務（綠界 ／ Stripe），讓你能安心訂閱、隨時暫停或取消。`;
-    showModal();
-  }
-  function openCart(e) {
+function openCart(e) {
     e.preventDefault();
     document.getElementById('modalTitle').textContent = '購物袋';
     document.getElementById('modalText').textContent = cart > 0 ? `目前購物袋裡有 ${cart} 件商品。實際上線後將進入結帳頁面。` : '購物袋裡還沒有商品，去逛逛吧。';
@@ -1803,21 +1839,31 @@
   }
 
   function renderContact(s) {
-    const grid = document.getElementById('contactGrid');
-    if (!grid) return;
-    const igHtml = `<div class="contact-item"><span class="label">Instagram</span><div class="value"><a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a></div></div>`;
-    const parts = [];
-    if (s.address) parts.push(`<div><span class="label" style="display:block;margin-bottom:6px;font-size:10px;color:var(--accent);letter-spacing:0.3em;font-style:italic">ADDRESS</span>${esc(s.address).replace(/\n/g, '<br>')}</div>`);
-    if (s.hours) parts.push(`<div><span class="label" style="display:block;margin-bottom:6px;font-size:10px;color:var(--accent);letter-spacing:0.3em;font-style:italic">HOURS</span>${esc(s.hours).replace(/\n/g, '<br>')}</div>`);
-    if (s.phone) parts.push(`<div><span class="label" style="display:block;margin-bottom:6px;font-size:10px;color:var(--accent);letter-spacing:0.3em;font-style:italic">PHONE</span>${esc(s.phone)}</div>`);
-    if (parts.length === 0) {
-      grid.innerHTML = igHtml;
-      grid.className = 'contact-grid contact-grid-2';
-      return;
+    // Address
+    if (s.address) {
+      const el = document.getElementById('locAddress');
+      if (el) el.textContent = s.address;
     }
-    const visitHtml = `<div class="contact-item"><span class="label">Visit</span><div class="value" style="display:flex;flex-direction:column;gap:18px;font-size:15px">${parts.join('')}</div></div>`;
-    grid.innerHTML = igHtml + visitHtml;
-    grid.className = 'contact-grid contact-grid-2';
+    // Hours
+    if (s.hours) {
+      const el = document.getElementById('locHours');
+      if (el) el.innerHTML = esc(s.hours).replace(/\n/g, '<br>');
+    }
+    // Phone
+    if (s.phone) {
+      const row = document.getElementById('locPhoneRow');
+      const val = document.getElementById('locPhone');
+      if (val) val.textContent = s.phone;
+      if (row) row.style.display = '';
+    }
+    // Map + directions auto-track address
+    if (s.address) {
+      const q = encodeURIComponent('一坨咖啡 ' + s.address);
+      const map = document.getElementById('locMap');
+      const dir = document.getElementById('locDirBtn');
+      if (map) map.src = `https://www.google.com/maps?q=${q}&output=embed`;
+      if (dir) dir.href = `https://www.google.com/maps/dir/?api=1&destination=${q}`;
+    }
   }
 </script>
 

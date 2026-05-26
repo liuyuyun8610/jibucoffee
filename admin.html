@@ -537,6 +537,60 @@
   }
   .btn.btn-danger:hover { background: #9c3838; }
 
+  /* ===== Hours grid ===== */
+  .hours-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--bg-card);
+  }
+  .hours-row {
+    display: grid;
+    grid-template-columns: 60px 90px 1fr 12px 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .hours-row .day-label {
+    font-size: 13px;
+    color: var(--ink);
+    letter-spacing: 0.06em;
+  }
+  .hours-row .closed-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .hours-row select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .hours-row .sep {
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 12px;
+  }
+  .hours-row.is-closed select { opacity: 0.35; pointer-events: none; }
+  .hours-row.is-closed .sep { opacity: 0.35; }
+  @media (max-width: 540px) {
+    .hours-row {
+      grid-template-columns: 50px 80px 1fr 10px 1fr;
+      gap: 6px;
+    }
+  }
+
   @media (max-width: 720px) {
     header { padding: 14px 18px; }
     main { padding: 20px 14px; }
@@ -682,8 +736,10 @@
       </div>
 
       <div class="form-row">
-        <label>營業時間（每行一條）</label>
-        <textarea id="ss_hours" rows="3" placeholder="平日 10:00 – 18:00&#10;六日 11:00 – 19:00"></textarea>
+        <label>營業時間</label>
+        <div class="hours-grid" id="hoursGrid"></div>
+        <input type="hidden" id="ss_hours">
+        <div class="help">每天可設一段時段，或勾「公休」整天不營業。前台會自動格式化呈現。</div>
       </div>
 
       <div class="form-grid-2">
@@ -1118,17 +1174,124 @@
   // ===== Site Settings =====
   const SITE_FIELDS = ['brand_tagline', 'address', 'phone', 'hours', 'shop_items', 'about_items', 'help_items'];
 
+  // ----- Hours builder (7 天下拉) -----
+  const DAYS = ['週一','週二','週三','週四','週五','週六','週日'];
+  const TIME_OPTIONS = (() => {
+    const out = [];
+    for (let h = 6; h <= 23; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        out.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+      }
+    }
+    out.push('24:00');
+    return out;
+  })();
+  const HOURS_DEFAULT = [
+    { off: false, start: '12:00', end: '19:00' },
+    { off: false, start: '12:00', end: '19:00' },
+    { off: true,  start: '12:00', end: '19:00' },
+    { off: false, start: '12:00', end: '19:00' },
+    { off: false, start: '12:00', end: '19:00' },
+    { off: false, start: '11:00', end: '19:00' },
+    { off: false, start: '11:00', end: '19:00' },
+  ];
+
+  function buildHoursUI() {
+    const grid = document.getElementById('hoursGrid');
+    if (!grid || grid.dataset.built === '1') return;
+    grid.dataset.built = '1';
+    const opts = TIME_OPTIONS.map(t => `<option value="${t}">${t}</option>`).join('');
+    grid.innerHTML = DAYS.map((d, i) => `
+      <div class="hours-row" data-day="${i}">
+        <span class="day-label">${d}</span>
+        <label class="closed-toggle">
+          <input type="checkbox" data-role="closed">
+          <span>公休</span>
+        </label>
+        <select data-role="start">${opts}</select>
+        <span class="sep">–</span>
+        <select data-role="end">${opts}</select>
+      </div>
+    `).join('');
+    grid.querySelectorAll('.hours-row').forEach(row => {
+      const cb = row.querySelector('[data-role="closed"]');
+      cb.addEventListener('change', () => row.classList.toggle('is-closed', cb.checked));
+    });
+  }
+
+  function parseHoursString(str) {
+    const state = HOURS_DEFAULT.map(d => ({ ...d }));
+    if (!str || typeof str !== 'string') return state;
+    const lines = str.split(/\r?\n/);
+    for (const line of lines) {
+      const m = line.match(/週([一二三四五六日])\s*(.*)/);
+      if (!m) continue;
+      const idx = '一二三四五六日'.indexOf(m[1]);
+      if (idx < 0) continue;
+      const rest = (m[2] || '').trim();
+      if (!rest || /公?休/.test(rest)) {
+        state[idx].off = true;
+        continue;
+      }
+      const t = rest.match(/(\d{1,2}:\d{2})\s*[–\-~~]\s*(\d{1,2}:\d{2})/);
+      if (t) {
+        state[idx].off = false;
+        state[idx].start = t[1].length === 4 ? '0' + t[1] : t[1];
+        state[idx].end   = t[2].length === 4 ? '0' + t[2] : t[2];
+      }
+    }
+    return state;
+  }
+
+  function applyHoursToUI(str) {
+    buildHoursUI();
+    const state = parseHoursString(str);
+    document.querySelectorAll('#hoursGrid .hours-row').forEach((row, i) => {
+      const s = state[i];
+      const cb = row.querySelector('[data-role="closed"]');
+      const start = row.querySelector('[data-role="start"]');
+      const end = row.querySelector('[data-role="end"]');
+      cb.checked = !!s.off;
+      row.classList.toggle('is-closed', !!s.off);
+      if (TIME_OPTIONS.includes(s.start)) start.value = s.start;
+      if (TIME_OPTIONS.includes(s.end))   end.value = s.end;
+    });
+  }
+
+  function buildHoursString() {
+    const rows = document.querySelectorAll('#hoursGrid .hours-row');
+    if (rows.length === 0) return '';
+    const lines = [];
+    rows.forEach((row, i) => {
+      const off = row.querySelector('[data-role="closed"]').checked;
+      if (off) { lines.push(`${DAYS[i]} 公休`); return; }
+      const s = row.querySelector('[data-role="start"]').value;
+      const e = row.querySelector('[data-role="end"]').value;
+      lines.push(`${DAYS[i]} ${s} – ${e}`);
+    });
+    return lines.join('\n');
+  }
+
   async function loadSiteSettings() {
+    buildHoursUI();
     const { data, error } = await sb.from('site_settings').select('*').eq('id', 1).maybeSingle();
     if (error) { toast('載入網站設定失敗：' + error.message, true); return; }
     const row = data || {};
     SITE_FIELDS.forEach(f => {
       const el = document.getElementById('ss_' + f);
-      if (el) el.value = row[f] ?? '';
+      if (!el) return;
+      if (f === 'hours') {
+        applyHoursToUI(row.hours ?? '');
+        el.value = row.hours ?? '';
+      } else {
+        el.value = row[f] ?? '';
+      }
     });
   }
 
   async function saveSiteSettings() {
+    // 把 7 天下拉組成字串塞回 hidden #ss_hours，後面流程不變
+    document.getElementById('ss_hours').value = buildHoursString();
     const payload = {};
     SITE_FIELDS.forEach(f => {
       const el = document.getElementById('ss_' + f);
