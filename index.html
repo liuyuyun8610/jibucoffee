@@ -1320,6 +1320,7 @@
   </div>
   <ul>
     <li><a href="menu.html"><span>店內菜單</span><span class="en">In-Store Menu</span></a></li>
+    <li><a href="#coffee" onclick="closeDrawer()"><span>咖啡</span><span class="en">Coffee</span></a></li>
     <li><a href="#shop" onclick="closeDrawer()"><span>選物商店</span><span class="en">Shop</span></a></li>
     <li><a href="#contact" onclick="closeDrawer()"><span>聯絡我們</span><span class="en">Contact</span></a></li>
   </ul>
@@ -1340,7 +1341,29 @@
   </div>
 </section>
 
-<!-- ===== Shop ===== -->
+<!-- ===== Coffee ===== -->
+<section class="shop reveal" id="coffee">
+  <div class="shop-inner">
+    <div class="shop-head">
+      <div class="shop-title-block">
+        <h2 class="shop-title">咖啡 ／ Coffee</h2>
+      </div>
+    </div>
+
+    <div class="shop-grid" id="coffeeGrid">
+      <div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px;letter-spacing:0.15em">Loading…</div>
+    </div>
+
+    <div class="shop-foot">
+      <a href="#coffee" class="text-link">
+        See More
+        <span class="arrow">→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Shop（選物，不含咖啡） ===== -->
 <section class="shop reveal" id="shop">
   <div class="shop-inner">
     <div class="shop-head">
@@ -1354,8 +1377,8 @@
     </div>
 
     <div class="shop-foot">
-      <a href="#" class="text-link">
-        View All Goods
+      <a href="#shop" class="text-link">
+        See More
         <span class="arrow">→</span>
       </a>
     </div>
@@ -1724,24 +1747,14 @@ function openCart(e) {
     return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  async function loadShop(sb) {
-    const grid = document.getElementById('shopGrid');
+  function renderProductGrid(grid, items) {
     if (!grid) return;
-    const { data, error } = await sb
-      .from('products')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-    if (error || !data) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px">商品載入失敗，請稍後重試。</div>';
-      return;
-    }
-    if (data.length === 0) {
+    if (items.length === 0) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px">商品準備中，敬請期待。</div>';
       return;
     }
     const fmt = n => 'NT$' + Number(n).toLocaleString();
-    grid.innerHTML = data.map(p => `
+    grid.innerHTML = items.map(p => `
       <div class="shop-item" data-cat="${esc(p.category)}" onclick="addToCart('${esc(p.name).replace(/'/g, "\\'")}')">
         <div class="thumb"><img src="${esc(p.image_url || '')}" alt="${esc(p.name)}" loading="lazy"></div>
         ${p.origin ? `<div class="origin">${esc(p.origin)}</div>` : ''}
@@ -1752,6 +1765,25 @@ function openCart(e) {
         </div>
       </div>
     `).join('');
+  }
+
+  async function loadShop(sb) {
+    const coffeeGrid = document.getElementById('coffeeGrid');
+    const shopGrid = document.getElementById('shopGrid');
+    const errHtml = '<div style="grid-column:1/-1;text-align:center;padding:60px 0;color:var(--ink-faint);font-size:13px">商品載入失敗，請稍後重試。</div>';
+
+    const { data, error } = await sb
+      .from('products')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    if (error || !data) {
+      if (coffeeGrid) coffeeGrid.innerHTML = errHtml;
+      if (shopGrid) shopGrid.innerHTML = errHtml;
+      return;
+    }
+    renderProductGrid(coffeeGrid, data.filter(p => p.category === 'coffee'));
+    renderProductGrid(shopGrid, data.filter(p => p.category !== 'coffee'));
   }
 
 
