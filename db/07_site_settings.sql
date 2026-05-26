@@ -7,7 +7,7 @@ create table if not exists public.site_settings (
   address text not null default '',
   phone text not null default '',
   hours text not null default '',
-  shop_items text not null default E'濾掛咖啡\n原豆\n日本選物\n韓國選物\n咖啡訂閱',
+  shop_items text not null default E'濾掛咖啡\n原豆\n生活選物',
   about_items text not null default E'聯絡我們|#contact\nInstagram|https://instagram.com/jibucoffee',
   help_items text not null default E'隱私條款\n退款政策\n配送說明\nFAQ',
   updated_at timestamptz not null default now()
