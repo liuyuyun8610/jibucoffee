@@ -429,6 +429,114 @@
   }
   .toast-undo:hover { background: rgba(255,255,255,0.3); }
 
+  /* ===== Menu admin ===== */
+  .menu-admin .cat-block {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px 14px;
+    margin-bottom: 18px;
+  }
+  .menu-admin .cat-block.off { opacity: 0.55; }
+  .menu-admin .cat-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .menu-admin .cat-head .ttl {
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+  }
+  .menu-admin .cat-head .en {
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.2em;
+  }
+  .menu-admin .cat-head .spacer { flex: 1; }
+  .menu-admin .cat-head label.toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .menu-admin .cat-footer-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .menu-admin .cat-footer-row input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  .menu-admin .cat-footer-row .btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .menu-admin .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+  }
+  .menu-admin .items-table th,
+  .menu-admin .items-table td {
+    padding: 7px 8px;
+    border-top: 1px solid var(--line);
+    text-align: left;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .menu-admin .items-table th {
+    border-top: none;
+    border-bottom: 1px solid var(--line);
+    font-weight: 500;
+    color: var(--ink-soft);
+    font-size: 12px;
+  }
+  .menu-admin .items-table tr.off td { opacity: 0.5; }
+  .menu-admin .items-table .name-zh { font-weight: 500; color: var(--ink); }
+  .menu-admin .items-table .name-en { font-size: 11px; color: var(--ink-faint); }
+  .menu-admin .items-table button.row-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .menu-admin .items-table button.row-btn:hover { background: var(--bg-soft); }
+  .menu-admin .add-row {
+    margin-top: 10px;
+    text-align: right;
+  }
+  .menu-admin .add-row .btn-small {
+    padding: 6px 14px;
+    font-size: 12px;
+    background: var(--bg-soft);
+    color: var(--ink);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+  }
+  .menu-admin .add-row .btn-small:hover {
+    border-color: var(--accent);
+    color: var(--accent-deep);
+  }
+  .btn.btn-danger {
+    background: #b94646;
+  }
+  .btn.btn-danger:hover { background: #9c3838; }
+
   @media (max-width: 720px) {
     header { padding: 14px 18px; }
     main { padding: 20px 14px; }
@@ -472,6 +580,7 @@
 <main id="adminView" style="display:none">
   <nav class="tabs">
     <button class="tab active" data-tab="products" onclick="switchTab('products')">商品</button>
+    <button class="tab" data-tab="menu" onclick="switchTab('menu')">菜單</button>
     <button class="tab" data-tab="dates" onclick="switchTab('dates')">公休日曆</button>
     <button class="tab" data-tab="site" onclick="switchTab('site')">網站設定</button>
   </nav>
@@ -503,6 +612,19 @@
           <tr><td colspan="7" class="empty">載入中...</td></tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- ===== 菜單 ===== -->
+  <section class="tab-panel" data-panel="menu">
+    <div class="toolbar">
+      <div>
+        <h2>菜單管理</h2>
+        <div class="stats" id="menuStats">前台 /menu.html 顯示的店內菜單</div>
+      </div>
+    </div>
+    <div id="menuRoot" class="menu-admin">
+      <div class="empty">載入中…</div>
     </div>
   </section>
 
@@ -662,6 +784,68 @@
   </div>
 </div>
 
+<!-- ===== Menu Item Modal ===== -->
+<div class="modal-bg" id="menuModalBg" onclick="closeMenuItemEditor()"></div>
+<div class="modal" id="menuItemModal">
+  <div class="modal-head">
+    <h3 id="menuItemTitle">新增品項</h3>
+    <button class="close" onclick="closeMenuItemEditor()">×</button>
+  </div>
+  <div class="modal-body">
+    <input type="hidden" id="miId">
+    <input type="hidden" id="miCategoryId">
+    <div class="form-row">
+      <label>所屬分類</label>
+      <div id="miCategoryLabel" style="font-size:14px;color:var(--ink-soft)"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>中文名稱 *</label>
+        <input type="text" id="miNameZh" required placeholder="例：濃縮">
+      </div>
+      <div class="form-row">
+        <label>英文名稱</label>
+        <input type="text" id="miNameEn" placeholder="Espresso">
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row">
+        <label>價格</label>
+        <input type="text" id="miPrice" placeholder="例：130 或留空">
+      </div>
+      <div class="form-row">
+        <label>排序（小的在前）</label>
+        <input type="number" id="miSortOrder" value="0">
+      </div>
+    </div>
+    <div id="miPourOverFields" style="display:none">
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>風味描述（手沖專用）</label>
+          <input type="text" id="miFlavor" placeholder="花香 / 水蜜桃 / 蜂蜜">
+        </div>
+        <div class="form-row">
+          <label>處理法（手沖專用）</label>
+          <input type="text" id="miProcess" placeholder="白蜜處理">
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>單品註記（顯示在價格旁的小字）</label>
+      <input type="text" id="miNote" placeholder="例：+10 烤花生糖漿">
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="miIsActive" checked>
+      <label for="miIsActive">在前台菜單顯示</label>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn outline" onclick="closeMenuItemEditor()">取消</button>
+    <button class="btn btn-danger" id="miDeleteBtn" onclick="deleteMenuItem()" style="display:none;margin-right:auto">刪除</button>
+    <button class="btn" onclick="saveMenuItem()" id="miSaveBtn">儲存</button>
+  </div>
+</div>
+
 <!-- ===== Toast ===== -->
 <div class="toast" id="toast"></div>
 
@@ -736,6 +920,7 @@
     await loadProducts();
     await loadClosedDates();
     await loadSiteSettings();
+    await loadMenu();
   }
 
   function showLogin() {
@@ -1047,6 +1232,187 @@
       document.getElementById('closedStats').textContent =
         `今日起共有 ${upcoming.length} 天公休（最近一次：${upcoming[0]}）`;
     }
+  }
+
+  // ===== Menu =====
+  let _menuCats = [];
+  let _menuItems = [];
+
+  async function loadMenu() {
+    const root = document.getElementById('menuRoot');
+    root.innerHTML = '<div class="empty">載入中…</div>';
+    const [catsRes, itemsRes] = await Promise.all([
+      sb.from('menu_categories').select('*').order('sort_order', { ascending: true }),
+      sb.from('menu_items').select('*').order('sort_order', { ascending: true }),
+    ]);
+    if (catsRes.error || itemsRes.error) {
+      root.innerHTML = `<div class="empty">載入失敗：${escapeHtml((catsRes.error || itemsRes.error).message)}</div>`;
+      return;
+    }
+    _menuCats = catsRes.data || [];
+    _menuItems = itemsRes.data || [];
+    renderMenuAdmin();
+  }
+
+  function renderMenuAdmin() {
+    const root = document.getElementById('menuRoot');
+    if (_menuCats.length === 0) {
+      root.innerHTML = '<div class="empty">尚未建立分類。請先在資料庫跑 db/08_menu.sql 建表 + seed。</div>';
+      return;
+    }
+    const totalItems = _menuItems.length;
+    const activeItems = _menuItems.filter(i => i.is_active).length;
+    document.getElementById('menuStats').textContent = `共 ${_menuCats.length} 個分類 / ${totalItems} 個品項（前台顯示 ${activeItems} 個）`;
+
+    root.innerHTML = _menuCats.map(cat => {
+      const its = _menuItems.filter(i => i.category_id === cat.id);
+      const isPourOver = cat.layout === 'four_col';
+      return `
+        <div class="cat-block ${cat.is_active ? '' : 'off'}" data-cat-id="${cat.id}">
+          <div class="cat-head">
+            <span class="ttl">${escapeHtml(cat.name_zh)}</span>
+            <span class="en">${escapeHtml(cat.name_en)}</span>
+            <span class="spacer"></span>
+            <label class="toggle">
+              <input type="checkbox" ${cat.is_active ? 'checked' : ''} onchange="toggleCategoryActive(${cat.id}, this.checked)">
+              在前台顯示
+            </label>
+          </div>
+          <div class="cat-footer-row">
+            <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap">區塊備註</span>
+            <input type="text" id="catNote_${cat.id}" value="${escapeHtml(cat.footer_note || '')}" placeholder="例：＋20 換燕麥奶">
+            <button class="btn btn-small" onclick="saveCategoryNote(${cat.id})">儲存備註</button>
+          </div>
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="width:50px">排序</th>
+                <th>品項</th>
+                ${isPourOver ? '<th>風味</th><th>處理法</th>' : ''}
+                <th style="width:90px">價格</th>
+                <th style="width:140px">註記</th>
+                <th style="width:70px">顯示</th>
+                <th style="width:60px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${its.length === 0 ? `
+                <tr><td colspan="${isPourOver ? 7 : 5}" class="empty">此分類還沒品項</td></tr>
+              ` : its.map(it => `
+                <tr class="${it.is_active ? '' : 'off'}">
+                  <td>${it.sort_order}</td>
+                  <td>
+                    <div class="name-zh">${escapeHtml(it.name_zh)}</div>
+                    ${it.name_en ? `<div class="name-en">${escapeHtml(it.name_en)}</div>` : ''}
+                  </td>
+                  ${isPourOver ? `
+                    <td><span style="font-size:12px;color:var(--ink-soft)">${escapeHtml(it.flavor || '')}</span></td>
+                    <td><span style="font-size:12px;color:var(--ink-soft)">${escapeHtml(it.process_method || '')}</span></td>
+                  ` : ''}
+                  <td>${it.price ? escapeHtml(it.price) : '<span style="color:var(--ink-faint)">—</span>'}</td>
+                  <td><span style="font-size:11px;color:var(--ink-faint)">${escapeHtml(it.note || '')}</span></td>
+                  <td>${it.is_active ? '✓' : '×'}</td>
+                  <td><button class="row-btn" onclick='openMenuItemEditor(${it.id})'>編輯</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="add-row">
+            <button class="btn-small" onclick="openMenuItemEditor(null, ${cat.id})">＋ 在此分類加品項</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function toggleCategoryActive(catId, checked) {
+    const { error } = await sb.from('menu_categories').update({ is_active: checked }).eq('id', catId);
+    if (error) { toast('儲存失敗：' + error.message, true); return; }
+    const cat = _menuCats.find(c => c.id === catId);
+    if (cat) cat.is_active = checked;
+    renderMenuAdmin();
+    toast(checked ? '已開啟此分類' : '已關閉此分類');
+  }
+
+  async function saveCategoryNote(catId) {
+    const val = document.getElementById('catNote_' + catId).value.trim();
+    const { error } = await sb.from('menu_categories').update({ footer_note: val || null }).eq('id', catId);
+    if (error) { toast('儲存失敗：' + error.message, true); return; }
+    const cat = _menuCats.find(c => c.id === catId);
+    if (cat) cat.footer_note = val || null;
+    toast('區塊備註已儲存');
+  }
+
+  function openMenuItemEditor(itemId, presetCatId) {
+    const it = itemId ? _menuItems.find(i => i.id === itemId) : null;
+    const catId = it ? it.category_id : presetCatId;
+    const cat = _menuCats.find(c => c.id === catId);
+    if (!cat) return;
+    document.getElementById('menuItemTitle').textContent = it ? '編輯品項' : '新增品項';
+    document.getElementById('miId').value = it ? it.id : '';
+    document.getElementById('miCategoryId').value = catId;
+    document.getElementById('miCategoryLabel').textContent = `${cat.name_zh}（${cat.name_en}）`;
+    document.getElementById('miNameZh').value = it?.name_zh || '';
+    document.getElementById('miNameEn').value = it?.name_en || '';
+    document.getElementById('miPrice').value = it?.price || '';
+    document.getElementById('miSortOrder').value = it?.sort_order ?? (it ? 0 : (_menuItems.filter(i => i.category_id === catId).length + 1) * 10);
+    document.getElementById('miNote').value = it?.note || '';
+    document.getElementById('miFlavor').value = it?.flavor || '';
+    document.getElementById('miProcess').value = it?.process_method || '';
+    document.getElementById('miIsActive').checked = it ? it.is_active : true;
+    document.getElementById('miPourOverFields').style.display = cat.layout === 'four_col' ? 'block' : 'none';
+    document.getElementById('miDeleteBtn').style.display = it ? 'inline-block' : 'none';
+    document.getElementById('menuModalBg').classList.add('show');
+    document.getElementById('menuItemModal').classList.add('show');
+  }
+
+  function closeMenuItemEditor() {
+    document.getElementById('menuModalBg').classList.remove('show');
+    document.getElementById('menuItemModal').classList.remove('show');
+  }
+
+  async function saveMenuItem() {
+    const id = document.getElementById('miId').value;
+    const catId = parseInt(document.getElementById('miCategoryId').value, 10);
+    const cat = _menuCats.find(c => c.id === catId);
+    const nameZh = document.getElementById('miNameZh').value.trim();
+    if (!nameZh) { toast('請填寫中文名稱', true); return; }
+    const row = {
+      category_id: catId,
+      name_zh: nameZh,
+      name_en: document.getElementById('miNameEn').value.trim() || null,
+      price: document.getElementById('miPrice').value.trim() || null,
+      sort_order: parseInt(document.getElementById('miSortOrder').value, 10) || 0,
+      note: document.getElementById('miNote').value.trim() || null,
+      is_active: document.getElementById('miIsActive').checked,
+      flavor: cat?.layout === 'four_col' ? (document.getElementById('miFlavor').value.trim() || null) : null,
+      process_method: cat?.layout === 'four_col' ? (document.getElementById('miProcess').value.trim() || null) : null,
+    };
+    const btn = document.getElementById('miSaveBtn');
+    btn.disabled = true; btn.textContent = '儲存中…';
+    let error;
+    if (id) {
+      ({ error } = await sb.from('menu_items').update(row).eq('id', parseInt(id, 10)));
+    } else {
+      ({ error } = await sb.from('menu_items').insert(row));
+    }
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { toast('儲存失敗：' + error.message, true); return; }
+    closeMenuItemEditor();
+    await loadMenu();
+    toast(id ? '已更新' : '已新增');
+  }
+
+  async function deleteMenuItem() {
+    const id = parseInt(document.getElementById('miId').value, 10);
+    if (!id) return;
+    const it = _menuItems.find(i => i.id === id);
+    if (!confirm(`確定刪除「${it?.name_zh}」？`)) return;
+    const { error } = await sb.from('menu_items').delete().eq('id', id);
+    if (error) { toast('刪除失敗：' + error.message, true); return; }
+    closeMenuItemEditor();
+    await loadMenu();
+    toast('已刪除');
   }
 
   // ===== Init =====

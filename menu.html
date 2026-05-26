@@ -114,60 +114,97 @@
     line-height: 1.9;
   }
 
-  .menu-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+  /* === Menu sections === */
+  .menu-section { margin: 0 0 80px; }
+  .menu-section:last-child { margin-bottom: 0; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 36px;
   }
-  .menu-card {
-    background: var(--bg-card);
-    border: 1px solid var(--line);
-    border-radius: 20px;
-    padding: 44px 32px 40px;
-    text-align: center;
-    transition: border-color 0.4s, transform 0.4s;
-  }
-  .menu-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-4px);
-  }
-  .cat-jp {
-    font-family: var(--f-serif-jp);
-    font-size: 13px;
-    color: var(--ink-faint);
+  .sec-head .zh {
+    font-family: var(--f-serif-tc);
+    font-size: 22px;
+    font-weight: 400;
     letter-spacing: 0.18em;
   }
-  .menu-card h2 {
-    font-family: var(--f-serif-tc);
-    font-size: 26px;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    margin: 14px 0 4px;
+  .sec-head .bar { color: var(--ink-faint); font-weight: 300; }
+  .sec-head .en {
+    font-family: var(--f-serif-en);
+    font-size: 16px;
+    letter-spacing: 0.32em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
   }
-  .cat-en {
+  .items-grid {
+    display: grid;
+    column-gap: 56px;
+    row-gap: 22px;
+  }
+  .items-grid.cols-1 { grid-template-columns: 1fr; max-width: 720px; }
+  .items-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .items-grid.cols-4 { grid-template-columns: 1fr; column-gap: 24px; }
+
+  .item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 18px;
+    align-items: baseline;
+  }
+  .items-grid.cols-4 .item {
+    grid-template-columns: 1.4fr 1.6fr 1fr auto;
+  }
+  .item .name {
+    font-family: var(--f-serif-tc);
+    font-size: 15px;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  .item .en {
     font-family: var(--f-serif-en);
     font-style: italic;
-    font-size: 14px;
-    color: var(--ink-faint);
-    letter-spacing: 0.2em;
-  }
-  .items {
-    list-style: none;
-    margin-top: 26px;
-    padding-top: 26px;
-    border-top: 1px solid var(--line);
-    font-size: 14px;
+    font-size: 12.5px;
     color: var(--ink-soft);
-    line-height: 2.2;
+    margin-top: 2px;
+    display: block;
+    letter-spacing: 0.02em;
   }
-  .items li.placeholder {
+  .item .flavor,
+  .item .process {
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+  }
+  .item .price {
+    font-family: var(--f-serif-en);
+    font-size: 14px;
+    color: var(--accent-deep);
+    white-space: nowrap;
+  }
+  .item .note {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .sec-footer-note {
+    margin-top: 30px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.06em;
+    line-height: 1.9;
+    white-space: pre-line;
+  }
+
+  .menu-loading,
+  .menu-empty {
+    text-align: center;
+    padding: 60px 20px;
     color: var(--ink-faint);
     font-style: italic;
-    font-size: 13px;
-  }
-  .items li .price {
-    color: var(--accent-deep);
-    margin-left: 6px;
+    font-size: 14px;
   }
 
   .foot-note {
@@ -185,9 +222,21 @@
   @media (max-width: 720px) {
     header { padding: 16px 20px; }
     main { padding: 60px 20px 90px; }
-    .menu-grid { grid-template-columns: 1fr; gap: 16px; }
     .menu-head { margin-bottom: 50px; }
-    .menu-card { padding: 36px 26px 32px; }
+    .menu-section { margin-bottom: 56px; }
+    .sec-head { flex-wrap: wrap; gap: 8px; }
+    .sec-head .zh { font-size: 19px; }
+    .sec-head .en { font-size: 13px; letter-spacing: 0.24em; }
+    .items-grid { column-gap: 0; row-gap: 16px; }
+    .items-grid.cols-2 { grid-template-columns: 1fr; }
+    .items-grid.cols-4 .item {
+      grid-template-columns: 1fr auto;
+      row-gap: 4px;
+    }
+    .items-grid.cols-4 .item .flavor,
+    .items-grid.cols-4 .item .process {
+      grid-column: 1 / -1;
+    }
   }
 </style>
 </head>
@@ -210,38 +259,93 @@
     <p class="head-sub">店內現點現做，菜單會隨季節微調。<br>最新品項以店內公告為準。</p>
   </div>
 
-  <div class="menu-grid">
-    <div class="menu-card">
-      <div class="cat-jp">ハンドドリップ</div>
-      <h2>手沖咖啡</h2>
-      <div class="cat-en">Hand Drip</div>
-      <ul class="items">
-        <li class="placeholder">品項即將公布</li>
-      </ul>
-    </div>
-    <div class="menu-card">
-      <div class="cat-jp">エスプレッソ</div>
-      <h2>義式咖啡</h2>
-      <div class="cat-en">Espresso</div>
-      <ul class="items">
-        <li class="placeholder">品項即將公布</li>
-      </ul>
-    </div>
-    <div class="menu-card">
-      <div class="cat-jp">ノンコーヒー</div>
-      <h2>非咖啡類</h2>
-      <div class="cat-en">Non-Coffee</div>
-      <ul class="items">
-        <li class="placeholder">品項即將公布</li>
-      </ul>
-    </div>
-  </div>
+  <div id="menu-root" class="menu-loading">載入菜單中…</div>
 
   <p class="foot-note">
     最新菜單與當日品項，<br>
     請追蹤 Instagram <a href="https://instagram.com/jibucoffee" target="_blank" rel="noopener">@jibucoffee</a>。
   </p>
 </main>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  (async function() {
+    const root = document.getElementById('menu-root');
+    try {
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.JIBU_CONFIG;
+      const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const { data: cats, error: e1 } = await sb
+        .from('menu_categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      if (e1) throw e1;
+
+      const { data: items, error: e2 } = await sb
+        .from('menu_items')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      if (e2) throw e2;
+
+      if (!cats || cats.length === 0) {
+        root.className = 'menu-empty';
+        root.textContent = '菜單尚未建立。';
+        return;
+      }
+
+      const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+      const html = cats.map(cat => {
+        const its = items.filter(i => i.category_id === cat.id);
+        if (its.length === 0) return '';
+        const cols = cat.layout === 'two_col' ? 'cols-2' : cat.layout === 'four_col' ? 'cols-4' : 'cols-1';
+
+        const renderItem = (it) => {
+          if (cat.layout === 'four_col') {
+            return `
+              <div class="item">
+                <span class="name">${esc(it.name_zh)}</span>
+                <span class="flavor">${esc(it.flavor || '')}</span>
+                <span class="process">${esc(it.process_method || '')}</span>
+                <span class="price">${esc(it.price || '')}</span>
+              </div>`;
+          }
+          return `
+            <div class="item">
+              <span>
+                <span class="name">${esc(it.name_zh)}</span>${it.note ? `<span class="note">${esc(it.note)}</span>` : ''}
+                ${it.name_en ? `<span class="en">${esc(it.name_en)}</span>` : ''}
+              </span>
+              <span class="price">${esc(it.price || '')}</span>
+            </div>`;
+        };
+
+        return `
+          <section class="menu-section">
+            <div class="sec-head">
+              <span class="zh">${esc(cat.name_zh)}</span>
+              <span class="bar">｜</span>
+              <span class="en">${esc(cat.name_en)}</span>
+            </div>
+            <div class="items-grid ${cols}">
+              ${its.map(renderItem).join('')}
+            </div>
+            ${cat.footer_note ? `<div class="sec-footer-note">${esc(cat.footer_note)}</div>` : ''}
+          </section>`;
+      }).join('');
+
+      root.className = '';
+      root.innerHTML = html || '<div class="menu-empty">菜單尚未建立。</div>';
+    } catch (err) {
+      root.className = 'menu-empty';
+      root.textContent = '載入失敗：' + (err.message || err);
+      console.error(err);
+    }
+  })();
+</script>
 
 </body>
 </html>
