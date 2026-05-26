@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>一坨咖啡與生活選物</title>
-<meta name="description" content="一坨咖啡是一間關於日常的小店。精選小型莊園單品豆、小批量手工烘焙濾掛，與日韓選物。">
-<meta name="keywords" content="一坨咖啡, jibu cafe, 濾掛咖啡, 精品咖啡, 日本選物, 韓國選物, 台北咖啡">
+<meta name="description" content="一坨咖啡是一間關於日常的小店。精選小型莊園單品豆、小批量手工烘焙濾掛，與生活選物。">
+<meta name="keywords" content="一坨咖啡, jibu cafe, 濾掛咖啡, 精品咖啡, 生活選物, 台北咖啡">
 <meta name="theme-color" content="#fdfdfb">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="一坨咖啡與生活選物">
 <meta property="og:title" content="一坨咖啡與生活選物">
-<meta property="og:description" content="一杯咖啡的時間，是一天當中最安靜的儀式。精選濾掛 ／ 定期配送 ／ 日韓選物。">
+<meta property="og:description" content="一杯咖啡的時間，是一天當中最安靜的儀式。精選濾掛 ／ 單品豆 ／ 生活選物。">
 <meta property="og:image" content="logo.png">
 <meta property="og:locale" content="zh_TW">
 <!-- Twitter -->
@@ -394,168 +394,11 @@
   .text-link .arrow { transition: transform 0.3s ease; }
   .text-link:hover .arrow { transform: translateX(6px); }
 
-  /* ===== Subscription ===== */
-  .subscription {
-    padding: 150px 48px;
-    background: var(--bg);
-    position: relative;
-  }
-  .subscription-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  .sub-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    margin-top: 80px;
-  }
-  .sub-card {
-    background: var(--bg-card);
-    padding: 52px 38px 44px;
-    position: relative;
-    transition: all 0.5s ease;
-    border: 1px solid var(--line);
-    border-radius: 24px;
-    display: flex;
-    flex-direction: column;
-  }
-  .sub-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 28px 70px -22px rgba(26, 26, 26, 0.12);
-    border-color: var(--accent);
-  }
-  .sub-card.featured {
-    background: var(--bg-soft);
-    border: 2px solid var(--accent);
-    transform: translateY(-12px);
-    box-shadow: 0 32px 64px -24px rgba(92, 72, 48, 0.22);
-  }
-  .sub-card.featured:hover {
-    transform: translateY(-20px);
-    box-shadow: 0 40px 84px -24px rgba(92, 72, 48, 0.28);
-  }
-
-  .sub-badge {
-    position: absolute;
-    top: -12px; left: 50%;
-    transform: translateX(-50%);
-    background: var(--accent);
-    color: var(--bg);
-    padding: 7px 18px;
-    font-family: var(--f-serif-en);
-    font-style: italic;
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-  }
-  .sub-name-jp {
-    font-family: var(--f-serif-jp);
-    font-size: 22px;
-    letter-spacing: 0.18em;
-    margin-bottom: 6px;
-  }
-  .sub-name-en {
-    font-family: var(--f-serif-en);
-    font-style: italic;
-    font-size: 13px;
-    letter-spacing: 0.32em;
-    opacity: 0.55;
-    margin-bottom: 30px;
-    text-transform: uppercase;
-  }
-  .sub-price {
-    margin-bottom: 10px;
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-  }
-  .sub-price .currency {
-    font-family: var(--f-serif-en);
-    font-size: 16px;
-    opacity: 0.55;
-  }
-  .sub-price .amount {
-    font-family: var(--f-serif-en);
-    font-size: 60px;
-    font-weight: 300;
-    line-height: 1;
-    letter-spacing: 0.01em;
-  }
-  .sub-price .period {
-    font-size: 13px;
-    opacity: 0.55;
-    letter-spacing: 0.12em;
-  }
-  .sub-tagline {
-    font-size: 13px;
-    opacity: 0.65;
-    margin-bottom: 30px;
-    letter-spacing: 0.08em;
-  }
-  .sub-divider {
-    height: 1px;
-    background: var(--line);
-    margin: 0 0 30px;
-  }
-  .sub-features {
-    list-style: none;
-    margin-bottom: 38px;
-    flex-grow: 1;
-  }
-  .sub-feature {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    font-size: 14px;
-    line-height: 1.8;
-    color: var(--ink-soft);
-    margin-bottom: 14px;
-  }
-  .sub-feature .check {
-    width: 14px; height: 14px;
-    stroke: var(--accent);
-    fill: none;
-    stroke-width: 1.5;
-    flex-shrink: 0;
-    margin-top: 6px;
-  }
-  .sub-btn {
-    display: block;
-    width: 100%;
-    padding: 16px;
-    background: var(--ink);
-    color: var(--bg);
-    font-family: var(--f-serif-jp);
-    font-size: 13px;
-    letter-spacing: 0.32em;
-    text-align: center;
-    border-radius: 999px;
-    transition: all 0.4s ease;
-  }
-  .sub-btn:hover { background: var(--accent-deep); }
-  .sub-card.featured .sub-btn {
-    background: var(--accent);
-  }
-  .sub-card.featured .sub-btn:hover { background: var(--accent-deep); }
-
-  .sub-note {
-    text-align: center;
-    margin-top: 52px;
-    font-size: 13px;
-    color: var(--ink-soft);
-    letter-spacing: 0.1em;
-  }
-  .sub-note span {
-    margin: 0 14px;
-    color: var(--line);
-  }
+  /* ===== Subscription (已移除，不保留樣式) ===== */
 
   /* ===== Shop Grid ===== */
   .shop {
-    padding: 6px 48px 150px;
+    padding: 90px 48px 90px;
     background: var(--bg);
     max-width: none;
   }
@@ -1268,14 +1111,11 @@
     .hero { grid-template-columns: 1fr; gap: 50px; padding: 130px 24px 70px; }
     .hero-visual { height: 60vh; }
     section { padding: 90px 24px; }
-    .concept-grid, .sub-grid, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
+    .concept-grid, .shop-grid { grid-template-columns: 1fr; gap: 50px; }
     .menu-grid { grid-template-columns: 1fr; gap: 16px; }
     .notice { padding: 110px 24px 4px; }
     .menu-section { padding: 90px 24px; }
-    .sub-card.featured, .sub-card.featured:hover { transform: none; }
-    .sub-card:hover { transform: none; }
-    .shop { padding: 6px 24px 90px; }
-    .subscription { padding: 90px 24px; }
+    .shop { padding: 60px 24px 60px; }
     .footer-top { grid-template-columns: 1fr 1fr; gap: 40px; }
     .shop-head { flex-direction: column; align-items: flex-start; gap: 24px; }
     .nav-actions { gap: 14px; font-size: 12px; }
@@ -1446,8 +1286,7 @@
         <ul id="footerShopList">
           <li>濾掛咖啡</li>
           <li>原豆</li>
-          <li>日本選物</li>
-          <li>韓國選物</li>
+          <li>生活選物</li>
         </ul>
       </div>
       <div class="footer-col">
