@@ -124,10 +124,18 @@
 
       <div class="card">
         <div class="row-between" style="margin-bottom:10px">
-          <h2 class="card-h" style="margin:0">庫存品項 <span class="faint" style="font-weight:400">— 叫貨時從這份清單下拉選取</span></h2>
+          <h2 class="card-h" id="stockToggle" style="margin:0; cursor:pointer; user-select:none">
+            <span id="stockChev" style="display:inline-block; color:var(--ink-faint)">▾</span>
+            庫存品項 <span class="faint" style="font-weight:400">— 叫貨清單（<span id="stockCount">0</span>）</span>
+          </h2>
           <button class="btn btn-ghost btn-sm" id="addStock">＋ 新增品項</button>
         </div>
-        <div id="stockList"><p class="muted faint">載入中…</p></div>
+        <div id="stockBody" style="overflow-x:auto">
+          <table class="tbl" id="stockTable">
+            <thead><tr><th>品名</th><th>容量</th><th>單位</th><th class="num">成本</th><th>廠商</th><th></th></tr></thead>
+            <tbody><tr><td colspan="6" class="muted faint">載入中…</td></tr></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="card">

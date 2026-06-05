@@ -680,16 +680,25 @@
   let editStockId = null;
 
   function renderStockList() {
-    if (!stockItems.length) { F('stockList').innerHTML = '<p class="muted faint">尚無品項，點「新增品項」建立叫貨用的清單</p>'; return; }
-    F('stockList').innerHTML = stockItems.map(s => `
-      <span class="chip" data-id="${s.id}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;margin:0 6px 8px 0;font-size:13px">
-        <b style="font-weight:500">${escapeHtml(s.name)}</b>
-        ${s.capacity ? `<span class="faint">${escapeHtml(s.capacity)}</span>` : ''}
-        ${s.unit ? `<span class="faint">${escapeHtml(s.unit)}</span>` : ''}
-        ${s.cost ? `<span class="faint">成本${formatCurrency(s.cost)}</span>` : ''}
-      </span>`).join('');
-    F('stockList').querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => openStockModal(el.dataset.id)));
+    F('stockCount').textContent = stockItems.length;
+    const tb = F('stockTable').querySelector('tbody');
+    if (!stockItems.length) { tb.innerHTML = '<tr><td colspan="6" class="muted faint">尚無品項，點「新增品項」建立叫貨用的清單</td></tr>'; return; }
+    tb.innerHTML = stockItems.map(s => `
+      <tr data-id="${s.id}" style="cursor:pointer">
+        <td style="font-weight:500">${escapeHtml(s.name)}</td>
+        <td style="white-space:nowrap">${escapeHtml(s.capacity || '')}</td>
+        <td style="white-space:nowrap">${escapeHtml(s.unit || '')}</td>
+        <td class="num" style="white-space:nowrap">${s.cost ? formatCurrency(s.cost) : '—'}</td>
+        <td class="faint">${escapeHtml(s.vendor || '')}</td>
+        <td class="num faint">編輯 ›</td>
+      </tr>`).join('');
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openStockModal(tr.dataset.id)));
   }
+
+  F('stockToggle').addEventListener('click', () => {
+    const hidden = F('stockBody').classList.toggle('hidden');
+    F('stockChev').textContent = hidden ? '▸' : '▾';
+  });
 
   function buildUnitOptions(current) {
     const units = [...new Set([...UNIT_PRESETS, ...stockItems.map(s => s.unit).filter(Boolean), current].filter(Boolean))];
