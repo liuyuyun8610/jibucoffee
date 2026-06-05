@@ -20,6 +20,7 @@
   <div class="topbar">
     <div class="brand">一坨咖啡 <small>後台</small></div>
     <div class="right">
+      <a href="recipes.html" class="who">內部資料</a>
       <a href="me.html" class="who">我的資料</a>
       <span class="who" id="who"></span>
       <button class="btn btn-ghost btn-sm" id="logout">登出</button>
@@ -31,6 +32,7 @@
       <button class="tab active" data-tab="hr">人事管理</button>
       <button class="tab" data-tab="payroll">薪資計算</button>
       <button class="tab" data-tab="revenue">營收預測</button>
+      <button class="tab" data-tab="inventory">庫存叫貨</button>
     </div>
 
     <!-- ===== 人事管理 ===== -->
@@ -84,6 +86,67 @@
         </div>
       </div>
     </section>
+  </div>
+
+    <!-- ===== 庫存叫貨 ===== -->
+    <section data-pane="inventory" class="hidden">
+      <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
+        <div class="flex">
+          <select class="input" id="inv_range" style="width:auto">
+            <option value="month">本月</option>
+            <option value="last">上個月</option>
+            <option value="all">全部</option>
+          </select>
+          <span class="faint" id="inv_sum"></span>
+        </div>
+        <button class="btn btn-primary btn-sm" id="addPurchase">＋ 新增叫貨</button>
+      </div>
+
+      <div class="card">
+        <h2 class="card-h">叫貨明細</h2>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="invTable">
+            <thead><tr><th>日期</th><th>品項</th><th class="num">數量</th><th>單位</th><th class="num">單價</th><th class="num">小計</th><th>廠商</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-h">叫貨參考 <span class="faint" style="font-weight:400">— 每個品項上次叫多少、近期平均，決定這次叫幾個</span></h2>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="invRefTable">
+            <thead><tr><th>品項</th><th class="num">上次數量</th><th>上次日期</th><th class="num">近期平均</th><th class="num">叫貨次數</th><th class="num">累計花費</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  <!-- ===== Modal: 叫貨 ===== -->
+  <div class="modal-mask" id="purModal">
+    <div class="modal">
+      <h3 class="modal-h" id="purModalTitle">新增叫貨</h3>
+      <div class="grid3">
+        <div class="field"><label class="label">叫貨日期 ★</label><input class="input" type="date" id="p_date"></div>
+        <div class="field"><label class="label">品項 ★</label><input class="input" id="p_item" list="itemList" placeholder="例：鮮奶"><datalist id="itemList"></datalist></div>
+        <div class="field"><label class="label">分類</label><input class="input" id="p_category" list="pcatList" placeholder="例：乳製品"><datalist id="pcatList"></datalist></div>
+        <div class="field"><label class="label">數量 ★</label><input class="input" type="number" id="p_qty"></div>
+        <div class="field"><label class="label">單位</label><input class="input" id="p_unit" list="unitList" placeholder="瓶/箱/包"><datalist id="unitList"><option value="瓶"><option value="箱"><option value="包"><option value="份"><option value="罐"><option value="袋"><option value="公斤"></datalist></div>
+        <div class="field"><label class="label">單價</label><input class="input" type="number" id="p_cost"></div>
+        <div class="field"><label class="label">廠商</label><input class="input" id="p_supplier" list="supList"><datalist id="supList"></datalist></div>
+        <div class="field"><label class="label">小計（自動）</label><input class="input" id="p_subtotal" readonly></div>
+        <div class="field"><label class="label">備註</label><input class="input" id="p_note"></div>
+      </div>
+      <div id="p_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="p_delete" style="visibility:hidden">刪除這筆</button>
+        <div class="flex">
+          <button class="btn btn-ghost" id="p_cancel">取消</button>
+          <button class="btn btn-primary" id="p_save">儲存</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ===== Modal: 員工 ===== -->

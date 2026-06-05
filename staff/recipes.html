@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>內部資料 · 一坨咖啡</title>
+  <link rel="icon" href="../favicon.png" />
+  <link rel="stylesheet" href="staff.css" />
+  <style>
+    .cat-title { font-family: var(--f-serif); font-size: 16px; font-weight: 600; color: var(--accent-deep); margin: 24px 0 10px; display: flex; align-items: baseline; gap: 8px; }
+    .cat-title .en { font-family: var(--f-en); font-size: 12px; color: var(--ink-faint); letter-spacing: 1px; }
+    .rec { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; overflow: hidden; background: #fff; }
+    .rec-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 15px; cursor: pointer; }
+    .rec-head .nm { font-weight: 500; }
+    .rec-head .meta { font-size: 12px; color: var(--ink-faint); }
+    .rec-body { padding: 0 15px 14px; border-top: 1px solid var(--line-soft); }
+    .rec-body.empty .content { color: var(--ink-faint); font-style: italic; }
+    .content { white-space: pre-wrap; font-size: 14px; line-height: 1.7; color: var(--ink); padding-top: 12px; }
+    .rec.collapsed .rec-body { display: none; }
+    .chev { transition: transform .2s; color: var(--ink-faint); }
+    .rec.collapsed .chev { transform: rotate(-90deg); }
+    .search { width: 100%; max-width: 320px; }
+    textarea.big { min-height: 200px; font-size: 14px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">一坨咖啡 <small>內部資料</small></div>
+    <div class="right">
+      <a href="#" class="who" id="backLink">返回</a>
+      <button class="btn btn-ghost btn-sm" id="logout">登出</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="app" style="opacity:0">
+    <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
+      <div>
+        <p class="muted" style="margin:0">每個品項的做法、烘烤/微波時間等內部紀錄。</p>
+        <p class="faint" id="roleHint" style="margin:2px 0 0"></p>
+      </div>
+      <div class="flex" id="ownerTools" style="display:none">
+        <button class="btn btn-ghost btn-sm" id="importBtn">從菜單匯入新品項</button>
+        <button class="btn btn-primary btn-sm" id="addBtn">＋ 新增品項</button>
+      </div>
+    </div>
+    <input class="input search" id="search" placeholder="搜尋品項…" />
+    <div id="list" class="mt16"><p class="muted faint">載入中…</p></div>
+  </div>
+
+  <!-- 編輯 modal -->
+  <div class="modal-mask" id="recModal">
+    <div class="modal">
+      <h3 class="modal-h" id="recModalTitle">編輯品項</h3>
+      <div class="grid2">
+        <div class="field"><label class="label">品項名稱 ★</label><input class="input" id="r_name" /></div>
+        <div class="field"><label class="label">分類</label><input class="input" id="r_category" list="catList" placeholder="例：義式咖啡" /><datalist id="catList"></datalist></div>
+      </div>
+      <div class="field">
+        <label class="label">做法 / SOP 內容</label>
+        <textarea class="input big" id="r_content" placeholder="例：&#10;・拿鐵：濃縮 2 shot + 鋼杯打奶泡至 60°C，拉花…&#10;・巴斯克：上層烤箱 220°C 烤 25 分鐘，表面焦黑即可&#10;・小飯糰：微波 600W 40 秒"></textarea>
+      </div>
+      <div id="r_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="r_delete" style="visibility:hidden">刪除</button>
+        <div class="flex">
+          <button class="btn btn-ghost" id="r_cancel">取消</button>
+          <button class="btn btn-primary" id="r_save">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="staff.js"></script>
+  <script>
+    const { sb, requireAuth, signOut, toast, escapeHtml } = JB;
+    const F = id => document.getElementById(id);
+    let isOwner = false, recipes = [], editId = null;
+
+    F('logout').addEventListener('click', signOut);
+
+    (async () => {
+      const auth = await requireAuth();
+      if (!auth) return;
+      isOwner = auth.staff.role === 'owner';
+      F('backLink').setAttribute('href', isOwner ? 'manage.html' : 'me.html');
+      F('backLink').textContent = isOwner ? '← 返回後台' : '← 返回我的資料';
+      F('roleHint').textContent = isOwner ? '你可以編輯（員工只能閱讀）' : '僅供閱讀，內容由店長維護';
+      if (isOwner) F('ownerTools').style.display = 'flex';
+      F('app').style.opacity = 1;
+      await load();
+    })();
+
+    async function load() {
+      const { data, error } = await sb.from('recipes').select('*')
+        .order('category_id', { ascending: true }).order('sort_order', { ascending: true }).order('name', { ascending: true });
+      if (error) { F('list').innerHTML = `<p class="muted faint">讀取失敗：${escapeHtml(error.message)}</p>`; return; }
+      recipes = data || [];
+      // datalist 分類選項
+      const cats = [...new Set(recipes.map(r => r.category_name).filter(Boolean))];
+      F('catList').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+      render();
+    }
+
+    function render() {
+      const q = (F('search').value || '').trim().toLowerCase();
+      const filtered = q ? recipes.filter(r => (r.name || '').toLowerCase().includes(q) || (r.content || '').toLowerCase().includes(q)) : recipes;
+      if (!filtered.length) { F('list').innerHTML = '<p class="muted faint">沒有符合的品項。</p>'; return; }
+      // 依 category 分組（保留出現順序）
+      const groups = [];
+      const idx = {};
+      filtered.forEach(r => {
+        const key = r.category_name || '其他';
+        if (!(key in idx)) { idx[key] = groups.length; groups.push({ key, items: [] }); }
+        groups[idx[key]].items.push(r);
+      });
+      F('list').innerHTML = groups.map(g => `
+        <div class="cat-title">${escapeHtml(g.key)}</div>
+        ${g.items.map(r => {
+          const empty = !r.content || !r.content.trim();
+          return `<div class="rec ${empty && !q ? 'collapsed' : ''}" data-id="${r.id}">
+            <div class="rec-head">
+              <span class="nm">${escapeHtml(r.name)}</span>
+              <span class="flex">
+                ${empty ? '<span class="meta">尚未填寫</span>' : ''}
+                ${isOwner ? `<button class="btn btn-ghost btn-sm" data-edit="${r.id}">編輯</button>` : ''}
+                <span class="chev">▾</span>
+              </span>
+            </div>
+            <div class="rec-body ${empty ? 'empty' : ''}">
+              <div class="content">${empty ? '（尚未填寫做法）' : escapeHtml(r.content)}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      `).join('');
+
+      // 展開/收合
+      F('list').querySelectorAll('.rec-head').forEach(h => h.addEventListener('click', (e) => {
+        if (e.target.closest('[data-edit]')) return;
+        h.closest('.rec').classList.toggle('collapsed');
+      }));
+      // 編輯
+      F('list').querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', (e) => {
+        e.stopPropagation(); openModal(b.dataset.edit);
+      }));
+    }
+
+    F('search').addEventListener('input', render);
+
+    /* ===== Owner 編輯 ===== */
+    F('addBtn') && F('addBtn').addEventListener('click', () => openModal(null));
+    F('r_cancel').addEventListener('click', () => F('recModal').classList.remove('show'));
+
+    function openModal(id) {
+      editId = id;
+      const r = id ? recipes.find(x => x.id === id) : null;
+      F('recModalTitle').textContent = r ? '編輯品項' : '新增品項';
+      F('r_name').value = r ? r.name : '';
+      F('r_category').value = r ? (r.category_name || '') : '';
+      F('r_content').value = r ? (r.content || '') : '';
+      F('r_err').textContent = '';
+      F('r_delete').style.visibility = r ? 'visible' : 'hidden';
+      F('recModal').classList.add('show');
+    }
+
+    F('r_save').addEventListener('click', async () => {
+      const name = F('r_name').value.trim();
+      if (!name) { F('r_err').textContent = '請填品項名稱'; return; }
+      const btn = F('r_save'); btn.disabled = true; btn.textContent = '儲存中…';
+      const payload = { name, category_name: F('r_category').value.trim() || null, content: F('r_content').value };
+      let error;
+      if (editId) ({ error } = await sb.from('recipes').update(payload).eq('id', editId));
+      else ({ error } = await sb.from('recipes').insert(payload));
+      btn.disabled = false; btn.textContent = '儲存';
+      if (error) { F('r_err').textContent = '儲存失敗：' + error.message; return; }
+      F('recModal').classList.remove('show'); toast('✅ 已儲存'); await load();
+    });
+
+    F('r_delete').addEventListener('click', async () => {
+      if (!editId || !confirm('確定刪除這個品項？')) return;
+      const { error } = await sb.from('recipes').delete().eq('id', editId);
+      if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+      F('recModal').classList.remove('show'); toast('已刪除'); await load();
+    });
+
+    /* ===== 從菜單匯入尚未建立的品項 ===== */
+    F('importBtn') && F('importBtn').addEventListener('click', async () => {
+      const btn = F('importBtn'); btn.disabled = true; btn.textContent = '匯入中…';
+      const [{ data: items }, { data: cats }] = await Promise.all([
+        sb.from('menu_items').select('id,category_id,name_zh,sort_order,is_active'),
+        sb.from('menu_categories').select('id,name_zh'),
+      ]);
+      const catName = {}; (cats || []).forEach(c => catName[c.id] = c.name_zh);
+      const existing = new Set(recipes.map(r => r.menu_item_id).filter(x => x != null));
+      const toAdd = (items || []).filter(i => i.is_active && !existing.has(i.id)).map(i => ({
+        menu_item_id: i.id, category_id: i.category_id, category_name: catName[i.category_id] || null,
+        name: i.name_zh, sort_order: i.sort_order || 0,
+      }));
+      btn.disabled = false; btn.textContent = '從菜單匯入新品項';
+      if (!toAdd.length) { toast('沒有新品項需要匯入'); return; }
+      const { error } = await sb.from('recipes').insert(toAdd);
+      if (error) { toast('匯入失敗：' + error.message, 'error'); return; }
+      toast(`✅ 已匯入 ${toAdd.length} 個新品項`); await load();
+    });
+  </script>
+</body>
+</html>

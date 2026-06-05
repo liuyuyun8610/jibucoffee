@@ -18,6 +18,7 @@
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     if (name === 'revenue') loadRevenue();
     if (name === 'payroll') loadPayrollMonth();
+    if (name === 'inventory') loadInventory();
   }));
 
   (async () => {
@@ -542,5 +543,152 @@
     const { error } = await sb.from('revenue_records').delete().eq('id', editRevId);
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
     F('revModal').classList.remove('show'); toast('已刪除'); loadRevenue();
+  });
+
+  /* ============================================================
+   * 4) 庫存叫貨
+   * ========================================================== */
+  let purchases = [], invLoaded = false;
+
+  async function loadInventory() {
+    const { data, error } = await sb.from('purchases').select('*').order('order_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) { F('invTable').querySelector('tbody').innerHTML = `<tr><td colspan="8" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
+    purchases = data || [];
+    invLoaded = true;
+    renderInventory();
+    refreshDatalists();
+  }
+
+  function monthRange(which) {
+    const d = new Date();
+    let y = d.getFullYear(), m = d.getMonth(); // 0-based
+    if (which === 'last') { m -= 1; if (m < 0) { m = 11; y--; } }
+    const start = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    const end = new Date(y, m + 1, 0);
+    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+    return { start, end: endStr };
+  }
+
+  F('inv_range').addEventListener('change', renderInventory);
+
+  function renderInventory() {
+    const which = F('inv_range').value;
+    let rows = purchases;
+    if (which !== 'all') {
+      const { start, end } = monthRange(which);
+      rows = purchases.filter(p => p.order_date >= start && p.order_date <= end);
+    }
+    const total = rows.reduce((s, p) => s + Number(p.total_cost || 0), 0);
+    F('inv_sum').textContent = `${rows.length} 筆・採購成本 ${formatCurrency(total)}`;
+
+    const tb = F('invTable').querySelector('tbody');
+    tb.innerHTML = rows.length ? rows.map(p => `
+      <tr data-id="${p.id}" style="cursor:pointer">
+        <td>${(p.order_date || '').replace(/-/g, '/').slice(5)}</td>
+        <td>${escapeHtml(p.item_name)}${p.category ? ` <span class="faint">${escapeHtml(p.category)}</span>` : ''}</td>
+        <td class="num">${p.quantity}</td>
+        <td>${escapeHtml(p.unit || '')}</td>
+        <td class="num">${p.unit_cost ? formatCurrency(p.unit_cost) : '—'}</td>
+        <td class="num" style="font-weight:600">${formatCurrency(p.total_cost)}</td>
+        <td class="faint">${escapeHtml(p.supplier || '')}</td>
+        <td class="num faint">編輯 ›</td>
+      </tr>`).join('') : '<tr><td colspan="8" class="muted faint">這段期間沒有叫貨紀錄</td></tr>';
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openPurModal(tr.dataset.id)));
+
+    renderInvRef();
+  }
+
+  // 叫貨參考：每個品項上次數量/日期、近期平均（近3次）、總花費
+  function renderInvRef() {
+    const byItem = {};
+    // purchases 已依日期新到舊排序
+    purchases.forEach(p => {
+      const k = p.item_name;
+      if (!byItem[k]) byItem[k] = [];
+      byItem[k].push(p);
+    });
+    const items = Object.keys(byItem).sort((a, b) => byItem[b][0].order_date.localeCompare(byItem[a][0].order_date));
+    const tb = F('invRefTable').querySelector('tbody');
+    if (!items.length) { tb.innerHTML = '<tr><td colspan="6" class="muted faint">還沒有資料，新增幾筆叫貨後這裡就會出現參考數量</td></tr>'; return; }
+    tb.innerHTML = items.map(name => {
+      const list = byItem[name]; // 新到舊
+      const last = list[0];
+      const recent = list.slice(0, 3);
+      const avg = recent.reduce((s, p) => s + Number(p.quantity || 0), 0) / recent.length;
+      const spend = list.reduce((s, p) => s + Number(p.total_cost || 0), 0);
+      return `<tr>
+        <td>${escapeHtml(name)}</td>
+        <td class="num" style="font-weight:600">${last.quantity} ${escapeHtml(last.unit || '')}</td>
+        <td>${(last.order_date || '').replace(/-/g, '/')}</td>
+        <td class="num">${avg.toFixed(avg % 1 ? 1 : 0)} ${escapeHtml(last.unit || '')}</td>
+        <td class="num">${list.length}</td>
+        <td class="num faint">${formatCurrency(spend)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function refreshDatalists() {
+    const uniq = (arr) => [...new Set(arr.filter(Boolean))];
+    F('itemList').innerHTML = uniq(purchases.map(p => p.item_name)).map(v => `<option value="${escapeHtml(v)}">`).join('');
+    F('pcatList').innerHTML = uniq(purchases.map(p => p.category)).map(v => `<option value="${escapeHtml(v)}">`).join('');
+    F('supList').innerHTML = uniq(purchases.map(p => p.supplier)).map(v => `<option value="${escapeHtml(v)}">`).join('');
+  }
+
+  // 叫貨 modal
+  let editPurId = null;
+  F('addPurchase').addEventListener('click', () => openPurModal(null));
+  F('p_cancel').addEventListener('click', () => F('purModal').classList.remove('show'));
+  function calcSub() {
+    const sub = (Number(F('p_qty').value) || 0) * (Number(F('p_cost').value) || 0);
+    F('p_subtotal').value = formatCurrency(sub);
+    return sub;
+  }
+  F('p_qty').addEventListener('input', calcSub);
+  F('p_cost').addEventListener('input', calcSub);
+
+  function openPurModal(id) {
+    editPurId = id;
+    const p = id ? purchases.find(x => x.id === id) : null;
+    F('purModalTitle').textContent = p ? '編輯叫貨' : '新增叫貨';
+    F('p_date').value = p ? p.order_date : todayStr();
+    F('p_item').value = p ? p.item_name : '';
+    F('p_category').value = p ? (p.category || '') : '';
+    F('p_qty').value = p ? p.quantity : '';
+    F('p_unit').value = p ? (p.unit || '') : '';
+    F('p_cost').value = p ? p.unit_cost : '';
+    F('p_supplier').value = p ? (p.supplier || '') : '';
+    F('p_note').value = p ? (p.note || '') : '';
+    F('p_err').textContent = '';
+    calcSub();
+    F('p_delete').style.visibility = p ? 'visible' : 'hidden';
+    F('purModal').classList.add('show');
+  }
+
+  F('p_save').addEventListener('click', async () => {
+    F('p_err').textContent = '';
+    const item = F('p_item').value.trim();
+    const date = F('p_date').value;
+    if (!date || !item) { F('p_err').textContent = '請填叫貨日期與品項'; return; }
+    const qty = Number(F('p_qty').value) || 0;
+    const cost = Number(F('p_cost').value) || 0;
+    const btn = F('p_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const payload = {
+      order_date: date, item_name: item, category: F('p_category').value.trim() || null,
+      quantity: qty, unit: F('p_unit').value.trim() || null, unit_cost: cost, total_cost: qty * cost,
+      supplier: F('p_supplier').value.trim() || null, note: F('p_note').value.trim() || null,
+    };
+    let error;
+    if (editPurId) ({ error } = await sb.from('purchases').update(payload).eq('id', editPurId));
+    else ({ error } = await sb.from('purchases').insert(payload));
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { F('p_err').textContent = '儲存失敗：' + error.message; return; }
+    F('purModal').classList.remove('show'); toast('✅ 已儲存'); loadInventory();
+  });
+
+  F('p_delete').addEventListener('click', async () => {
+    if (!editPurId || !confirm('確定刪除這筆叫貨紀錄？')) return;
+    const { error } = await sb.from('purchases').delete().eq('id', editPurId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('purModal').classList.remove('show'); toast('已刪除'); loadInventory();
   });
 })();
