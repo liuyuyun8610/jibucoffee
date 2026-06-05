@@ -196,30 +196,54 @@
   <!-- ===== Modal: 維運 ===== -->
   <div class="modal-mask" id="maintModal">
     <div class="modal">
-      <h3 class="modal-h" id="maintModalTitle">新增維運紀錄</h3>
-      <div class="grid2">
-        <div class="field"><label class="label">時間 ★</label><input class="input" type="date" id="m_date"></div>
-        <div class="field"><label class="label">設備</label><input class="input" id="m_equipment" placeholder="例：義式咖啡機"></div>
-        <div class="field"><label class="label">費用</label><input class="input" type="number" id="m_cost"></div>
-        <div class="field"><label class="label">廠商 / 師傅</label><input class="input" id="m_vendor"></div>
-        <div class="field"><label class="label">狀態</label>
-          <select class="input" id="m_status"><option value="open">叫修中</option><option value="done">已完成</option></select>
+      <h3 class="modal-h" id="maintModalTitle">維運紀錄</h3>
+
+      <!-- 閱讀檢視 -->
+      <div id="maintRead">
+        <div class="kv"><span class="k">時間</span><span id="rv_date"></span></div>
+        <div class="kv"><span class="k">設備</span><span id="rv_equipment"></span></div>
+        <div class="kv"><span class="k">狀態</span><span id="rv_status"></span></div>
+        <div class="kv"><span class="k">費用</span><span id="rv_cost"></span></div>
+        <div class="kv"><span class="k">廠商 / 師傅</span><span id="rv_vendor"></span></div>
+        <div id="rv_tags" style="margin:12px 0"></div>
+        <div style="margin:12px 0"><div class="label">內容</div><div id="rv_content" style="white-space:pre-wrap; color:var(--ink)"></div></div>
+        <div id="rv_photo" style="margin:12px 0"></div>
+        <div id="rv_note_wrap" style="margin:12px 0"><div class="label">備註</div><div id="rv_note"></div></div>
+        <div class="row-between mt8">
+          <button class="btn btn-danger" id="rv_delete">刪除</button>
+          <div class="flex">
+            <button class="btn btn-ghost" id="rv_close">關閉</button>
+            <button class="btn btn-primary" id="rv_edit">編輯</button>
+          </div>
         </div>
       </div>
-      <div class="field"><label class="label">內容</label><textarea class="input" id="m_content" rows="3" placeholder="故障狀況、處理方式…"></textarea></div>
-      <div class="field"><label class="label">標籤（用逗號分隔，方便日後翻找類似維修）</label><input class="input" id="m_tags" list="mtagList" placeholder="例：咖啡機, 漏水, 電路"><datalist id="mtagList"></datalist></div>
-      <div class="field">
-        <label class="label">照片紀錄</label>
-        <input type="file" accept="image/*" id="m_photo">
-        <div id="m_photoExisting" class="mt8"></div>
-      </div>
-      <div class="field"><label class="label">備註</label><input class="input" id="m_note"></div>
-      <div id="m_err" class="faint" style="color:var(--danger);min-height:18px"></div>
-      <div class="row-between mt8">
-        <button class="btn btn-danger" id="m_delete" style="visibility:hidden">刪除這筆</button>
-        <div class="flex">
-          <button class="btn btn-ghost" id="m_cancel">取消</button>
-          <button class="btn btn-primary" id="m_save">儲存</button>
+
+      <!-- 編輯表單 -->
+      <div id="maintEdit" class="hidden">
+        <div class="grid2">
+          <div class="field"><label class="label">時間 ★</label><input class="input" type="date" id="m_date"></div>
+          <div class="field"><label class="label">設備</label><input class="input" id="m_equipment" placeholder="例：義式咖啡機"></div>
+          <div class="field"><label class="label">費用</label><input class="input" type="number" id="m_cost"></div>
+          <div class="field"><label class="label">廠商 / 師傅</label><input class="input" id="m_vendor"></div>
+          <div class="field"><label class="label">狀態</label>
+            <select class="input" id="m_status"><option value="open">叫修中</option><option value="done">已完成</option></select>
+          </div>
+        </div>
+        <div class="field"><label class="label">內容</label><textarea class="input" id="m_content" rows="3" placeholder="故障狀況、處理方式…"></textarea></div>
+        <div class="field"><label class="label">標籤（用逗號分隔，方便日後翻找類似維修）</label><input class="input" id="m_tags" list="mtagList" placeholder="例：咖啡機, 漏水, 電路"><datalist id="mtagList"></datalist></div>
+        <div class="field">
+          <label class="label">照片紀錄</label>
+          <input type="file" accept="image/*" id="m_photo">
+          <div id="m_photoExisting" class="mt8"></div>
+        </div>
+        <div class="field"><label class="label">備註</label><input class="input" id="m_note"></div>
+        <div id="m_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+        <div class="row-between mt8">
+          <button class="btn btn-danger" id="m_delete" style="visibility:hidden">刪除這筆</button>
+          <div class="flex">
+            <button class="btn btn-ghost" id="m_cancel">取消</button>
+            <button class="btn btn-primary" id="m_save">儲存</button>
+          </div>
         </div>
       </div>
     </div>

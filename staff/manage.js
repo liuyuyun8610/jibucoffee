@@ -916,7 +916,7 @@
       <tr data-id="${m.id}" style="cursor:pointer">
         <td style="white-space:nowrap">${(m.repair_date || '').replace(/-/g,'/')}</td>
         <td>${escapeHtml(m.equipment || '')}</td>
-        <td>${escapeHtml((m.content || '').slice(0,28))}${(m.content || '').length > 28 ? '…' : ''}${(m.tags && m.tags.length) ? `<div style="margin-top:4px">${m.tags.map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('')}</div>` : ''}</td>
+        <td><div style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(m.content || '')}</div></td>
         <td class="num" style="white-space:nowrap">${formatCurrency(m.cost)}</td>
         <td style="white-space:nowrap">${m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : '<span class="badge badge-wait">叫修中</span>'}</td>
         <td class="num faint">編輯 ›</td>
@@ -929,10 +929,40 @@
   F('addMaint').addEventListener('click', () => openMaintModal(null));
   F('m_cancel').addEventListener('click', () => F('maintModal').classList.remove('show'));
 
+  function showMaintMode(mode) {
+    F('maintRead').classList.toggle('hidden', mode !== 'read');
+    F('maintEdit').classList.toggle('hidden', mode !== 'edit');
+    F('maintModalTitle').textContent = mode === 'read' ? '維運紀錄' : (editMaintId ? '編輯維運紀錄' : '新增維運紀錄');
+  }
+
   function openMaintModal(id) {
     editMaintId = id;
     const m = id ? maintList.find(x => x.id === id) : null;
-    F('maintModalTitle').textContent = m ? '編輯維運紀錄' : '新增維運紀錄';
+    if (m) { renderMaintRead(m); showMaintMode('read'); }
+    else { fillMaintEdit(null); showMaintMode('edit'); }
+    F('maintModal').classList.add('show');
+  }
+
+  // 閱讀檢視（點進去先看，不直接可編輯；照片直接顯示）
+  async function renderMaintRead(m) {
+    F('rv_date').textContent = (m.repair_date || '').replace(/-/g, '/');
+    F('rv_equipment').textContent = m.equipment || '—';
+    F('rv_status').innerHTML = m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : '<span class="badge badge-wait">叫修中</span>';
+    F('rv_cost').textContent = formatCurrency(m.cost);
+    F('rv_vendor').textContent = m.vendor || '—';
+    F('rv_tags').innerHTML = (m.tags && m.tags.length) ? m.tags.map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('') : '';
+    F('rv_content').textContent = m.content || '（無）';
+    F('rv_note_wrap').style.display = m.note ? '' : 'none';
+    F('rv_note').textContent = m.note || '';
+    const pbox = F('rv_photo'); pbox.innerHTML = '';
+    if (m.photo_path) {
+      pbox.innerHTML = '<div class="label">照片</div><p class="faint">載入中…</p>';
+      const { data, error } = await sb.storage.from('maintenance-photos').createSignedUrl(m.photo_path, 3600);
+      pbox.innerHTML = error ? '' : `<div class="label">照片</div><img src="${data.signedUrl}" style="max-width:100%;border-radius:10px;border:1px solid var(--line)">`;
+    }
+  }
+
+  function fillMaintEdit(m) {
     F('m_date').value = m ? m.repair_date : todayStr();
     F('m_equipment').value = m ? (m.equipment || '') : '';
     F('m_cost').value = m ? m.cost : '';
@@ -952,8 +982,20 @@
       a.onclick = async () => { const { data, error } = await sb.storage.from('maintenance-photos').createSignedUrl(m.photo_path, 3600); if (!error) window.open(data.signedUrl, '_blank'); };
       F('m_photoExisting').appendChild(a);
     }
-    F('maintModal').classList.add('show');
   }
+
+  async function deleteMaint() {
+    if (!editMaintId || !confirm('確定刪除這筆維運紀錄？')) return;
+    const m = maintList.find(x => x.id === editMaintId);
+    if (m && m.photo_path) await sb.storage.from('maintenance-photos').remove([m.photo_path]);
+    const { error } = await sb.from('maintenance_records').delete().eq('id', editMaintId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('maintModal').classList.remove('show'); toast('已刪除'); loadMaintenance();
+  }
+
+  F('rv_edit').addEventListener('click', () => { fillMaintEdit(maintList.find(x => x.id === editMaintId)); showMaintMode('edit'); });
+  F('rv_close').addEventListener('click', () => F('maintModal').classList.remove('show'));
+  F('rv_delete').addEventListener('click', deleteMaint);
 
   F('m_save').addEventListener('click', async () => {
     F('m_err').textContent = '';
@@ -982,12 +1024,5 @@
     F('maintModal').classList.remove('show'); toast('✅ 已儲存'); loadMaintenance();
   });
 
-  F('m_delete').addEventListener('click', async () => {
-    if (!editMaintId || !confirm('確定刪除這筆維運紀錄？')) return;
-    const m = maintList.find(x => x.id === editMaintId);
-    if (m && m.photo_path) await sb.storage.from('maintenance-photos').remove([m.photo_path]);
-    const { error } = await sb.from('maintenance_records').delete().eq('id', editMaintId);
-    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
-    F('maintModal').classList.remove('show'); toast('已刪除'); loadMaintenance();
-  });
+  F('m_delete').addEventListener('click', deleteMaint);
 })();
