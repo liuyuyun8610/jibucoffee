@@ -103,7 +103,8 @@
     const p = {};
     EMP_FIELDS.forEach(k => {
       let v = F('e_' + k) ? F('e_' + k).value.trim() : '';
-      if (k === 'base_salary' || k === 'insured_salary') v = v === '' ? null : Number(v);
+      if (k === 'base_salary') v = v === '' ? 0 : Number(v);
+      else if (k === 'insured_salary') v = v === '' ? null : Number(v);
       else if (v === '') v = null;
       p[k] = v;
     });

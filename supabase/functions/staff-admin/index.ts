@@ -52,7 +52,12 @@ Deno.serve(async (req) => {
       });
       if (cErr || !created.user) return json({ error: cErr?.message || '建立帳號失敗' }, 400);
 
-      const row = { id: created.user.id, email, role: 'employee', ...(profile || {}) };
+      // 濾掉 null/空字串，讓資料表的預設值生效（避免 not-null 欄位如 base_salary 被塞 null）
+      const clean: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(profile || {})) {
+        if (v !== null && v !== undefined && v !== '') clean[k] = v;
+      }
+      const row = { id: created.user.id, email, role: 'employee', ...clean };
       const { error: iErr } = await admin.from('staff').insert(row);
       if (iErr) {
         // 回滾：刪掉剛建立的 auth 帳號，避免孤兒
