@@ -887,7 +887,7 @@
 
   async function loadMaintenance() {
     const { data, error } = await sb.from('maintenance_records').select('*').order('repair_date', { ascending: false }).order('created_at', { ascending: false });
-    if (error) { F('maintTable').querySelector('tbody').innerHTML = `<tr><td colspan="7" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
+    if (error) { F('maintTable').querySelector('tbody').innerHTML = `<tr><td colspan="6" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
     maintList = data || [];
     renderMaintenance();
   }
@@ -919,9 +919,8 @@
         <td>${escapeHtml((m.content || '').slice(0,28))}${(m.content || '').length > 28 ? '…' : ''}${(m.tags && m.tags.length) ? `<div style="margin-top:4px">${m.tags.map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('')}</div>` : ''}</td>
         <td class="num" style="white-space:nowrap">${formatCurrency(m.cost)}</td>
         <td style="white-space:nowrap">${m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : '<span class="badge badge-wait">叫修中</span>'}</td>
-        <td>${m.photo_path ? '📷' : ''}</td>
         <td class="num faint">編輯 ›</td>
-      </tr>`).join('') : '<tr><td colspan="7" class="muted faint">沒有符合的維運紀錄</td></tr>';
+      </tr>`).join('') : '<tr><td colspan="6" class="muted faint">沒有符合的維運紀錄</td></tr>';
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openMaintModal(tr.dataset.id)));
   }
 
