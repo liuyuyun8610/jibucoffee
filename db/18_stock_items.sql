@@ -8,6 +8,7 @@ create table if not exists public.stock_items (
   price numeric not null default 0,          -- 售價
   vendor text,                               -- 廠商名稱
   unit text,                                 -- 單位（g/磅/ml/罐…）
+  capacity text,                             -- 容量（例：946ml、1L、12入）
   category text,                             -- 分類（選填）
   note text,                                 -- 備註
   is_active boolean not null default true,
@@ -20,6 +21,7 @@ create table if not exists public.stock_items (
 alter table public.stock_items add column if not exists cost numeric not null default 0;
 alter table public.stock_items add column if not exists price numeric not null default 0;
 alter table public.stock_items add column if not exists vendor text;
+alter table public.stock_items add column if not exists capacity text;
 
 create index if not exists stock_items_sort_idx on public.stock_items(sort_order, name);
 

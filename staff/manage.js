@@ -684,6 +684,7 @@
     F('stockList').innerHTML = stockItems.map(s => `
       <span class="chip" data-id="${s.id}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;margin:0 6px 8px 0;font-size:13px">
         <b style="font-weight:500">${escapeHtml(s.name)}</b>
+        ${s.capacity ? `<span class="faint">${escapeHtml(s.capacity)}</span>` : ''}
         ${s.unit ? `<span class="faint">${escapeHtml(s.unit)}</span>` : ''}
         ${s.cost ? `<span class="faint">成本${formatCurrency(s.cost)}</span>` : ''}
       </span>`).join('');
@@ -714,6 +715,7 @@
     F('s_name').value = s ? s.name : '';
     F('s_cost').value = s ? (s.cost || '') : '';
     F('s_vendor').value = s ? (s.vendor || '') : '';
+    F('s_capacity').value = s ? (s.capacity || '') : '';
     F('s_note').value = s ? (s.note || '') : '';
     buildUnitOptions(s ? (s.unit || '') : '');
     F('s_err').textContent = '';
@@ -729,7 +731,8 @@
     const btn = F('s_save'); btn.disabled = true; btn.textContent = '儲存中…';
     const payload = {
       name, cost: Number(F('s_cost').value) || 0,
-      vendor: F('s_vendor').value.trim() || null, unit: unit || null, note: F('s_note').value.trim() || null,
+      vendor: F('s_vendor').value.trim() || null, unit: unit || null,
+      capacity: F('s_capacity').value.trim() || null, note: F('s_note').value.trim() || null,
     };
     let error;
     if (editStockId) ({ error } = await sb.from('stock_items').update(payload).eq('id', editStockId));
