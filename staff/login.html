@@ -104,11 +104,11 @@
       p.type = p.type === 'password' ? 'text' : 'password';
     });
 
-    // 已登入就依角色導向
+    // 已登入就依角色導向（讀本地 session，不打網路）
     (async () => {
-      const { data: { user } } = await sb.auth.getUser();
-      if (!user) return;
-      const { data: staff } = await sb.from('staff').select('role,is_active').eq('id', user.id).maybeSingle();
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session || !session.user) return;
+      const { data: staff } = await sb.from('staff').select('role,is_active').eq('id', session.user.id).maybeSingle();
       if (staff && staff.is_active !== false) {
         location.replace(staff.role === 'owner' ? 'manage.html' : 'me.html');
       } else {

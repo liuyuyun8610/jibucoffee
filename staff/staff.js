@@ -60,14 +60,18 @@
   // requireAuth({ role:'owner' }) → 回傳 {user, staff}；失敗則導向登入頁
   async function requireAuth(opts) {
     opts = opts || {};
-    const { data: { user } } = await sb.auth.getUser();
+    // 用本地 session 判斷登入狀態（不打網路，手機/WebView 較穩，不會被彈回登入）
+    const { data: { session } } = await sb.auth.getSession();
+    const user = session && session.user;
     if (!user) { location.replace('login.html'); return null; }
 
     const { data: staff, error } = await sb
       .from('staff').select('*').eq('id', user.id).maybeSingle();
 
+    // 讀取失敗（連線問題）：不要登出，回登入頁讓使用者重試
+    if (error) { location.replace('login.html'); return null; }
     // 有 auth 帳號但不是員工（例如官網會員）→ 登出踢回
-    if (error || !staff || staff.is_active === false) {
+    if (!staff || staff.is_active === false) {
       await sb.auth.signOut();
       location.replace('login.html?denied=1');
       return null;
