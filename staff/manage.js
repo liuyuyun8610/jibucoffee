@@ -918,10 +918,17 @@
         <td>${escapeHtml(m.equipment || '')}</td>
         <td><div style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(m.content || '')}</div></td>
         <td class="num" style="white-space:nowrap">${formatCurrency(m.cost)}</td>
-        <td style="white-space:nowrap">${m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : '<span class="badge badge-wait">叫修中</span>'}</td>
+        <td style="white-space:nowrap">${m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : `<button class="btn btn-ghost btn-sm" data-done="${m.id}">✓ 完成</button>`}</td>
         <td class="num faint">編輯 ›</td>
       </tr>`).join('') : '<tr><td colspan="6" class="muted faint">沒有符合的維運紀錄</td></tr>';
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openMaintModal(tr.dataset.id)));
+    tb.querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      b.disabled = true;
+      const { error } = await sb.from('maintenance_records').update({ status: 'done' }).eq('id', b.dataset.done);
+      if (error) { b.disabled = false; toast('操作失敗：' + error.message, 'error'); return; }
+      toast('✅ 已標記完成'); loadMaintenance();
+    }));
   }
 
   F('maint_search').addEventListener('input', () => { maintQuery = F('maint_search').value; renderMaintenance(); });
