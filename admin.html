@@ -977,6 +977,16 @@
   async function showAdmin() {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) { showLogin(); return; }
+    // 僅限管理者（owner）：擋掉員工/顧客帳號。staff 表尚未建立時（error）暫時放行以向後相容。
+    const { data: staffRow, error: staffErr } = await sb.from('staff').select('role,is_active').eq('id', user.id).maybeSingle();
+    if (!staffErr && (!staffRow || staffRow.role !== 'owner' || staffRow.is_active === false)) {
+      await sb.auth.signOut();
+      showLogin();
+      const errEl = document.getElementById('loginError');
+      errEl.textContent = '此帳號沒有後台管理權限。';
+      errEl.style.display = 'block';
+      return;
+    }
     document.getElementById('loginView').style.display = 'none';
     document.getElementById('adminView').style.display = 'block';
     document.getElementById('userInfo').style.display = 'flex';

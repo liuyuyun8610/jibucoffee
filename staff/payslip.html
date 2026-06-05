@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>薪資明細 · 一坨咖啡</title>
+  <link rel="icon" href="../favicon.png" />
+  <link rel="stylesheet" href="staff.css" />
+  <style>
+    .ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; font-size: 13px; margin-bottom: 18px; }
+    .ps-two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .ps-sub { font-size: 12px; font-weight: 600; background: var(--bg-soft); padding: 5px 9px; border-radius: 7px; margin: 0 0 8px; }
+    .ps-line { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+    .ps-line.total { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 7px; font-weight: 600; }
+    .ps-net { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid rgba(92,72,48,.3); margin-top: 16px; padding-top: 14px; }
+    .ps-net .v { font-family: var(--f-serif); font-size: 22px; font-weight: 700; color: var(--accent-deep); }
+    @media print {
+      body * { visibility: hidden !important; }
+      #payslip, #payslip * { visibility: visible !important; }
+      #payslip { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap wrap-narrow">
+    <div class="row-between no-print" style="margin-bottom:16px">
+      <a href="#" id="back" class="faint">← 返回</a>
+      <button class="btn btn-primary btn-sm" id="print" disabled>列印 / 下載 PDF</button>
+    </div>
+
+    <div class="card" id="payslip" style="display:none">
+      <div style="text-align:center; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:16px">
+        <div style="font-family:var(--f-serif); font-size:18px; font-weight:600; color:var(--accent-deep)">一坨咖啡　薪資明細表</div>
+        <div class="faint" id="ps-period" style="margin-top:4px"></div>
+      </div>
+      <div class="ps-grid" id="ps-info"></div>
+      <div class="ps-two">
+        <div>
+          <p class="ps-sub">應發項目</p>
+          <div id="ps-gross"></div>
+        </div>
+        <div>
+          <p class="ps-sub">應扣項目</p>
+          <div id="ps-deduct"></div>
+        </div>
+      </div>
+      <div class="ps-net">
+        <span style="font-weight:600">實發金額</span>
+        <span class="v" id="ps-net"></span>
+      </div>
+      <p class="faint" style="text-align:center; margin-top:18px">本表為系統產生之薪資明細，如有疑問請洽店長。</p>
+    </div>
+
+    <div id="msg" class="center-screen muted">載入中…</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="staff.js"></script>
+  <script>
+    const { sb, requireAuth, formatCurrency, fmtDate, escapeHtml } = JB;
+    const id = new URLSearchParams(location.search).get('id');
+
+    (async () => {
+      const auth = await requireAuth();
+      if (!auth) return;
+      // 返回鍵依角色
+      document.getElementById('back').href = auth.staff.role === 'owner' ? 'manage.html' : 'me.html';
+      document.getElementById('back').textContent = auth.staff.role === 'owner' ? '← 返回後台' : '← 返回我的資料';
+
+      if (!id) { fail('找不到薪資條'); return; }
+
+      // RLS 會自動限制：員工只撈得到自己的
+      const { data: rec } = await sb.from('payroll_records').select('*').eq('id', id).maybeSingle();
+      if (!rec) { fail('找不到薪資條，或你沒有檢視權限。'); return; }
+
+      const { data: items } = await sb.from('payroll_items').select('*').eq('payroll_id', id);
+      const { data: emp } = await sb.from('staff')
+        .select('name,employee_no,department,position,insured_salary').eq('id', rec.staff_id).maybeSingle();
+
+      render(rec, items || [], emp || {});
+    })();
+
+    function fail(t) {
+      document.getElementById('msg').textContent = t;
+    }
+
+    function render(rec, items, emp) {
+      const additions = items.filter(i => i.type === 'addition');
+      const deductions = items.filter(i => i.type === 'deduction');
+      const grossList = [
+        { name: '底薪（本薪）', amount: rec.base_salary || 0 },
+        ...(rec.ot_pay ? [{ name: '加班費', amount: rec.ot_pay }] : []),
+        ...additions.map(i => ({ name: i.name, amount: i.amount })),
+      ];
+      const gross = grossList.reduce((s, i) => s + Number(i.amount || 0), 0);
+      const deductTotal = deductions.reduce((s, i) => s + Number(i.amount || 0), 0);
+      const net = rec.total_pay != null ? rec.total_pay : (gross - deductTotal);
+      const payY = rec.month === 12 ? rec.year + 1 : rec.year;
+      const payM = rec.month === 12 ? 1 : rec.month + 1;
+      const payDate = rec.paid_at ? fmtDate(rec.paid_at) : `${payY} 年 ${payM} 月（預計）`;
+      const otH = ((rec.ot_weekday_minutes || 0) + (rec.ot_restday_minutes || 0)) / 60;
+
+      document.getElementById('ps-period').textContent =
+        `薪資所屬：${rec.year} 年 ${rec.month} 月　│　發放日期：${payDate}`;
+
+      const info = [
+        ['姓名', emp.name || '—'], ['員工編號', emp.employee_no || '—'],
+        ['部門', emp.department || '—'], ['職位', emp.position || '—'],
+        ['投保薪資級距', emp.insured_salary != null ? formatCurrency(emp.insured_salary) : '—'],
+        ['出勤天數', (rec.work_days || 0) + ' 天'],
+        ['加班時數', otH.toFixed(1) + ' 小時'],
+      ];
+      document.getElementById('ps-info').innerHTML = info.map(([k, v]) =>
+        `<div class="ps-line"><span class="muted">${k}</span><span>${escapeHtml(v)}</span></div>`).join('');
+
+      document.getElementById('ps-gross').innerHTML =
+        grossList.map(i => `<div class="ps-line"><span class="muted">${escapeHtml(i.name)}</span><span>${formatCurrency(i.amount)}</span></div>`).join('') +
+        `<div class="ps-line total"><span>應發合計</span><span>${formatCurrency(gross)}</span></div>`;
+
+      document.getElementById('ps-deduct').innerHTML =
+        (deductions.length ? deductions.map(i => `<div class="ps-line"><span class="muted">${escapeHtml(i.name)}</span><span style="color:var(--danger)">-${formatCurrency(i.amount)}</span></div>`).join('')
+          : '<div class="ps-line muted">本月無扣款項目</div>') +
+        `<div class="ps-line total"><span>應扣合計</span><span>${deductTotal > 0 ? '-' + formatCurrency(deductTotal) : formatCurrency(0)}</span></div>`;
+
+      document.getElementById('ps-net').textContent = formatCurrency(net);
+
+      document.getElementById('msg').style.display = 'none';
+      document.getElementById('payslip').style.display = 'block';
+      const pb = document.getElementById('print');
+      pb.disabled = false;
+      pb.addEventListener('click', () => window.print());
+    }
+  </script>
+</body>
+</html>

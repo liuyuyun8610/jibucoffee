@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>內部後台 · 一坨咖啡</title>
+  <link rel="icon" href="../favicon.png" />
+  <link rel="stylesheet" href="staff.css" />
+  <style>
+    .split { display: grid; grid-template-columns: 280px 1fr; gap: 18px; }
+    @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+    .month-nav { display: flex; align-items: center; gap: 12px; }
+    .month-nav button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+    .item-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .ot-detail { background: var(--bg-soft); border-radius: 10px; padding: 11px 13px; font-size: 12px; color: var(--ink-soft); margin-top: 10px; }
+    .ot-detail b { color: var(--accent-deep); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">一坨咖啡 <small>後台</small></div>
+    <div class="right">
+      <a href="me.html" class="who">我的資料</a>
+      <span class="who" id="who"></span>
+      <button class="btn btn-ghost btn-sm" id="logout">登出</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="app" style="opacity:0">
+    <div class="tabs">
+      <button class="tab active" data-tab="hr">人事管理</button>
+      <button class="tab" data-tab="payroll">薪資計算</button>
+      <button class="tab" data-tab="revenue">營收預測</button>
+    </div>
+
+    <!-- ===== 人事管理 ===== -->
+    <section data-pane="hr">
+      <div class="row-between" style="margin-bottom:14px">
+        <p class="muted faint" style="margin:0">共 <span id="hrCount">0</span> 位員工</p>
+        <button class="btn btn-primary btn-sm" id="addEmp">＋ 新增員工</button>
+      </div>
+      <div class="list" id="empList"></div>
+    </section>
+
+    <!-- ===== 薪資計算 ===== -->
+    <section data-pane="payroll" class="hidden">
+      <div class="row-between" style="margin-bottom:16px">
+        <div>
+          <div class="month-nav">
+            <button id="pm-prev">‹</button>
+            <div style="text-align:center; min-width:130px">
+              <div style="font-weight:600" id="pm-label">—</div>
+              <div class="faint" id="pm-paylabel"></div>
+            </div>
+            <button id="pm-next">›</button>
+          </div>
+        </div>
+        <a href="#" class="faint" id="catHint">依勞基法§24 計算加班費</a>
+      </div>
+      <div class="split">
+        <div class="list" id="payEmpList"></div>
+        <div id="payDetail"><div class="card center-screen muted faint">← 選擇左側員工開始計算</div></div>
+      </div>
+    </section>
+
+    <!-- ===== 營收預測 ===== -->
+    <section data-pane="revenue" class="hidden">
+      <div class="row-between" style="margin-bottom:14px">
+        <p class="muted faint" style="margin:0">每月營收與成本（人事成本自動帶入當月薪資總額）</p>
+        <button class="btn btn-primary btn-sm" id="addRev">＋ 記一筆營收</button>
+      </div>
+      <div class="card">
+        <h2 class="card-h">趨勢與預估</h2>
+        <canvas id="revChart" height="120"></canvas>
+        <div id="forecast" class="mt16"></div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">月份明細</h2>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="revTable">
+            <thead><tr><th>月份</th><th class="num">營收</th><th class="num">人事成本</th><th class="num">其他成本</th><th class="num">淨利</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== Modal: 員工 ===== -->
+  <div class="modal-mask" id="empModal">
+    <div class="modal">
+      <h3 class="modal-h" id="empModalTitle">新增員工</h3>
+      <div id="empAuthFields">
+        <div class="grid2">
+          <div class="field"><label class="label">登入 Email ★</label><input class="input" id="e_email" type="email" /></div>
+          <div class="field"><label class="label">臨時密碼 ★（交給員工）</label>
+            <div class="flex"><input class="input" id="e_password" /><button class="btn btn-ghost btn-sm" type="button" id="genPw">產生</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="field"><label class="label">姓名 ★</label><input class="input" id="e_name" /></div>
+        <div class="field"><label class="label">員工編號</label><input class="input" id="e_employee_no" /></div>
+        <div class="field"><label class="label">身分</label>
+          <select class="input" id="e_role"><option value="employee">員工</option><option value="owner">老闆/管理者</option></select>
+        </div>
+        <div class="field"><label class="label">部門</label><input class="input" id="e_department" /></div>
+        <div class="field"><label class="label">職位</label><input class="input" id="e_position" /></div>
+        <div class="field"><label class="label">到職日</label><input class="input" type="date" id="e_hire_date" /></div>
+        <div class="field"><label class="label">手機</label><input class="input" id="e_phone" /></div>
+        <div class="field"><label class="label">月薪（底薪）</label><input class="input" type="number" id="e_base_salary" /></div>
+        <div class="field"><label class="label">投保薪資級距</label><input class="input" type="number" id="e_insured_salary" /></div>
+        <div class="field"><label class="label">勞保狀態</label><input class="input" id="e_labor_insurance" placeholder="例：已加保" /></div>
+        <div class="field"><label class="label">健保狀態</label><input class="input" id="e_health_insurance" placeholder="例：已加保" /></div>
+        <div class="field"><label class="label">勞退提撥</label><input class="input" id="e_pension" placeholder="例：6%" /></div>
+      </div>
+      <div id="e_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <div class="flex" id="editExtra"></div>
+        <div class="flex">
+          <button class="btn btn-ghost" id="empCancel">取消</button>
+          <button class="btn btn-primary" id="empSave">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: 營收 ===== -->
+  <div class="modal-mask" id="revModal">
+    <div class="modal">
+      <h3 class="modal-h">記一筆營收</h3>
+      <div class="grid3">
+        <div class="field"><label class="label">年</label><input class="input" type="number" id="rv_year" /></div>
+        <div class="field"><label class="label">月</label><input class="input" type="number" id="rv_month" min="1" max="12" /></div>
+        <div class="field"><label class="label">當月營收</label><input class="input" type="number" id="rv_revenue" /></div>
+      </div>
+      <div class="field">
+        <label class="label">其他成本（進貨／房租／雜支等）</label>
+        <div id="rv_costs"></div>
+        <button class="btn btn-ghost btn-sm mt8" id="rv_addCost" type="button">＋ 新增成本項</button>
+      </div>
+      <div class="field"><label class="label">備註</label><input class="input" id="rv_note" /></div>
+      <p class="faint">人事成本不用填，系統會自動帶入該月薪資發放總額。</p>
+      <div id="rv_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="rv_delete" style="visibility:hidden">刪除這筆</button>
+        <div class="flex">
+          <button class="btn btn-ghost" id="rv_cancel">取消</button>
+          <button class="btn btn-primary" id="rv_save">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="../config.js"></script>
+  <script src="staff.js"></script>
+  <script src="manage.js"></script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>我的資料 · 一坨咖啡</title>
+  <link rel="icon" href="../favicon.png" />
+  <link rel="stylesheet" href="staff.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">一坨咖啡 <small>STAFF</small></div>
+    <div class="right">
+      <span class="who" id="who"></span>
+      <button class="btn btn-ghost btn-sm" id="logout">登出</button>
+    </div>
+  </div>
+
+  <div class="wrap wrap-narrow" id="app" style="opacity:0">
+    <div class="tabs">
+      <button class="tab active" data-tab="profile">個人資料</button>
+      <button class="tab" data-tab="salary">薪資投保</button>
+      <button class="tab" data-tab="payslips">薪資條</button>
+    </div>
+
+    <!-- 個人資料 -->
+    <section data-pane="profile">
+      <div class="card">
+        <h2 class="card-h">聯絡資料</h2>
+        <div class="grid2">
+          <div class="field"><label class="label">手機</label><input class="input" id="phone" /></div>
+          <div class="field"><label class="label">Email（登入帳號，不可改）</label><input class="input" id="email" readonly /></div>
+        </div>
+        <div class="field"><label class="label">通訊地址</label><input class="input" id="address" /></div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">個人資料</h2>
+        <div class="grid2">
+          <div class="field"><label class="label">生日</label><input class="input" type="date" id="birthday" /></div>
+          <div class="field"><label class="label">身分證字號</label><input class="input" id="id_number" /></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">緊急聯絡人</h2>
+        <div class="grid3">
+          <div class="field"><label class="label">聯絡人</label><input class="input" id="emergency_contact" /></div>
+          <div class="field"><label class="label">電話</label><input class="input" id="emergency_phone" /></div>
+          <div class="field"><label class="label">關係</label><input class="input" id="emergency_relation" /></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">發薪銀行資料</h2>
+        <div class="grid3">
+          <div class="field"><label class="label">銀行</label><input class="input" id="bank_name" /></div>
+          <div class="field"><label class="label">帳號</label><input class="input" id="bank_account" /></div>
+          <div class="field"><label class="label">戶名</label><input class="input" id="bank_account_name" /></div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="saveProfile">儲存個人資料</button>
+    </section>
+
+    <!-- 薪資投保（唯讀）-->
+    <section data-pane="salary" class="hidden">
+      <div class="card">
+        <h2 class="card-h">任職資料</h2>
+        <div class="kv"><span class="k">員工編號</span><span id="r_employee_no">—</span></div>
+        <div class="kv"><span class="k">部門</span><span id="r_department">—</span></div>
+        <div class="kv"><span class="k">職位</span><span id="r_position">—</span></div>
+        <div class="kv"><span class="k">到職日</span><span id="r_hire_date">—</span></div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">薪資投保</h2>
+        <div class="kv"><span class="k">月薪（底薪）</span><span id="r_base_salary">—</span></div>
+        <div class="kv"><span class="k">投保薪資級距</span><span id="r_insured_salary">—</span></div>
+        <div class="kv"><span class="k">勞保狀態</span><span id="r_labor_insurance">—</span></div>
+        <div class="kv"><span class="k">健保狀態</span><span id="r_health_insurance">—</span></div>
+        <div class="kv"><span class="k">勞退提撥</span><span id="r_pension">—</span></div>
+        <p class="faint mt8">如有疑問請洽店長。</p>
+      </div>
+    </section>
+
+    <!-- 薪資條 -->
+    <section data-pane="payslips" class="hidden">
+      <div class="card">
+        <h2 class="card-h">我的薪資條</h2>
+        <div id="payslipList"><p class="muted faint">載入中…</p></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="staff.js"></script>
+  <script>
+    const { sb, requireAuth, signOut, formatCurrency, fmtDate, toast, escapeHtml } = JB;
+    let me = null;
+
+    document.getElementById('logout').addEventListener('click', signOut);
+
+    // 分頁切換
+    document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const name = t.dataset.tab;
+      document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
+    }));
+
+    const F = id => document.getElementById(id);
+    const PROFILE_FIELDS = ['phone','address','birthday','id_number','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
+
+    (async () => {
+      const auth = await requireAuth();
+      if (!auth) return;
+      me = auth.staff;
+      F('who').textContent = me.name;
+
+      // 個人資料
+      F('email').value = me.email || auth.user.email || '';
+      PROFILE_FIELDS.forEach(k => { if (F(k)) F(k).value = me[k] || ''; });
+
+      // 薪資投保（唯讀）
+      F('r_employee_no').textContent = me.employee_no || '—';
+      F('r_department').textContent = me.department || '—';
+      F('r_position').textContent = me.position || '—';
+      F('r_hire_date').textContent = fmtDate(me.hire_date) || '—';
+      F('r_base_salary').textContent = me.base_salary ? formatCurrency(me.base_salary) : '—';
+      F('r_insured_salary').textContent = me.insured_salary ? formatCurrency(me.insured_salary) : '—';
+      F('r_labor_insurance').textContent = me.labor_insurance || '—';
+      F('r_health_insurance').textContent = me.health_insurance || '—';
+      F('r_pension').textContent = me.pension || '—';
+
+      document.getElementById('app').style.opacity = 1;
+      loadPayslips();
+    })();
+
+    document.getElementById('saveProfile').addEventListener('click', async (e) => {
+      const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
+      const patch = {};
+      PROFILE_FIELDS.forEach(k => { patch[k] = F(k).value.trim() || null; });
+      const { error } = await sb.from('staff').update(patch).eq('id', me.id);
+      btn.disabled = false; btn.textContent = '儲存個人資料';
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      Object.assign(me, patch);
+      toast('✅ 已儲存');
+    });
+
+    async function loadPayslips() {
+      const { data, error } = await sb.from('payroll_records')
+        .select('id,year,month,total_pay,paid_at')
+        .eq('staff_id', me.id)
+        .order('year', { ascending: false }).order('month', { ascending: false });
+      const box = document.getElementById('payslipList');
+      if (error) { box.innerHTML = '<p class="muted faint">讀取失敗</p>'; return; }
+      if (!data || !data.length) { box.innerHTML = '<p class="muted faint">目前還沒有薪資條。</p>'; return; }
+      box.innerHTML = data.map(r => `
+        <div class="list-row" onclick="location.href='payslip.html?id=${r.id}'">
+          <div>
+            <div style="font-weight:500">${r.year} 年 ${r.month} 月</div>
+            <div class="faint">${r.paid_at ? '已於 ' + fmtDate(r.paid_at) + ' 發放' : '處理中'}</div>
+          </div>
+          <div class="flex">
+            <span style="font-family:var(--f-serif);font-weight:600">${formatCurrency(r.total_pay)}</span>
+            ${r.paid_at ? '<span class="badge badge-ok">已發放</span>' : '<span class="badge badge-wait">處理中</span>'}
+            <span class="faint">›</span>
+          </div>
+        </div>`).join('');
+    }
+  </script>
+</body>
+</html>

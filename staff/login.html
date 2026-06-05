@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>員工登入 · 一坨咖啡</title>
+  <link rel="icon" href="../favicon.png" />
+  <link rel="stylesheet" href="staff.css" />
+  <style>
+    body { background: var(--bg-soft); }
+    .login-card {
+      width: 100%; max-width: 380px; background: #fff; border: 1px solid var(--line);
+      border-radius: 18px; padding: 32px 26px; box-shadow: 0 10px 40px rgba(92,72,48,.07);
+    }
+    .login-logo { text-align: center; margin-bottom: 26px; }
+    .login-logo img { width: 64px; height: 64px; border-radius: 16px; }
+    .login-logo .t { font-family: var(--f-serif); font-size: 19px; font-weight: 600; color: var(--accent-deep); margin-top: 12px; }
+    .login-logo .s { font-family: var(--f-en); font-size: 13px; color: var(--ink-faint); letter-spacing: .5px; }
+    .err { color: var(--danger); font-size: 13px; margin-top: 4px; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="center-screen" style="padding:24px;">
+    <form class="login-card" id="form">
+      <div class="login-logo">
+        <img src="../logo.png" alt="一坨咖啡" />
+        <div class="t">員工系統</div>
+        <div class="s">JIBU COFFEE · STAFF</div>
+      </div>
+      <div class="field">
+        <label class="label">Email</label>
+        <input class="input" type="email" id="email" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label class="label">密碼</label>
+        <input class="input" type="password" id="password" autocomplete="current-password" required />
+      </div>
+      <div class="err" id="err"></div>
+      <button class="btn btn-primary btn-block mt8" type="submit" id="submit">登入</button>
+      <p class="faint" style="text-align:center; margin-top:18px;">忘記密碼或無法登入，請聯絡店長。</p>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script src="staff.js"></script>
+  <script>
+    const { sb } = JB;
+    const errEl = document.getElementById('err');
+
+    if (new URLSearchParams(location.search).get('denied')) {
+      errEl.textContent = '此帳號沒有員工權限，請聯絡店長。';
+    }
+
+    // 已登入就直接依角色導向
+    (async () => {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return;
+      const { data: staff } = await sb.from('staff').select('role,is_active').eq('id', user.id).maybeSingle();
+      if (staff && staff.is_active !== false) {
+        location.replace(staff.role === 'owner' ? 'manage.html' : 'me.html');
+      } else {
+        await sb.auth.signOut();
+      }
+    })();
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.textContent = '';
+      const btn = document.getElementById('submit');
+      btn.disabled = true; btn.textContent = '登入中…';
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        errEl.textContent = '登入失敗：帳號或密碼錯誤';
+        btn.disabled = false; btn.textContent = '登入';
+        return;
+      }
+      const { data: staff } = await sb.from('staff').select('role,is_active').eq('id', data.user.id).maybeSingle();
+      if (!staff || staff.is_active === false) {
+        await sb.auth.signOut();
+        errEl.textContent = '此帳號沒有員工權限，請聯絡店長。';
+        btn.disabled = false; btn.textContent = '登入';
+        return;
+      }
+      location.replace(staff.role === 'owner' ? 'manage.html' : 'me.html');
+    });
+  </script>
+</body>
+</html>
