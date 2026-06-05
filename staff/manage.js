@@ -11,7 +11,7 @@
   document.getElementById('logout').addEventListener('click', signOut);
 
   // 分頁切換
-  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab[data-tab]').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
     const name = t.dataset.tab;
@@ -19,6 +19,8 @@
     if (name === 'revenue') loadRevenue();
     if (name === 'payroll') loadPayrollMonth();
     if (name === 'inventory') loadInventory();
+    if (name === 'reviews') loadReviews();
+    if (name === 'maintenance') loadMaintenance();
   }));
 
   (async () => {
@@ -31,6 +33,7 @@
     categories = cats || [];
     await loadStaff();
     initPayrollNav();
+    refreshReviewBadge();
   })();
 
   async function loadStaff() {
@@ -548,15 +551,32 @@
   /* ============================================================
    * 4) 庫存叫貨
    * ========================================================== */
-  let purchases = [], invLoaded = false;
+  let purchases = [], stockItems = [], invLoaded = false;
 
   async function loadInventory() {
-    const { data, error } = await sb.from('purchases').select('*').order('order_date', { ascending: false }).order('created_at', { ascending: false });
+    const [{ data: pdata, error }, { data: sdata }] = await Promise.all([
+      sb.from('purchases').select('*').order('order_date', { ascending: false }).order('created_at', { ascending: false }),
+      sb.from('stock_items').select('*').eq('is_active', true).order('sort_order').order('name'),
+    ]);
     if (error) { F('invTable').querySelector('tbody').innerHTML = `<tr><td colspan="8" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
-    purchases = data || [];
+    purchases = pdata || [];
+    stockItems = sdata || [];
     invLoaded = true;
     renderInventory();
+    renderStockList();
+    fillItemSelect();
     refreshDatalists();
+  }
+
+  // 把庫存品項填進叫貨的品項下拉；currentName 為編輯時的既有值（即使已停用也保留可選）
+  function fillItemSelect(currentName) {
+    const sel = F('p_item');
+    const names = stockItems.map(s => s.name);
+    let html = '<option value="">選擇品項…</option>' +
+      stockItems.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}${s.unit ? `（${escapeHtml(s.unit)}）` : ''}</option>`).join('');
+    if (currentName && !names.includes(currentName)) html += `<option value="${escapeHtml(currentName)}" selected>${escapeHtml(currentName)}（清單外）</option>`;
+    sel.innerHTML = html;
+    if (currentName) sel.value = currentName;
   }
 
   function monthRange(which) {
@@ -629,10 +649,93 @@
 
   function refreshDatalists() {
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    F('itemList').innerHTML = uniq(purchases.map(p => p.item_name)).map(v => `<option value="${escapeHtml(v)}">`).join('');
     F('pcatList').innerHTML = uniq(purchases.map(p => p.category)).map(v => `<option value="${escapeHtml(v)}">`).join('');
-    F('supList').innerHTML = uniq(purchases.map(p => p.supplier)).map(v => `<option value="${escapeHtml(v)}">`).join('');
+    F('supList').innerHTML = uniq([...purchases.map(p => p.supplier), ...stockItems.map(s => s.vendor)]).map(v => `<option value="${escapeHtml(v)}">`).join('');
+    F('svendorList').innerHTML = uniq(stockItems.map(s => s.vendor)).map(v => `<option value="${escapeHtml(v)}">`).join('');
   }
+
+  /* ===== 庫存品項主檔 ===== */
+  const UNIT_PRESETS = ['g', '磅', 'ml', '罐'];
+  let editStockId = null;
+
+  function renderStockList() {
+    if (!stockItems.length) { F('stockList').innerHTML = '<p class="muted faint">尚無品項，點「新增品項」建立叫貨用的清單</p>'; return; }
+    F('stockList').innerHTML = stockItems.map(s => `
+      <span class="chip" data-id="${s.id}" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;margin:0 6px 8px 0;font-size:13px">
+        <b style="font-weight:500">${escapeHtml(s.name)}</b>
+        ${s.unit ? `<span class="faint">${escapeHtml(s.unit)}</span>` : ''}
+        ${s.cost ? `<span class="faint">成本${formatCurrency(s.cost)}</span>` : ''}
+        ${s.price ? `<span class="faint">售${formatCurrency(s.price)}</span>` : ''}
+      </span>`).join('');
+    F('stockList').querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => openStockModal(el.dataset.id)));
+  }
+
+  function buildUnitOptions(current) {
+    const units = [...new Set([...UNIT_PRESETS, ...stockItems.map(s => s.unit).filter(Boolean), current].filter(Boolean))];
+    F('s_unit').innerHTML = '<option value="">—</option>'
+      + units.map(u => `<option value="${escapeHtml(u)}" ${u === current ? 'selected' : ''}>${escapeHtml(u)}</option>`).join('')
+      + '<option value="__add__">＋ 新增單位…</option>';
+  }
+
+  F('s_unit') && F('s_unit').addEventListener('change', () => {
+    if (F('s_unit').value === '__add__') {
+      const u = prompt('新增單位（例：包、箱、kg）：');
+      buildUnitOptions(u && u.trim() ? u.trim() : '');
+    }
+  });
+
+  F('addStock').addEventListener('click', () => openStockModal(null));
+  F('s_cancel').addEventListener('click', () => F('stockModal').classList.remove('show'));
+
+  function openStockModal(id) {
+    editStockId = id;
+    const s = id ? stockItems.find(x => x.id === id) : null;
+    F('stockModalTitle').textContent = s ? '編輯品項' : '新增品項';
+    F('s_name').value = s ? s.name : '';
+    F('s_cost').value = s ? (s.cost || '') : '';
+    F('s_price').value = s ? (s.price || '') : '';
+    F('s_vendor').value = s ? (s.vendor || '') : '';
+    F('s_note').value = s ? (s.note || '') : '';
+    buildUnitOptions(s ? (s.unit || '') : '');
+    F('s_err').textContent = '';
+    F('s_delete').style.visibility = s ? 'visible' : 'hidden';
+    F('stockModal').classList.add('show');
+  }
+
+  F('s_save').addEventListener('click', async () => {
+    F('s_err').textContent = '';
+    const name = F('s_name').value.trim();
+    if (!name) { F('s_err').textContent = '請填品名'; return; }
+    let unit = F('s_unit').value; if (unit === '__add__') unit = '';
+    const btn = F('s_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const payload = {
+      name, cost: Number(F('s_cost').value) || 0, price: Number(F('s_price').value) || 0,
+      vendor: F('s_vendor').value.trim() || null, unit: unit || null, note: F('s_note').value.trim() || null,
+    };
+    let error;
+    if (editStockId) ({ error } = await sb.from('stock_items').update(payload).eq('id', editStockId));
+    else ({ error } = await sb.from('stock_items').insert(payload));
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { F('s_err').textContent = '儲存失敗：' + error.message; return; }
+    F('stockModal').classList.remove('show'); toast('✅ 已儲存'); loadInventory();
+  });
+
+  F('s_delete').addEventListener('click', async () => {
+    if (!editStockId || !confirm('確定刪除這個品項？（不影響已存在的叫貨紀錄）')) return;
+    const { error } = await sb.from('stock_items').delete().eq('id', editStockId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('stockModal').classList.remove('show'); toast('已刪除'); loadInventory();
+  });
+
+  // 叫貨選品項時自動帶入單位/成本
+  F('p_item').addEventListener('change', () => {
+    const s = stockItems.find(x => x.name === F('p_item').value);
+    if (s) {
+      if (s.unit) F('p_unit').value = s.unit;
+      if (s.cost && !Number(F('p_cost').value)) { F('p_cost').value = s.cost; calcSub(); }
+      if (s.category && !F('p_category').value) F('p_category').value = s.category;
+    }
+  });
 
   // 叫貨 modal
   let editPurId = null;
@@ -651,7 +754,7 @@
     const p = id ? purchases.find(x => x.id === id) : null;
     F('purModalTitle').textContent = p ? '編輯叫貨' : '新增叫貨';
     F('p_date').value = p ? p.order_date : todayStr();
-    F('p_item').value = p ? p.item_name : '';
+    fillItemSelect(p ? p.item_name : null);
     F('p_category').value = p ? (p.category || '') : '';
     F('p_qty').value = p ? p.quantity : '';
     F('p_unit').value = p ? (p.unit || '') : '';
@@ -690,5 +793,155 @@
     const { error } = await sb.from('purchases').delete().eq('id', editPurId);
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
     F('purModal').classList.remove('show'); toast('已刪除'); loadInventory();
+  });
+
+  /* ============================================================
+   * 5) 打卡審核（補打卡申請）
+   * ========================================================== */
+  let reviewMap = {};
+  const KIND_LABEL = { clock_in: '上班', clock_out: '下班' };
+  function hhmmIso(iso) { return iso ? new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : ''; }
+  const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
+
+  async function refreshReviewBadge() {
+    const { count } = await sb.from('attendance_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+    const b = F('revBadge');
+    if (count) { b.textContent = count; b.className = 'badge badge-ded'; b.style.marginLeft = '6px'; }
+    else { b.textContent = ''; b.className = ''; }
+  }
+
+  async function loadReviews() {
+    const { data } = await sb.from('attendance_requests').select('*').order('created_at', { ascending: false }).limit(60);
+    const reqs = data || [];
+    reviewMap = {}; reqs.forEach(r => reviewMap[r.id] = r);
+    const pending = reqs.filter(r => r.status === 'pending');
+    const done = reqs.filter(r => r.status !== 'pending').slice(0, 20);
+
+    F('reviewPending').innerHTML = pending.length ? pending.map(r => `
+      <div class="list-row" style="cursor:default">
+        <div>
+          <div style="font-weight:500">${escapeHtml(nameOf(r.staff_id))}　${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmmIso(r.requested_time)}</div>
+          <div class="faint">${escapeHtml(r.reason || '')}</div>
+        </div>
+        <div class="flex">
+          <button class="btn btn-primary btn-sm" data-ok="${r.id}">核准</button>
+          <button class="btn btn-ghost btn-sm" data-no="${r.id}">駁回</button>
+        </div>
+      </div>`).join('') : '<p class="muted faint">目前沒有待審核的申請 🎉</p>';
+
+    F('reviewDone').innerHTML = done.length ? done.map(r => {
+      const st = r.status === 'approved' ? '<span class="badge badge-ok">已核准</span>' : '<span class="badge badge-ded">已駁回</span>';
+      return `<div class="list-row" style="cursor:default"><div>${escapeHtml(nameOf(r.staff_id))}　${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmmIso(r.requested_time)}</div>${st}</div>`;
+    }).join('') : '<p class="muted faint">尚無紀錄</p>';
+
+    F('reviewPending').querySelectorAll('[data-ok]').forEach(b => b.addEventListener('click', () => approveReq(reviewMap[b.dataset.ok])));
+    F('reviewPending').querySelectorAll('[data-no]').forEach(b => b.addEventListener('click', () => rejectReq(reviewMap[b.dataset.no])));
+  }
+
+  async function approveReq(req) {
+    if (!req) return;
+    const field = req.kind === 'clock_in' ? 'clock_in' : 'clock_out';
+    const { data: existing } = await sb.from('attendance').select('id').eq('staff_id', req.staff_id).eq('work_date', req.work_date).maybeSingle();
+    let aerr;
+    if (existing) ({ error: aerr } = await sb.from('attendance').update({ [field]: req.requested_time }).eq('id', existing.id));
+    else ({ error: aerr } = await sb.from('attendance').insert({ staff_id: req.staff_id, work_date: req.work_date, [field]: req.requested_time }));
+    if (aerr) { toast('寫入打卡失敗：' + aerr.message, 'error'); return; }
+    const { error } = await sb.from('attendance_requests').update({ status: 'approved', reviewed_by: ME.id, reviewed_at: new Date().toISOString() }).eq('id', req.id);
+    if (error) { toast('更新失敗：' + error.message, 'error'); return; }
+    toast('✅ 已核准並記入打卡'); loadReviews(); refreshReviewBadge();
+  }
+
+  async function rejectReq(req) {
+    if (!req || !confirm('確定駁回這筆補打卡申請？')) return;
+    const { error } = await sb.from('attendance_requests').update({ status: 'rejected', reviewed_by: ME.id, reviewed_at: new Date().toISOString() }).eq('id', req.id);
+    if (error) { toast('操作失敗：' + error.message, 'error'); return; }
+    toast('已駁回'); loadReviews(); refreshReviewBadge();
+  }
+
+  /* ============================================================
+   * 6) 維運紀錄
+   * ========================================================== */
+  let maintList = [], editMaintId = null;
+
+  async function loadMaintenance() {
+    const { data, error } = await sb.from('maintenance_records').select('*').order('repair_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) { F('maintTable').querySelector('tbody').innerHTML = `<tr><td colspan="7" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
+    maintList = data || [];
+    const total = maintList.reduce((s, m) => s + Number(m.cost || 0), 0);
+    F('maint_sum').textContent = `・共 ${maintList.length} 筆・累計 ${formatCurrency(total)}`;
+    const tb = F('maintTable').querySelector('tbody');
+    tb.innerHTML = maintList.length ? maintList.map(m => `
+      <tr data-id="${m.id}" style="cursor:pointer">
+        <td>${(m.repair_date || '').replace(/-/g,'/')}</td>
+        <td>${escapeHtml(m.equipment || '')}</td>
+        <td>${escapeHtml((m.content || '').slice(0,30))}${(m.content || '').length > 30 ? '…' : ''}</td>
+        <td class="num">${formatCurrency(m.cost)}</td>
+        <td>${m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : '<span class="badge badge-wait">叫修中</span>'}</td>
+        <td>${m.photo_path ? '📷' : ''}</td>
+        <td class="num faint">編輯 ›</td>
+      </tr>`).join('') : '<tr><td colspan="7" class="muted faint">尚無維運紀錄</td></tr>';
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openMaintModal(tr.dataset.id)));
+  }
+
+  F('addMaint').addEventListener('click', () => openMaintModal(null));
+  F('m_cancel').addEventListener('click', () => F('maintModal').classList.remove('show'));
+
+  function openMaintModal(id) {
+    editMaintId = id;
+    const m = id ? maintList.find(x => x.id === id) : null;
+    F('maintModalTitle').textContent = m ? '編輯維運紀錄' : '新增維運紀錄';
+    F('m_date').value = m ? m.repair_date : todayStr();
+    F('m_equipment').value = m ? (m.equipment || '') : '';
+    F('m_cost').value = m ? m.cost : '';
+    F('m_vendor').value = m ? (m.vendor || '') : '';
+    F('m_status').value = m ? m.status : 'open';
+    F('m_content').value = m ? (m.content || '') : '';
+    F('m_note').value = m ? (m.note || '') : '';
+    F('m_photo').value = '';
+    F('m_err').textContent = '';
+    F('m_delete').style.visibility = m ? 'visible' : 'hidden';
+    F('m_photoExisting').innerHTML = '';
+    if (m && m.photo_path) {
+      const a = document.createElement('button');
+      a.type = 'button'; a.className = 'btn btn-ghost btn-sm'; a.textContent = '看現有照片';
+      a.onclick = async () => { const { data, error } = await sb.storage.from('maintenance-photos').createSignedUrl(m.photo_path, 3600); if (!error) window.open(data.signedUrl, '_blank'); };
+      F('m_photoExisting').appendChild(a);
+    }
+    F('maintModal').classList.add('show');
+  }
+
+  F('m_save').addEventListener('click', async () => {
+    F('m_err').textContent = '';
+    const date = F('m_date').value;
+    if (!date) { F('m_err').textContent = '請填時間'; return; }
+    const btn = F('m_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const payload = {
+      repair_date: date, equipment: F('m_equipment').value.trim() || null,
+      content: F('m_content').value.trim() || null, cost: Number(F('m_cost').value) || 0,
+      vendor: F('m_vendor').value.trim() || null, status: F('m_status').value, note: F('m_note').value.trim() || null,
+    };
+    let rec, error;
+    if (editMaintId) ({ data: rec, error } = await sb.from('maintenance_records').update(payload).eq('id', editMaintId).select().single());
+    else ({ data: rec, error } = await sb.from('maintenance_records').insert(payload).select().single());
+    if (error) { btn.disabled = false; btn.textContent = '儲存'; F('m_err').textContent = '儲存失敗：' + error.message; return; }
+    const file = F('m_photo').files[0];
+    if (file && rec) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const path = `${rec.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await sb.storage.from('maintenance-photos').upload(path, file, { upsert: true });
+      if (!upErr) await sb.from('maintenance_records').update({ photo_path: path }).eq('id', rec.id);
+      else toast('照片上傳失敗：' + upErr.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = '儲存';
+    F('maintModal').classList.remove('show'); toast('✅ 已儲存'); loadMaintenance();
+  });
+
+  F('m_delete').addEventListener('click', async () => {
+    if (!editMaintId || !confirm('確定刪除這筆維運紀錄？')) return;
+    const m = maintList.find(x => x.id === editMaintId);
+    if (m && m.photo_path) await sb.storage.from('maintenance-photos').remove([m.photo_path]);
+    const { error } = await sb.from('maintenance_records').delete().eq('id', editMaintId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('maintModal').classList.remove('show'); toast('已刪除'); loadMaintenance();
   });
 })();

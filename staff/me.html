@@ -6,12 +6,14 @@
   <title>我的資料 · 一坨咖啡</title>
   <link rel="icon" href="../favicon.png" />
   <link rel="stylesheet" href="staff.css" />
+  <style>
+    .clock-big { font-family: var(--f-serif); font-size: 30px; font-weight: 600; color: var(--accent-deep); }
+  </style>
 </head>
 <body>
   <div class="topbar">
     <div class="brand">一坨咖啡 <small>STAFF</small></div>
     <div class="right">
-      <a href="recipes.html" class="who">內部資料</a>
       <span class="who" id="who"></span>
       <button class="btn btn-ghost btn-sm" id="logout">登出</button>
     </div>
@@ -19,13 +21,48 @@
 
   <div class="wrap wrap-narrow" id="app" style="opacity:0">
     <div class="tabs">
-      <button class="tab active" data-tab="profile">個人資料</button>
+      <button class="tab active" data-tab="clock">打卡</button>
+      <button class="tab" data-tab="profile">個人資料</button>
       <button class="tab" data-tab="salary">薪資投保</button>
       <button class="tab" data-tab="payslips">薪資條</button>
+      <a class="tab" href="recipes.html">菜單</a>
     </div>
 
+    <!-- 打卡 -->
+    <section data-pane="clock">
+      <div class="card" style="text-align:center">
+        <div class="faint" id="clk-date"></div>
+        <div class="clock-big" id="clk-now" style="margin:6px 0 14px"></div>
+        <div class="flex" style="justify-content:center; gap:12px; margin-bottom:16px">
+          <div class="stat" style="min-width:120px"><div class="k">上班</div><div class="v" id="clk-in">—</div></div>
+          <div class="stat" style="min-width:120px"><div class="k">下班</div><div class="v" id="clk-out">—</div></div>
+        </div>
+        <div class="flex" style="justify-content:center; gap:10px">
+          <button class="btn btn-primary" id="btnIn">上班打卡</button>
+          <button class="btn btn-ghost" id="btnOut">下班打卡</button>
+        </div>
+        <p class="faint mt8" id="clk-hint"></p>
+      </div>
+      <div class="card">
+        <div class="row-between" style="margin-bottom:10px">
+          <h2 class="card-h" style="margin:0">本月打卡紀錄</h2>
+          <button class="btn btn-ghost btn-sm" id="makeupBtn">忘了打卡？補打卡申請</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="attTable">
+            <thead><tr><th>日期</th><th>上班</th><th>下班</th><th class="num">工時</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">我的補打卡申請</h2>
+        <div id="reqList"><p class="muted faint">載入中…</p></div>
+      </div>
+    </section>
+
     <!-- 個人資料 -->
-    <section data-pane="profile">
+    <section data-pane="profile" class="hidden">
       <div class="card">
         <h2 class="card-h">聯絡資料</h2>
         <div class="grid2">
@@ -89,24 +126,49 @@
     </section>
   </div>
 
+  <!-- 補打卡申請 modal -->
+  <div class="modal-mask" id="makeupModal">
+    <div class="modal">
+      <h3 class="modal-h">補打卡申請</h3>
+      <p class="faint" style="margin-top:-8px">送出後需由店長/管理者審核，核准後才會記入打卡紀錄。</p>
+      <div class="grid2">
+        <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="mk_date"></div>
+        <div class="field"><label class="label">補哪一筆 ★</label>
+          <select class="input" id="mk_kind"><option value="clock_in">上班</option><option value="clock_out">下班</option></select>
+        </div>
+        <div class="field"><label class="label">實際時間 ★</label><input class="input" type="time" id="mk_time"></div>
+      </div>
+      <div class="field"><label class="label">原因</label><input class="input" id="mk_reason" placeholder="例：忘記打卡 / 手機沒電"></div>
+      <div id="mk_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <span></span>
+        <div class="flex">
+          <button class="btn btn-ghost" id="mk_cancel">取消</button>
+          <button class="btn btn-primary" id="mk_save">送出申請</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../config.js"></script>
   <script src="staff.js"></script>
   <script>
-    const { sb, requireAuth, signOut, formatCurrency, fmtDate, toast, escapeHtml } = JB;
-    let me = null;
+    const { sb, requireAuth, signOut, formatCurrency, fmtDate, todayStr, toast, escapeHtml } = JB;
+    let me = null, todayRec = null;
+    const F = id => document.getElementById(id);
+    const WEEK = ['週日','週一','週二','週三','週四','週五','週六'];
 
-    document.getElementById('logout').addEventListener('click', signOut);
+    F('logout').addEventListener('click', signOut);
 
-    // 分頁切換
-    document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    // 分頁切換（只處理有 data-tab 的按鈕；菜單是連結，正常跳頁）
+    document.querySelectorAll('.tab[data-tab]').forEach(t => t.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       const name = t.dataset.tab;
       document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     }));
 
-    const F = id => document.getElementById(id);
     const PROFILE_FIELDS = ['phone','address','birthday','id_number','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
 
     (async () => {
@@ -115,11 +177,9 @@
       me = auth.staff;
       F('who').textContent = me.name;
 
-      // 個人資料
       F('email').value = me.email || auth.user.email || '';
       PROFILE_FIELDS.forEach(k => { if (F(k)) F(k).value = me[k] || ''; });
 
-      // 薪資投保（唯讀）
       F('r_employee_no').textContent = me.employee_no || '—';
       F('r_department').textContent = me.department || '—';
       F('r_position').textContent = me.position || '—';
@@ -130,27 +190,124 @@
       F('r_health_insurance').textContent = me.health_insurance || '—';
       F('r_pension').textContent = me.pension || '—';
 
-      document.getElementById('app').style.opacity = 1;
+      F('app').style.opacity = 1;
+      tickClock(); setInterval(tickClock, 1000);
+      loadAttendance();
+      loadRequests();
       loadPayslips();
     })();
 
-    document.getElementById('saveProfile').addEventListener('click', async (e) => {
+    /* ===== 補打卡申請 ===== */
+    const KIND_LABEL = { clock_in: '上班', clock_out: '下班' };
+    const REQ_STATUS = { pending: ['badge-wait','待審核'], approved: ['badge-ok','已核准'], rejected: ['badge-ded','已駁回'] };
+
+    F('makeupBtn').addEventListener('click', () => {
+      F('mk_date').value = todayStr(); F('mk_kind').value = 'clock_in'; F('mk_time').value = ''; F('mk_reason').value = ''; F('mk_err').textContent = '';
+      F('makeupModal').classList.add('show');
+    });
+    F('mk_cancel').addEventListener('click', () => F('makeupModal').classList.remove('show'));
+
+    F('mk_save').addEventListener('click', async () => {
+      F('mk_err').textContent = '';
+      const date = F('mk_date').value, time = F('mk_time').value, kind = F('mk_kind').value;
+      if (!date || !time) { F('mk_err').textContent = '請填日期與時間'; return; }
+      const btn = F('mk_save'); btn.disabled = true; btn.textContent = '送出中…';
+      const requested_time = new Date(`${date}T${time}:00`).toISOString();
+      const { error } = await sb.from('attendance_requests').insert({ staff_id: me.id, work_date: date, kind, requested_time, reason: F('mk_reason').value.trim() || null });
+      btn.disabled = false; btn.textContent = '送出申請';
+      if (error) { F('mk_err').textContent = '送出失敗：' + error.message; return; }
+      F('makeupModal').classList.remove('show'); toast('✅ 已送出，等待店長審核'); loadRequests();
+    });
+
+    async function loadRequests() {
+      const { data } = await sb.from('attendance_requests').select('*').eq('staff_id', me.id).order('created_at', { ascending: false }).limit(10);
+      const box = F('reqList');
+      if (!data || !data.length) { box.innerHTML = '<p class="muted faint">目前沒有補打卡申請。</p>'; return; }
+      box.innerHTML = data.map(r => {
+        const [cls, label] = REQ_STATUS[r.status] || ['badge-wait', r.status];
+        return `<div class="list-row" style="cursor:default">
+          <div>
+            <div style="font-weight:500">${r.work_date.replace(/-/g,'/')}　補${KIND_LABEL[r.kind]} ${hhmm(r.requested_time)}</div>
+            <div class="faint">${escapeHtml(r.reason || '')}</div>
+          </div>
+          <span class="badge ${cls}">${label}</span>
+        </div>`;
+      }).join('');
+    }
+
+    /* ===== 打卡 ===== */
+    function tickClock() {
+      const d = new Date();
+      F('clk-date').textContent = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${WEEK[d.getDay()]}`;
+      F('clk-now').textContent = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    function hhmm(iso) { return iso ? new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—'; }
+    function worktime(a) {
+      if (!a.clock_in || !a.clock_out) return '—';
+      const m = Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000);
+      return `${Math.floor(m/60)}h${m%60}m`;
+    }
+
+    async function loadAttendance() {
+      const d = new Date();
+      const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+      const end = todayStr();
+      const { data } = await sb.from('attendance').select('*').eq('staff_id', me.id)
+        .gte('work_date', start).lte('work_date', end).order('work_date', { ascending: false });
+      const recs = data || [];
+      todayRec = recs.find(r => r.work_date === todayStr()) || null;
+      renderClock();
+      F('attTable').querySelector('tbody').innerHTML = recs.length
+        ? recs.map(a => `<tr><td>${a.work_date.replace(/-/g,'/').slice(5)} ${WEEK[new Date(a.work_date).getDay()]}</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${worktime(a)}</td></tr>`).join('')
+        : '<tr><td colspan="4" class="muted faint">本月還沒有打卡紀錄</td></tr>';
+    }
+
+    function renderClock() {
+      F('clk-in').textContent = hhmm(todayRec?.clock_in);
+      F('clk-out').textContent = hhmm(todayRec?.clock_out);
+      const inDone = !!todayRec?.clock_in, outDone = !!todayRec?.clock_out;
+      F('btnIn').disabled = inDone;
+      F('btnOut').disabled = !inDone || outDone;
+      F('clk-hint').textContent = !inDone ? '今天還沒打上班卡' : !outDone ? '上班中…記得下班打卡' : '今天已完成打卡 ✓';
+    }
+
+    F('btnIn').addEventListener('click', async () => {
+      F('btnIn').disabled = true;
+      const nowIso = new Date().toISOString(), today = todayStr();
+      let res;
+      if (todayRec) res = await sb.from('attendance').update({ clock_in: nowIso }).eq('id', todayRec.id).select().single();
+      else res = await sb.from('attendance').insert({ staff_id: me.id, work_date: today, clock_in: nowIso }).select().single();
+      if (res.error) { toast('打卡失敗：' + res.error.message, 'error'); F('btnIn').disabled = false; return; }
+      todayRec = res.data; renderClock(); loadAttendance(); toast('✅ 上班打卡 ' + hhmm(nowIso));
+    });
+
+    F('btnOut').addEventListener('click', async () => {
+      if (!todayRec) return;
+      F('btnOut').disabled = true;
+      const nowIso = new Date().toISOString();
+      const res = await sb.from('attendance').update({ clock_out: nowIso }).eq('id', todayRec.id).select().single();
+      if (res.error) { toast('打卡失敗：' + res.error.message, 'error'); F('btnOut').disabled = false; return; }
+      todayRec = res.data; renderClock(); loadAttendance(); toast('✅ 下班打卡 ' + hhmm(nowIso));
+    });
+
+    /* ===== 個人資料 ===== */
+    F('saveProfile').addEventListener('click', async (e) => {
       const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
       const patch = {};
       PROFILE_FIELDS.forEach(k => { patch[k] = F(k).value.trim() || null; });
       const { error } = await sb.from('staff').update(patch).eq('id', me.id);
       btn.disabled = false; btn.textContent = '儲存個人資料';
       if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
-      Object.assign(me, patch);
-      toast('✅ 已儲存');
+      Object.assign(me, patch); toast('✅ 已儲存');
     });
 
+    /* ===== 薪資條 ===== */
     async function loadPayslips() {
       const { data, error } = await sb.from('payroll_records')
         .select('id,year,month,total_pay,paid_at')
         .eq('staff_id', me.id)
         .order('year', { ascending: false }).order('month', { ascending: false });
-      const box = document.getElementById('payslipList');
+      const box = F('payslipList');
       if (error) { box.innerHTML = '<p class="muted faint">讀取失敗</p>'; return; }
       if (!data || !data.length) { box.innerHTML = '<p class="muted faint">目前還沒有薪資條。</p>'; return; }
       box.innerHTML = data.map(r => `

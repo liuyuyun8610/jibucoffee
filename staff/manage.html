@@ -20,7 +20,6 @@
   <div class="topbar">
     <div class="brand">一坨咖啡 <small>後台</small></div>
     <div class="right">
-      <a href="recipes.html" class="who">內部資料</a>
       <a href="me.html" class="who">我的資料</a>
       <span class="who" id="who"></span>
       <button class="btn btn-ghost btn-sm" id="logout">登出</button>
@@ -33,6 +32,9 @@
       <button class="tab" data-tab="payroll">薪資計算</button>
       <button class="tab" data-tab="revenue">營收預測</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
+      <button class="tab" data-tab="reviews">打卡審核<span id="revBadge"></span></button>
+      <button class="tab" data-tab="maintenance">維運紀錄</button>
+      <a class="tab" href="recipes.html">菜單</a>
     </div>
 
     <!-- ===== 人事管理 ===== -->
@@ -103,6 +105,14 @@
       </div>
 
       <div class="card">
+        <div class="row-between" style="margin-bottom:10px">
+          <h2 class="card-h" style="margin:0">庫存品項 <span class="faint" style="font-weight:400">— 叫貨時從這份清單下拉選取</span></h2>
+          <button class="btn btn-ghost btn-sm" id="addStock">＋ 新增品項</button>
+        </div>
+        <div id="stockList"><p class="muted faint">載入中…</p></div>
+      </div>
+
+      <div class="card">
         <h2 class="card-h">叫貨明細</h2>
         <div style="overflow-x:auto">
           <table class="tbl" id="invTable">
@@ -123,13 +133,95 @@
       </div>
     </section>
 
+    <!-- ===== 打卡審核 ===== -->
+    <section data-pane="reviews" class="hidden">
+      <div class="card">
+        <h2 class="card-h">待審核的補打卡申請</h2>
+        <div id="reviewPending"><p class="muted faint">載入中…</p></div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">最近已審核</h2>
+        <div id="reviewDone"></div>
+      </div>
+    </section>
+
+    <!-- ===== 維運紀錄 ===== -->
+    <section data-pane="maintenance" class="hidden">
+      <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
+        <p class="muted faint" style="margin:0">設備維修紀錄 <span id="maint_sum"></span></p>
+        <button class="btn btn-primary btn-sm" id="addMaint">＋ 新增紀錄</button>
+      </div>
+      <div class="card">
+        <div style="overflow-x:auto">
+          <table class="tbl" id="maintTable">
+            <thead><tr><th>時間</th><th>設備</th><th>內容</th><th class="num">費用</th><th>狀態</th><th>照片</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  <!-- ===== Modal: 庫存品項 ===== -->
+  <div class="modal-mask" id="stockModal">
+    <div class="modal">
+      <h3 class="modal-h" id="stockModalTitle">新增品項</h3>
+      <div class="grid3">
+        <div class="field"><label class="label">品名 ★</label><input class="input" id="s_name" placeholder="例：鮮奶"></div>
+        <div class="field"><label class="label">成本（進貨）</label><input class="input" type="number" id="s_cost"></div>
+        <div class="field"><label class="label">售價</label><input class="input" type="number" id="s_price"></div>
+        <div class="field"><label class="label">廠商名稱</label><input class="input" id="s_vendor" list="svendorList"><datalist id="svendorList"></datalist></div>
+        <div class="field"><label class="label">單位</label><select class="input" id="s_unit"></select></div>
+        <div class="field"><label class="label">備註</label><input class="input" id="s_note"></div>
+      </div>
+      <div id="s_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="s_delete" style="visibility:hidden">刪除</button>
+        <div class="flex">
+          <button class="btn btn-ghost" id="s_cancel">取消</button>
+          <button class="btn btn-primary" id="s_save">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: 維運 ===== -->
+  <div class="modal-mask" id="maintModal">
+    <div class="modal">
+      <h3 class="modal-h" id="maintModalTitle">新增維運紀錄</h3>
+      <div class="grid2">
+        <div class="field"><label class="label">時間 ★</label><input class="input" type="date" id="m_date"></div>
+        <div class="field"><label class="label">設備</label><input class="input" id="m_equipment" placeholder="例：義式咖啡機"></div>
+        <div class="field"><label class="label">費用</label><input class="input" type="number" id="m_cost"></div>
+        <div class="field"><label class="label">廠商 / 師傅</label><input class="input" id="m_vendor"></div>
+        <div class="field"><label class="label">狀態</label>
+          <select class="input" id="m_status"><option value="open">叫修中</option><option value="done">已完成</option></select>
+        </div>
+      </div>
+      <div class="field"><label class="label">內容</label><textarea class="input" id="m_content" rows="3" placeholder="故障狀況、處理方式…"></textarea></div>
+      <div class="field">
+        <label class="label">照片紀錄</label>
+        <input type="file" accept="image/*" id="m_photo">
+        <div id="m_photoExisting" class="mt8"></div>
+      </div>
+      <div class="field"><label class="label">備註</label><input class="input" id="m_note"></div>
+      <div id="m_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="m_delete" style="visibility:hidden">刪除這筆</button>
+        <div class="flex">
+          <button class="btn btn-ghost" id="m_cancel">取消</button>
+          <button class="btn btn-primary" id="m_save">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Modal: 叫貨 ===== -->
   <div class="modal-mask" id="purModal">
     <div class="modal">
       <h3 class="modal-h" id="purModalTitle">新增叫貨</h3>
       <div class="grid3">
         <div class="field"><label class="label">叫貨日期 ★</label><input class="input" type="date" id="p_date"></div>
-        <div class="field"><label class="label">品項 ★</label><input class="input" id="p_item" list="itemList" placeholder="例：鮮奶"><datalist id="itemList"></datalist></div>
+        <div class="field"><label class="label">品項 ★</label><select class="input" id="p_item"><option value="">選擇品項…</option></select></div>
         <div class="field"><label class="label">分類</label><input class="input" id="p_category" list="pcatList" placeholder="例：乳製品"><datalist id="pcatList"></datalist></div>
         <div class="field"><label class="label">數量 ★</label><input class="input" type="number" id="p_qty"></div>
         <div class="field"><label class="label">單位</label><input class="input" id="p_unit" list="unitList" placeholder="瓶/箱/包"><datalist id="unitList"><option value="瓶"><option value="箱"><option value="包"><option value="份"><option value="罐"><option value="袋"><option value="公斤"></datalist></div>
