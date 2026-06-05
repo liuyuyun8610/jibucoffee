@@ -686,7 +686,6 @@
         <b style="font-weight:500">${escapeHtml(s.name)}</b>
         ${s.unit ? `<span class="faint">${escapeHtml(s.unit)}</span>` : ''}
         ${s.cost ? `<span class="faint">成本${formatCurrency(s.cost)}</span>` : ''}
-        ${s.price ? `<span class="faint">售${formatCurrency(s.price)}</span>` : ''}
       </span>`).join('');
     F('stockList').querySelectorAll('[data-id]').forEach(el => el.addEventListener('click', () => openStockModal(el.dataset.id)));
   }
@@ -714,7 +713,6 @@
     F('stockModalTitle').textContent = s ? '編輯品項' : '新增品項';
     F('s_name').value = s ? s.name : '';
     F('s_cost').value = s ? (s.cost || '') : '';
-    F('s_price').value = s ? (s.price || '') : '';
     F('s_vendor').value = s ? (s.vendor || '') : '';
     F('s_note').value = s ? (s.note || '') : '';
     buildUnitOptions(s ? (s.unit || '') : '');
@@ -730,7 +728,7 @@
     let unit = F('s_unit').value; if (unit === '__add__') unit = '';
     const btn = F('s_save'); btn.disabled = true; btn.textContent = '儲存中…';
     const payload = {
-      name, cost: Number(F('s_cost').value) || 0, price: Number(F('s_price').value) || 0,
+      name, cost: Number(F('s_cost').value) || 0,
       vendor: F('s_vendor').value.trim() || null, unit: unit || null, note: F('s_note').value.trim() || null,
     };
     let error;
