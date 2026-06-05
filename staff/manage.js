@@ -11,17 +11,35 @@
   document.getElementById('logout').addEventListener('click', signOut);
 
   // 分頁切換
-  document.querySelectorAll('.tab[data-tab]').forEach(t => t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    const name = t.dataset.tab;
+  function writeHash(tab, sub) {
+    const h = tab === 'people' ? `people${sub && sub !== 'hr' ? ':' + sub : ''}` : tab;
+    if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
+  }
+  function currentSub() {
+    const a = document.querySelector('.subtab.active');
+    return a ? a.dataset.sub : 'hr';
+  }
+  function activateSub(name) {
+    if (!document.querySelector(`.subtab[data-sub="${name}"]`)) name = 'hr';
+    document.querySelectorAll('.subtab').forEach(x => x.classList.toggle('active', x.dataset.sub === name));
+    document.querySelectorAll('[data-subpane]').forEach(p => p.classList.toggle('hidden', p.dataset.subpane !== name));
+    if (name === 'payroll') loadPayrollMonth();
+    if (name === 'reviews') loadReviews();
+    writeHash('people', name);
+  }
+  function activateTab(name, sub) {
+    if (!document.querySelector(`.tab[data-tab="${name}"]`)) name = 'people';
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     if (name === 'revenue') loadRevenue();
-    if (name === 'payroll') loadPayrollMonth();
     if (name === 'inventory') loadInventory();
-    if (name === 'reviews') loadReviews();
     if (name === 'maintenance') loadMaintenance();
-  }));
+    if (name === 'people') activateSub(sub || currentSub());
+    else writeHash(name);
+  }
+
+  document.querySelectorAll('.tab[data-tab]').forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
+  document.querySelectorAll('.subtab').forEach(t => t.addEventListener('click', () => activateSub(t.dataset.sub)));
 
   (async () => {
     const auth = await requireAuth({ role: 'owner' });
@@ -34,6 +52,9 @@
     await loadStaff();
     initPayrollNav();
     refreshReviewBadge();
+    // 還原重整前所在的分頁（網址 hash）
+    const hp = location.hash.slice(1).split(':');
+    activateTab(hp[0] || 'people', hp[1]);
   })();
 
   async function loadStaff() {
@@ -861,27 +882,50 @@
   /* ============================================================
    * 6) 維運紀錄
    * ========================================================== */
-  let maintList = [], editMaintId = null;
+  let maintList = [], editMaintId = null, maintTagFilter = null, maintQuery = '';
+  const parseTags = s => [...new Set((s || '').split(/[,，、]/).map(t => t.trim()).filter(Boolean))];
 
   async function loadMaintenance() {
     const { data, error } = await sb.from('maintenance_records').select('*').order('repair_date', { ascending: false }).order('created_at', { ascending: false });
     if (error) { F('maintTable').querySelector('tbody').innerHTML = `<tr><td colspan="7" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
     maintList = data || [];
-    const total = maintList.reduce((s, m) => s + Number(m.cost || 0), 0);
-    F('maint_sum').textContent = `・共 ${maintList.length} 筆・累計 ${formatCurrency(total)}`;
+    renderMaintenance();
+  }
+
+  function renderMaintenance() {
+    // 標籤篩選列
+    const allTags = [...new Set(maintList.flatMap(m => m.tags || []))].sort();
+    F('maint_tagbar').innerHTML = allTags.length
+      ? `<span class="mtag ${!maintTagFilter ? 'on' : ''}" data-tag="">全部</span>` +
+        allTags.map(t => `<span class="mtag ${maintTagFilter === t ? 'on' : ''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join('')
+      : '';
+    F('maint_tagbar').querySelectorAll('[data-tag]').forEach(el => el.addEventListener('click', () => {
+      maintTagFilter = el.dataset.tag || null; renderMaintenance();
+    }));
+
+    const q = maintQuery.trim().toLowerCase();
+    let rows = maintList;                                  // 已依日期新→舊排序
+    if (maintTagFilter) rows = rows.filter(m => (m.tags || []).includes(maintTagFilter));
+    if (q) rows = rows.filter(m => `${m.equipment || ''} ${m.content || ''} ${(m.tags || []).join(' ')} ${m.vendor || ''}`.toLowerCase().includes(q));
+
+    const total = rows.reduce((s, m) => s + Number(m.cost || 0), 0);
+    F('maint_sum').textContent = `・${rows.length} 筆・累計 ${formatCurrency(total)}`;
+
     const tb = F('maintTable').querySelector('tbody');
-    tb.innerHTML = maintList.length ? maintList.map(m => `
+    tb.innerHTML = rows.length ? rows.map(m => `
       <tr data-id="${m.id}" style="cursor:pointer">
-        <td>${(m.repair_date || '').replace(/-/g,'/')}</td>
+        <td style="white-space:nowrap">${(m.repair_date || '').replace(/-/g,'/')}</td>
         <td>${escapeHtml(m.equipment || '')}</td>
-        <td>${escapeHtml((m.content || '').slice(0,30))}${(m.content || '').length > 30 ? '…' : ''}</td>
-        <td class="num">${formatCurrency(m.cost)}</td>
-        <td>${m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : '<span class="badge badge-wait">叫修中</span>'}</td>
+        <td>${escapeHtml((m.content || '').slice(0,28))}${(m.content || '').length > 28 ? '…' : ''}${(m.tags && m.tags.length) ? `<div style="margin-top:4px">${m.tags.map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('')}</div>` : ''}</td>
+        <td class="num" style="white-space:nowrap">${formatCurrency(m.cost)}</td>
+        <td style="white-space:nowrap">${m.status === 'done' ? '<span class="badge badge-ok">已完成</span>' : '<span class="badge badge-wait">叫修中</span>'}</td>
         <td>${m.photo_path ? '📷' : ''}</td>
         <td class="num faint">編輯 ›</td>
-      </tr>`).join('') : '<tr><td colspan="7" class="muted faint">尚無維運紀錄</td></tr>';
+      </tr>`).join('') : '<tr><td colspan="7" class="muted faint">沒有符合的維運紀錄</td></tr>';
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openMaintModal(tr.dataset.id)));
   }
+
+  F('maint_search').addEventListener('input', () => { maintQuery = F('maint_search').value; renderMaintenance(); });
 
   F('addMaint').addEventListener('click', () => openMaintModal(null));
   F('m_cancel').addEventListener('click', () => F('maintModal').classList.remove('show'));
@@ -896,6 +940,8 @@
     F('m_vendor').value = m ? (m.vendor || '') : '';
     F('m_status').value = m ? m.status : 'open';
     F('m_content').value = m ? (m.content || '') : '';
+    F('m_tags').value = m && m.tags ? m.tags.join(', ') : '';
+    F('mtagList').innerHTML = [...new Set(maintList.flatMap(x => x.tags || []))].map(t => `<option value="${escapeHtml(t)}">`).join('');
     F('m_note').value = m ? (m.note || '') : '';
     F('m_photo').value = '';
     F('m_err').textContent = '';
@@ -918,7 +964,8 @@
     const payload = {
       repair_date: date, equipment: F('m_equipment').value.trim() || null,
       content: F('m_content').value.trim() || null, cost: Number(F('m_cost').value) || 0,
-      vendor: F('m_vendor').value.trim() || null, status: F('m_status').value, note: F('m_note').value.trim() || null,
+      vendor: F('m_vendor').value.trim() || null, status: F('m_status').value,
+      tags: parseTags(F('m_tags').value), note: F('m_note').value.trim() || null,
     };
     let rec, error;
     if (editMaintId) ({ data: rec, error } = await sb.from('maintenance_records').update(payload).eq('id', editMaintId).select().single());

@@ -28,42 +28,61 @@
 
   <div class="wrap" id="app" style="opacity:0">
     <div class="tabs">
-      <button class="tab active" data-tab="hr">人事管理</button>
-      <button class="tab" data-tab="payroll">薪資計算</button>
+      <button class="tab active" data-tab="people">人事管理</button>
       <button class="tab" data-tab="revenue">營收預測</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
-      <button class="tab" data-tab="reviews">打卡審核<span id="revBadge"></span></button>
       <button class="tab" data-tab="maintenance">維運紀錄</button>
       <a class="tab" href="recipes.html">菜單</a>
     </div>
 
-    <!-- ===== 人事管理 ===== -->
-    <section data-pane="hr">
-      <div class="row-between" style="margin-bottom:14px">
-        <p class="muted faint" style="margin:0">共 <span id="hrCount">0</span> 位員工</p>
-        <button class="btn btn-primary btn-sm" id="addEmp">＋ 新增員工</button>
+    <!-- ===== 人事管理（含子分頁：員工資料 / 薪資 / 打卡審核）===== -->
+    <section data-pane="people">
+      <div class="tabs subtabs">
+        <button class="subtab active" data-sub="hr">員工資料</button>
+        <button class="subtab" data-sub="payroll">薪資</button>
+        <button class="subtab" data-sub="reviews">打卡審核<span id="revBadge"></span></button>
       </div>
-      <div class="list" id="empList"></div>
-    </section>
 
-    <!-- ===== 薪資計算 ===== -->
-    <section data-pane="payroll" class="hidden">
-      <div class="row-between" style="margin-bottom:16px">
-        <div>
-          <div class="month-nav">
-            <button id="pm-prev">‹</button>
-            <div style="text-align:center; min-width:130px">
-              <div style="font-weight:600" id="pm-label">—</div>
-              <div class="faint" id="pm-paylabel"></div>
-            </div>
-            <button id="pm-next">›</button>
-          </div>
+      <!-- 員工資料 -->
+      <div data-subpane="hr">
+        <div class="row-between" style="margin-bottom:14px">
+          <p class="muted faint" style="margin:0">共 <span id="hrCount">0</span> 位員工</p>
+          <button class="btn btn-primary btn-sm" id="addEmp">＋ 新增員工</button>
         </div>
-        <a href="#" class="faint" id="catHint">依勞基法§24 計算加班費</a>
+        <div class="list" id="empList"></div>
       </div>
-      <div class="split">
-        <div class="list" id="payEmpList"></div>
-        <div id="payDetail"><div class="card center-screen muted faint">← 選擇左側員工開始計算</div></div>
+
+      <!-- 薪資 -->
+      <div data-subpane="payroll" class="hidden">
+        <div class="row-between" style="margin-bottom:16px">
+          <div>
+            <div class="month-nav">
+              <button id="pm-prev">‹</button>
+              <div style="text-align:center; min-width:130px">
+                <div style="font-weight:600" id="pm-label">—</div>
+                <div class="faint" id="pm-paylabel"></div>
+              </div>
+              <button id="pm-next">›</button>
+            </div>
+          </div>
+          <a href="#" class="faint" id="catHint">依勞基法§24 計算加班費</a>
+        </div>
+        <div class="split">
+          <div class="list" id="payEmpList"></div>
+          <div id="payDetail"><div class="card center-screen muted faint">← 選擇左側員工開始計算</div></div>
+        </div>
+      </div>
+
+      <!-- 打卡審核 -->
+      <div data-subpane="reviews" class="hidden">
+        <div class="card">
+          <h2 class="card-h">待審核的補打卡申請</h2>
+          <div id="reviewPending"><p class="muted faint">載入中…</p></div>
+        </div>
+        <div class="card">
+          <h2 class="card-h">最近已審核</h2>
+          <div id="reviewDone"></div>
+        </div>
       </div>
     </section>
 
@@ -132,24 +151,14 @@
       </div>
     </section>
 
-    <!-- ===== 打卡審核 ===== -->
-    <section data-pane="reviews" class="hidden">
-      <div class="card">
-        <h2 class="card-h">待審核的補打卡申請</h2>
-        <div id="reviewPending"><p class="muted faint">載入中…</p></div>
-      </div>
-      <div class="card">
-        <h2 class="card-h">最近已審核</h2>
-        <div id="reviewDone"></div>
-      </div>
-    </section>
-
     <!-- ===== 維運紀錄 ===== -->
     <section data-pane="maintenance" class="hidden">
       <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
         <p class="muted faint" style="margin:0">設備維修紀錄 <span id="maint_sum"></span></p>
         <button class="btn btn-primary btn-sm" id="addMaint">＋ 新增紀錄</button>
       </div>
+      <input class="input" id="maint_search" placeholder="搜尋設備 / 內容 / 標籤…" style="max-width:320px; margin-bottom:10px">
+      <div id="maint_tagbar" style="margin-bottom:12px"></div>
       <div class="card">
         <div style="overflow-x:auto">
           <table class="tbl" id="maintTable">
@@ -198,6 +207,7 @@
         </div>
       </div>
       <div class="field"><label class="label">內容</label><textarea class="input" id="m_content" rows="3" placeholder="故障狀況、處理方式…"></textarea></div>
+      <div class="field"><label class="label">標籤（用逗號分隔，方便日後翻找類似維修）</label><input class="input" id="m_tags" list="mtagList" placeholder="例：咖啡機, 漏水, 電路"><datalist id="mtagList"></datalist></div>
       <div class="field">
         <label class="label">照片紀錄</label>
         <input type="file" accept="image/*" id="m_photo">

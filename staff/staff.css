@@ -66,6 +66,16 @@ a:hover { text-decoration: underline; }
 .tab:hover { color: var(--ink); }
 .tab.active { color: var(--accent-deep); border-bottom-color: var(--accent); font-weight: 500; }
 
+/* 子分頁（人事管理內）*/
+.subtabs { margin-bottom: 18px; }
+.subtab {
+  padding: 7px 14px; font-size: 13px; color: var(--ink-soft); white-space: nowrap;
+  border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; font-family: var(--f-sans);
+}
+.subtab:hover { color: var(--ink); }
+.subtab.active { color: var(--accent-deep); border-bottom-color: var(--accent); font-weight: 500; }
+
 /* ── 卡片 ─────────────────────────────────────────── */
 .card {
   background: var(--bg-card); border: 1px solid var(--line);
@@ -116,6 +126,16 @@ textarea.input { resize: vertical; }
 .badge-wait { background: var(--bg-soft); color: var(--ink-faint); }
 .badge-add { background: rgba(107,142,107,.14); color: var(--ok); }
 .badge-ded { background: rgba(194,83,60,.12); color: var(--danger); }
+
+/* ── 標籤 chip ────────────────────────────────────── */
+.mtag {
+  display: inline-block; font-size: 12px; padding: 3px 11px; margin: 0 6px 6px 0;
+  border: 1px solid var(--line); border-radius: 999px; background: #fff;
+  color: var(--ink-soft); cursor: pointer; transition: background .12s, color .12s;
+}
+.mtag:hover { background: var(--bg-soft); }
+.mtag.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mtag.sm { font-size: 11px; padding: 1px 8px; margin: 0 4px 0 0; cursor: default; color: var(--ink-faint); }
 
 /* ── 表格 ─────────────────────────────────────────── */
 .tbl { width: 100%; border-collapse: collapse; }

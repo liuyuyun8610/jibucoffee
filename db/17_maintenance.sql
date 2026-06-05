@@ -10,10 +10,14 @@ create table if not exists public.maintenance_records (
   vendor text,                               -- 廠商 / 師傅
   status text not null default 'open' check (status in ('open','done')),  -- 叫修中 / 已完成
   photo_path text,                           -- 照片（maintenance-photos bucket）
+  tags text[] not null default '{}',         -- 標籤（方便日後翻找類似維修）
   note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- 若表已存在，補上 tags 欄（重跑安全）
+alter table public.maintenance_records add column if not exists tags text[] not null default '{}';
 
 create index if not exists maintenance_date_idx on public.maintenance_records(repair_date desc);
 
