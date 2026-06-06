@@ -35,6 +35,7 @@
       <button class="tab" data-tab="handover">大交班</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
       <button class="tab" data-tab="maintenance">維運紀錄</button>
+      <button class="tab" data-tab="insights">智慧分析</button>
       <a class="tab" href="recipes.html">菜單</a>
     </div>
 
@@ -325,6 +326,22 @@
       </div>
     </section>
   </div>
+
+    <!-- ===== 智慧分析 ===== -->
+    <section data-pane="insights" class="hidden">
+      <div class="flex" style="margin-bottom:16px; gap:8px; flex-wrap:wrap">
+        <select class="input" id="iz_year" style="width:auto"></select>
+        <span class="faint" id="iz_hint"></span>
+      </div>
+      <div class="grid2">
+        <div class="card"><h2 class="card-h">維運・叫修最多的設備</h2><div id="iz_m_count"></div></div>
+        <div class="card"><h2 class="card-h">維運・維修花費最多</h2><div id="iz_m_cost"></div></div>
+        <div class="card"><h2 class="card-h">維運・常見問題標籤</h2><div id="iz_m_tags"></div></div>
+        <div class="card"><h2 class="card-h">叫貨・最常叫的物料</h2><div id="iz_p_count"></div></div>
+        <div class="card"><h2 class="card-h">叫貨・花費最多的物料</h2><div id="iz_p_cost"></div></div>
+        <div class="card"><h2 class="card-h">叫貨・分類花費佔比</h2><div id="iz_p_cat"></div></div>
+      </div>
+    </section>
 
   <!-- ===== Modal: 庫存品項 ===== -->
   <div class="modal-mask" id="stockModal">

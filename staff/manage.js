@@ -39,6 +39,7 @@
     if (name === 'handover') loadHandover();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
+    if (name === 'insights') loadInsights();
     if (name === 'people') activateSub(sub || currentSub());
     else writeHash(name);
   }
@@ -1344,6 +1345,46 @@
   });
 
   F('m_delete').addEventListener('click', deleteMaint);
+
+  /* ============================================================
+   * 6b) 智慧分析（維運/叫貨年度統計）
+   * ========================================================== */
+  let izMaint = [], izPur = [];
+  async function loadInsights() {
+    const [{ data: m }, { data: p }] = await Promise.all([
+      sb.from('maintenance_records').select('repair_date,equipment,cost,tags'),
+      sb.from('purchases').select('order_date,item_name,category,quantity,total_cost'),
+    ]);
+    izMaint = m || []; izPur = p || [];
+    fillYearSelect(F('iz_year'), [...izMaint.map(x => x.repair_date), ...izPur.map(x => x.order_date)], F('iz_year').value);
+    renderInsights();
+  }
+  F('iz_year').addEventListener('change', renderInsights);
+  function aggList(arr, keyFn, amtFn, qtyFn) {
+    const m = {};
+    arr.forEach(x => { const k = keyFn(x); if (!k) return; if (!m[k]) m[k] = { key: k, count: 0, sum: 0, qty: 0 }; m[k].count++; if (amtFn) m[k].sum += Number(amtFn(x)) || 0; if (qtyFn) m[k].qty += Number(qtyFn(x)) || 0; });
+    return Object.values(m);
+  }
+  function topRows(list, sortKey, fmt, n = 8) {
+    const s = [...list].sort((a, b) => b[sortKey] - a[sortKey]).slice(0, n);
+    return s.length ? s.map((r, i) => `<div class="kv"><span class="k">${i + 1}. ${escapeHtml(r.key)}</span><span>${fmt(r)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無資料</span></div>';
+  }
+  function renderInsights() {
+    const yr = F('iz_year').value;
+    const m = yr === 'all' ? izMaint : izMaint.filter(x => (x.repair_date || '').slice(0, 4) === yr);
+    const p = yr === 'all' ? izPur : izPur.filter(x => (x.order_date || '').slice(0, 4) === yr);
+    F('iz_hint').textContent = `維運 ${m.length} 筆・叫貨 ${p.length} 筆`;
+    const mByEq = aggList(m, x => x.equipment || '(未填設備)', x => x.cost);
+    F('iz_m_count').innerHTML = topRows(mByEq, 'count', r => `${r.count} 次`);
+    F('iz_m_cost').innerHTML = topRows(mByEq, 'sum', r => formatCurrency(r.sum));
+    const tagAgg = {}; m.forEach(x => (x.tags || []).forEach(t => { tagAgg[t] = (tagAgg[t] || 0) + 1; }));
+    F('iz_m_tags').innerHTML = topRows(Object.entries(tagAgg).map(([k, c]) => ({ key: k, count: c })), 'count', r => `${r.count} 次`);
+    const pByItem = aggList(p, x => x.item_name, x => x.total_cost, x => x.quantity);
+    F('iz_p_count').innerHTML = topRows(pByItem, 'count', r => `${r.count} 次・${r.qty} 件`);
+    F('iz_p_cost').innerHTML = topRows(pByItem, 'sum', r => formatCurrency(r.sum));
+    const pByCat = aggList(p, x => x.category || '(未分類)', x => x.total_cost);
+    F('iz_p_cat').innerHTML = topRows(pByCat, 'sum', r => formatCurrency(r.sum));
+  }
 
   /* ============================================================
    * 7) 帳本（帳戶 + 分錄；薪資/叫貨可選帳戶扣款）
