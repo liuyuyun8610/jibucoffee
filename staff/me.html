@@ -3,11 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>我的資料 · 一坨咖啡</title>
+  <title>員工 · 一坨咖啡</title>
   <link rel="icon" href="../favicon.png" />
   <link rel="stylesheet" href="staff.css" />
   <style>
+    body { background: var(--bg-soft); }
+    .wrap-narrow { padding-bottom: 88px; }
     .clock-big { font-family: var(--f-serif); font-size: 30px; font-weight: 600; color: var(--accent-deep); }
+    .hello { font-family: var(--f-serif); font-size: 20px; font-weight: 600; color: var(--accent-deep); }
+    .todo { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: #fff; margin-bottom: 10px; }
+    .todo .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .todo.done .dot { background: var(--ok); }
+    .todo.pending .dot { background: var(--danger); }
+    .todo .t { flex: 1; }
+    .todo .t .s { font-size: 12px; color: var(--ink-soft); }
+    .big-btn { padding: 16px; font-size: 16px; border-radius: 14px; }
+    .store-tile { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 14px; border: 1px solid var(--line); background: #fff; margin-bottom: 10px; cursor: pointer; text-decoration: none; color: var(--ink); }
+    .store-tile .ic { font-size: 24px; }
+    .store-tile .t { flex: 1; font-weight: 500; }
+    .store-tile .t .s { font-size: 12px; color: var(--ink-soft); font-weight: 400; }
+    .store-tile .chev { color: var(--ink-faint); }
+    .store-tile.soon { opacity: .55; cursor: default; }
+    /* 底部導航 */
+    .bottomnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex;
+      background: rgba(253,253,251,.96); backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+      padding-bottom: env(safe-area-inset-bottom); }
+    .bottomnav button { flex: 1; border: none; background: none; padding: 9px 4px 7px; cursor: pointer;
+      font-family: var(--f-sans); font-size: 11px; color: var(--ink-faint); display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
+    .bottomnav button .ic { font-size: 21px; line-height: 1; }
+    .bottomnav button.active { color: var(--accent-deep); }
+    .nav-badge { position: absolute; top: 4px; right: 50%; transform: translateX(16px); background: var(--danger); color: #fff; font-size: 10px; min-width: 16px; height: 16px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+    .sec-title { font-family: var(--f-serif); font-size: 17px; font-weight: 600; color: var(--accent-deep); margin: 4px 0 14px; }
   </style>
 </head>
 <body>
@@ -20,36 +46,109 @@
   </div>
 
   <div class="wrap wrap-narrow" id="app" style="opacity:0">
-    <div class="tabs">
-      <button class="tab active" data-tab="clock">打卡</button>
-      <button class="tab" data-tab="daily">大交班</button>
-      <button class="tab" data-tab="shifts">班表</button>
-      <button class="tab" data-tab="profile">個人資料</button>
-      <button class="tab" data-tab="salary">薪資投保</button>
-      <button class="tab" data-tab="payslips">薪資條</button>
-      <a class="tab" href="recipes.html">菜單</a>
-    </div>
 
-    <!-- 打卡 -->
-    <section data-pane="clock">
+    <!-- ===== 今日工作 ===== -->
+    <section data-pane="today">
+      <div class="hello" id="hello">嗨</div>
+      <p class="faint" id="todayDate" style="margin:2px 0 16px"></p>
+
       <div class="card" style="text-align:center">
-        <div class="faint" id="clk-date"></div>
-        <div class="clock-big" id="clk-now" style="margin:6px 0 14px"></div>
-        <div class="flex" style="justify-content:center; gap:12px; margin-bottom:16px">
-          <div class="stat" style="min-width:120px"><div class="k">上班</div><div class="v" id="clk-in">—</div></div>
-          <div class="stat" style="min-width:120px"><div class="k">下班</div><div class="v" id="clk-out">—</div></div>
+        <div class="faint" id="clk-shift" style="margin-bottom:6px"></div>
+        <div class="clock-big" id="clk-now"></div>
+        <div class="flex" style="justify-content:center; gap:12px; margin:14px 0 8px">
+          <div class="stat" style="min-width:110px"><div class="k">上班</div><div class="v" id="clk-in">—</div></div>
+          <div class="stat" style="min-width:110px"><div class="k">下班</div><div class="v" id="clk-out">—</div></div>
         </div>
         <div class="flex" style="justify-content:center; gap:10px">
-          <button class="btn btn-primary" id="btnIn">上班打卡</button>
-          <button class="btn btn-ghost" id="btnOut">下班打卡</button>
+          <button class="btn btn-primary big-btn" id="btnIn">上班打卡</button>
+          <button class="btn btn-ghost big-btn" id="btnOut">下班打卡</button>
         </div>
         <p class="faint mt8" id="clk-hint"></p>
       </div>
-      <div class="card">
-        <div class="row-between" style="margin-bottom:10px">
-          <h2 class="card-h" style="margin:0">本月打卡紀錄</h2>
-          <button class="btn btn-ghost btn-sm" id="makeupBtn">忘了打卡？補打卡申請</button>
+
+      <div class="sec-title">今日待辦</div>
+      <div id="todoList"></div>
+    </section>
+
+    <!-- ===== 店務 ===== -->
+    <section data-pane="store" class="hidden">
+      <div class="sec-title">店務</div>
+      <div id="storeTiles"></div>
+
+      <!-- 大交班（有權限才顯示）-->
+      <div id="dailyCloseCard" class="hidden">
+        <div class="card">
+          <h2 class="card-h">大交班 <span class="faint" id="dc_date"></span></h2>
+          <p class="faint" style="margin-top:-6px">下班結帳：輸入錢盤＋金庫各面額的「總金額」，加總＝今日店內現金。</p>
+          <div class="grid2">
+            <div>
+              <p style="font-weight:600;margin:0 0 8px">錢盤</p>
+              <div id="dc_tray"></div>
+              <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>錢盤小計</span><span id="dc_tray_total">NT$0</span></div>
+            </div>
+            <div>
+              <p style="font-weight:600;margin:0 0 8px">金庫</p>
+              <div id="dc_safe"></div>
+              <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>金庫小計</span><span id="dc_safe_total">NT$0</span></div>
+            </div>
+          </div>
+          <div class="kv mt16" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>今日店內現金</span><span id="dc_total" style="color:var(--accent-deep)">NT$0</span></div>
+          <div class="divider"></div>
+          <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="dc_has_purchase"> 今日有用現金（錢盤）採購／零用金支出？</label>
+          <div id="dc_purchase_box" class="hidden mt8">
+            <div id="dc_purchase_lines"></div>
+            <button class="btn btn-ghost btn-sm" id="dc_add_line" type="button">＋ 新增採購品項</button>
+            <p class="faint mt8">採購金額會自動從「錢盤」扣，並記入叫貨與帳本。</p>
+          </div>
+          <div class="field mt16"><label class="label">備註</label><input class="input" id="dc_note"></div>
+          <button class="btn btn-primary btn-block big-btn" id="dc_review">確認送出大交班</button>
         </div>
+        <div class="card">
+          <h2 class="card-h">近期大交班紀錄</h2>
+          <div id="dc_history"><p class="muted faint">載入中…</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 我的 ===== -->
+    <section data-pane="mine" class="hidden">
+      <div class="sec-title">我的</div>
+
+      <div class="card">
+        <h2 class="card-h">本月概況</h2>
+        <div class="kv"><span class="k">本月出勤天數</span><span id="my_days">—</span></div>
+        <div class="kv"><span class="k">本月工時</span><span id="my_hours">—</span></div>
+      </div>
+
+      <div class="card">
+        <div class="row-between" style="margin-bottom:8px"><h2 class="card-h" style="margin:0">個人資料</h2><button class="btn btn-ghost btn-sm" id="editProfileToggle">編輯</button></div>
+        <div id="profileView"></div>
+        <div id="profileEdit" class="hidden">
+          <div class="grid2">
+            <div class="field"><label class="label">手機</label><input class="input" id="phone"></div>
+            <div class="field"><label class="label">Email（不可改）</label><input class="input" id="email" readonly></div>
+          </div>
+          <div class="field"><label class="label">通訊地址</label><input class="input" id="address"></div>
+          <div class="grid2">
+            <div class="field"><label class="label">生日</label><input class="input" type="date" id="birthday"></div>
+            <div class="field"><label class="label">身分證字號</label><input class="input" id="id_number"></div>
+          </div>
+          <div class="grid3">
+            <div class="field"><label class="label">緊急聯絡人</label><input class="input" id="emergency_contact"></div>
+            <div class="field"><label class="label">緊急電話</label><input class="input" id="emergency_phone"></div>
+            <div class="field"><label class="label">關係</label><input class="input" id="emergency_relation"></div>
+          </div>
+          <div class="grid3">
+            <div class="field"><label class="label">發薪銀行</label><input class="input" id="bank_name"></div>
+            <div class="field"><label class="label">帳號</label><input class="input" id="bank_account"></div>
+            <div class="field"><label class="label">戶名</label><input class="input" id="bank_account_name"></div>
+          </div>
+          <button class="btn btn-primary btn-block" id="saveProfile">儲存個人資料</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row-between" style="margin-bottom:8px"><h2 class="card-h" style="margin:0">本月打卡紀錄</h2><button class="btn btn-ghost btn-sm" id="makeupBtn">補打卡申請</button></div>
         <div style="overflow-x:auto">
           <table class="tbl" id="attTable">
             <thead><tr><th>日期</th><th>上班</th><th>下班</th><th class="num">工時</th></tr></thead>
@@ -57,140 +156,50 @@
           </table>
         </div>
       </div>
-      <div class="card">
-        <h2 class="card-h">我的補打卡申請</h2>
-        <div id="reqList"><p class="muted faint">載入中…</p></div>
-      </div>
-    </section>
 
-    <!-- 日結（點鈔結帳）-->
-    <section data-pane="daily" class="hidden">
-      <div class="card">
-        <h2 class="card-h">大交班 <span class="faint" id="dc_date"></span></h2>
-        <p class="faint" style="margin-top:-6px">下班結帳：輸入錢盤＋金庫各面額的「總金額」，加總＝今日店內現金。</p>
-        <div class="grid2">
-          <div>
-            <p style="font-weight:600;margin:0 0 8px">錢盤</p>
-            <div id="dc_tray"></div>
-            <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>錢盤小計</span><span id="dc_tray_total">NT$0</span></div>
-          </div>
-          <div>
-            <p style="font-weight:600;margin:0 0 8px">金庫</p>
-            <div id="dc_safe"></div>
-            <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>金庫小計</span><span id="dc_safe_total">NT$0</span></div>
-          </div>
-        </div>
-        <div class="kv mt16" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>當日店內現金</span><span id="dc_total" style="color:var(--accent-deep)">NT$0</span></div>
-        <div class="divider"></div>
-        <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="dc_has_purchase"> 今日有用現金（錢盤）採購物料？</label>
-        <div id="dc_purchase_box" class="hidden mt8">
-          <div id="dc_purchase_lines"></div>
-          <button class="btn btn-ghost btn-sm" id="dc_add_line" type="button">＋ 新增採購品項</button>
-          <p class="faint mt8">採購金額會自動從「錢盤」扣，並記入叫貨與帳本，這樣帳面現金才會等於你點到的現金。</p>
-        </div>
-        <div class="field mt16"><label class="label">備註</label><input class="input" id="dc_note"></div>
-        <button class="btn btn-primary btn-block" id="dc_save">儲存大交班</button>
-      </div>
-      <div class="card">
-        <h2 class="card-h">近期大交班紀錄</h2>
-        <div id="dc_history"><p class="muted faint">載入中…</p></div>
-      </div>
-    </section>
-
-    <!-- 班表 -->
-    <section data-pane="shifts" class="hidden">
-      <div class="card">
-        <h2 class="card-h">我的班表（本月）</h2>
-        <div id="myShifts"><p class="muted faint">載入中…</p></div>
-      </div>
-    </section>
-
-    <!-- 個人資料 -->
-    <section data-pane="profile" class="hidden">
-      <div class="card">
-        <h2 class="card-h">聯絡資料</h2>
-        <div class="grid2">
-          <div class="field"><label class="label">手機</label><input class="input" id="phone" /></div>
-          <div class="field"><label class="label">Email（登入帳號，不可改）</label><input class="input" id="email" readonly /></div>
-        </div>
-        <div class="field"><label class="label">通訊地址</label><input class="input" id="address" /></div>
-      </div>
-      <div class="card">
-        <h2 class="card-h">個人資料</h2>
-        <div class="grid2">
-          <div class="field"><label class="label">生日</label><input class="input" type="date" id="birthday" /></div>
-          <div class="field"><label class="label">身分證字號</label><input class="input" id="id_number" /></div>
-        </div>
-      </div>
-      <div class="card">
-        <h2 class="card-h">緊急聯絡人</h2>
-        <div class="grid3">
-          <div class="field"><label class="label">聯絡人</label><input class="input" id="emergency_contact" /></div>
-          <div class="field"><label class="label">電話</label><input class="input" id="emergency_phone" /></div>
-          <div class="field"><label class="label">關係</label><input class="input" id="emergency_relation" /></div>
-        </div>
-      </div>
-      <div class="card">
-        <h2 class="card-h">發薪銀行資料</h2>
-        <div class="grid3">
-          <div class="field"><label class="label">銀行</label><input class="input" id="bank_name" /></div>
-          <div class="field"><label class="label">帳號</label><input class="input" id="bank_account" /></div>
-          <div class="field"><label class="label">戶名</label><input class="input" id="bank_account_name" /></div>
-        </div>
-      </div>
-      <button class="btn btn-primary btn-block" id="saveProfile">儲存個人資料</button>
-    </section>
-
-    <!-- 薪資投保（唯讀）-->
-    <section data-pane="salary" class="hidden">
-      <div class="card">
-        <h2 class="card-h">任職資料</h2>
-        <div class="kv"><span class="k">員工編號</span><span id="r_employee_no">—</span></div>
-        <div class="kv"><span class="k">部門</span><span id="r_department">—</span></div>
-        <div class="kv"><span class="k">職位</span><span id="r_position">—</span></div>
-        <div class="kv"><span class="k">到職日</span><span id="r_hire_date">—</span></div>
-      </div>
-      <div class="card">
-        <h2 class="card-h">薪資投保</h2>
-        <div class="kv"><span class="k">月薪（底薪）</span><span id="r_base_salary">—</span></div>
-        <div class="kv"><span class="k">投保薪資級距</span><span id="r_insured_salary">—</span></div>
-        <div class="kv"><span class="k">勞保狀態</span><span id="r_labor_insurance">—</span></div>
-        <div class="kv"><span class="k">健保狀態</span><span id="r_health_insurance">—</span></div>
-        <div class="kv"><span class="k">勞退提撥</span><span id="r_pension">—</span></div>
-        <p class="faint mt8">如有疑問請洽店長。</p>
-      </div>
-    </section>
-
-    <!-- 薪資條 -->
-    <section data-pane="payslips" class="hidden">
       <div class="card">
         <h2 class="card-h">我的薪資條</h2>
         <div id="payslipList"><p class="muted faint">載入中…</p></div>
       </div>
     </section>
+
+    <!-- ===== 通知 ===== -->
+    <section data-pane="notify" class="hidden">
+      <div class="sec-title">通知</div>
+      <div id="notifyList"><p class="muted faint">載入中…</p></div>
+    </section>
   </div>
 
-  <!-- 補打卡申請 modal -->
+  <!-- 底部導航 -->
+  <nav class="bottomnav">
+    <button data-nav="today" class="active"><span class="ic">📋</span>今日</button>
+    <button data-nav="store"><span class="ic">☕</span>店務</button>
+    <button data-nav="mine"><span class="ic">👤</span>我的</button>
+    <button data-nav="notify"><span class="ic">🔔</span>通知<span class="nav-badge hidden" id="notifyBadge"></span></button>
+  </nav>
+
+  <!-- 補打卡 modal -->
   <div class="modal-mask" id="makeupModal">
     <div class="modal">
       <h3 class="modal-h">補打卡申請</h3>
-      <p class="faint" style="margin-top:-8px">送出後需由店長/管理者審核，核准後才會記入打卡紀錄。</p>
+      <p class="faint" style="margin-top:-8px">送出後需由店長審核，核准後才會記入打卡紀錄。</p>
       <div class="grid2">
         <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="mk_date"></div>
-        <div class="field"><label class="label">補哪一筆 ★</label>
-          <select class="input" id="mk_kind"><option value="clock_in">上班</option><option value="clock_out">下班</option></select>
-        </div>
+        <div class="field"><label class="label">補哪一筆 ★</label><select class="input" id="mk_kind"><option value="clock_in">上班</option><option value="clock_out">下班</option></select></div>
         <div class="field"><label class="label">實際時間 ★</label><input class="input" type="time" id="mk_time"></div>
       </div>
-      <div class="field"><label class="label">原因</label><input class="input" id="mk_reason" placeholder="例：忘記打卡 / 手機沒電"></div>
+      <div class="field"><label class="label">原因</label><input class="input" id="mk_reason" placeholder="例：忘記打卡"></div>
       <div id="mk_err" class="faint" style="color:var(--danger);min-height:18px"></div>
-      <div class="row-between mt8">
-        <span></span>
-        <div class="flex">
-          <button class="btn btn-ghost" id="mk_cancel">取消</button>
-          <button class="btn btn-primary" id="mk_save">送出申請</button>
-        </div>
-      </div>
+      <div class="row-between mt8"><span></span><div class="flex"><button class="btn btn-ghost" id="mk_cancel">取消</button><button class="btn btn-primary" id="mk_save">送出申請</button></div></div>
+    </div>
+  </div>
+
+  <!-- 大交班確認 modal -->
+  <div class="modal-mask" id="dcConfirmModal">
+    <div class="modal">
+      <h3 class="modal-h">確認今日大交班</h3>
+      <div id="dcConfirmBody"></div>
+      <div class="row-between mt16"><button class="btn btn-ghost" id="dc_back">返回修改</button><button class="btn btn-primary" id="dc_save">確認送出</button></div>
     </div>
   </div>
 
@@ -202,72 +211,214 @@
     let me = null, todayRec = null;
     const F = id => document.getElementById(id);
     const WEEK = ['週日','週一','週二','週三','週四','週五','週六'];
+    const PROFILE_FIELDS = ['phone','address','birthday','id_number','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
 
     F('logout').addEventListener('click', signOut);
 
-    // 分頁切換（只處理有 data-tab 的按鈕；菜單是連結，正常跳頁）
-    document.querySelectorAll('.tab[data-tab]').forEach(t => t.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      const name = t.dataset.tab;
+    // 底部導航
+    document.querySelectorAll('.bottomnav button').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('.bottomnav button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const name = b.dataset.nav;
       document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
+      window.scrollTo(0, 0);
     }));
-
-    const PROFILE_FIELDS = ['phone','address','birthday','id_number','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
 
     (async () => {
       const auth = await requireAuth();
       if (!auth) return;
       me = auth.staff;
       F('who').textContent = me.name;
-
+      F('hello').textContent = `嗨，${me.name}`;
       F('email').value = me.email || auth.user.email || '';
       PROFILE_FIELDS.forEach(k => { if (F(k)) F(k).value = me[k] || ''; });
-
-      F('r_employee_no').textContent = me.employee_no || '—';
-      F('r_department').textContent = me.department || '—';
-      F('r_position').textContent = me.position || '—';
-      F('r_hire_date').textContent = fmtDate(me.hire_date) || '—';
-      F('r_base_salary').textContent = me.base_salary ? formatCurrency(me.base_salary) : '—';
-      F('r_insured_salary').textContent = me.insured_salary ? formatCurrency(me.insured_salary) : '—';
-      F('r_labor_insurance').textContent = me.labor_insurance || '—';
-      F('r_health_insurance').textContent = me.health_insurance || '—';
-      F('r_pension').textContent = me.pension || '—';
-
+      renderProfileView();
       F('app').style.opacity = 1;
+
       tickClock(); setInterval(tickClock, 1000);
-      loadAttendance();
-      loadRequests();
-      loadMyShifts();
-      // 日結：僅 owner 或被授權的員工可見
-      if (me.role === 'owner' || me.can_daily_close) initDailyClose();
-      else { const t = document.querySelector('.tab[data-tab="daily"]'); const p = document.querySelector('[data-pane="daily"]'); if (t) t.remove(); if (p) p.remove(); }
+      const canDaily = me.role === 'owner' || me.can_daily_close;
+      if (canDaily) { F('dailyCloseCard').classList.remove('hidden'); initDailyClose(); }
+      await loadAttendance();
+      await loadRequests();
+      await loadShiftToday();
       loadPayslips();
+      renderStoreTiles(canDaily);
+      renderTodo();
+      renderNotify();
     })();
 
-    /* ===== 日結（點鈔結帳）===== */
-    const DENOMS = [1000, 500, 100, 50, 10, 5, 1];
-    function dcRows(prefix) {
-      return DENOMS.map(d => `
-        <div class="flex" style="gap:10px;margin-bottom:8px">
-          <span class="muted" style="width:50px;text-align:right">${d}</span>
-          <input class="input" type="number" min="0" id="${prefix}_${d}" placeholder="金額" style="flex:1;max-width:150px">
+    /* ===== 今日工作 ===== */
+    let myShiftToday = null, closedToday = false, pendingReqCount = 0, reqRecs = [];
+    function tickClock() {
+      const d = new Date();
+      F('todayDate').textContent = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${WEEK[d.getDay()]}`;
+      F('clk-now').textContent = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    function hhmm(iso) { return iso ? new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—'; }
+    function worktime(a) { if (!a.clock_in || !a.clock_out) return '—'; const m = Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000); return `${Math.floor(m/60)}h${m%60}m`; }
+
+    async function loadShiftToday() {
+      const { data } = await sb.from('shifts').select('*').eq('staff_id', me.id).eq('work_date', todayStr()).maybeSingle();
+      myShiftToday = data;
+      F('clk-shift').textContent = data ? `今日班別 ${data.start_time || ''}${data.end_time ? ' ~ ' + data.end_time : ''}${data.note ? '（' + data.note + '）' : ''}` : '今日無排班';
+    }
+    async function loadAttendance() {
+      const d = new Date();
+      const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+      const end = todayStr();
+      const { data } = await sb.from('attendance').select('*').eq('staff_id', me.id).gte('work_date', start).lte('work_date', end).order('work_date', { ascending: false });
+      const recs = data || [];
+      todayRec = recs.find(r => r.work_date === todayStr()) || null;
+      renderClock();
+      let totalMin = 0;
+      F('attTable').querySelector('tbody').innerHTML = recs.length
+        ? recs.map(a => { if (a.clock_in && a.clock_out) totalMin += Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000); return `<tr><td>${a.work_date.replace(/-/g,'/').slice(5)} ${WEEK[new Date(a.work_date).getDay()]}</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${worktime(a)}</td></tr>`; }).join('')
+        : '<tr><td colspan="4" class="muted faint">本月還沒有打卡紀錄</td></tr>';
+      F('my_days').textContent = recs.filter(a => a.clock_in).length + ' 天';
+      F('my_hours').textContent = (Math.round(totalMin / 60 * 10) / 10) + ' 小時';
+      // 今日大交班是否完成
+      const { data: cc } = await sb.from('cash_counts').select('count_date').eq('count_date', todayStr()).maybeSingle();
+      closedToday = !!cc;
+    }
+    function renderClock() {
+      F('clk-in').textContent = hhmm(todayRec?.clock_in);
+      F('clk-out').textContent = hhmm(todayRec?.clock_out);
+      const inDone = !!todayRec?.clock_in, outDone = !!todayRec?.clock_out;
+      F('btnIn').disabled = inDone; F('btnOut').disabled = !inDone || outDone;
+      F('clk-hint').textContent = !inDone ? '今天還沒打上班卡' : !outDone ? '上班中…記得下班打卡' : '今天已完成打卡 ✓';
+    }
+    F('btnIn').addEventListener('click', async () => {
+      F('btnIn').disabled = true;
+      const nowIso = new Date().toISOString(), today = todayStr();
+      const res = todayRec ? await sb.from('attendance').update({ clock_in: nowIso }).eq('id', todayRec.id).select().single()
+        : await sb.from('attendance').insert({ staff_id: me.id, work_date: today, clock_in: nowIso }).select().single();
+      if (res.error) { toast('打卡失敗：' + res.error.message, 'error'); F('btnIn').disabled = false; return; }
+      todayRec = res.data; renderClock(); loadAttendance(); renderTodo(); toast('✅ 上班打卡 ' + hhmm(nowIso));
+    });
+    F('btnOut').addEventListener('click', async () => {
+      if (!todayRec) return; F('btnOut').disabled = true;
+      const nowIso = new Date().toISOString();
+      const res = await sb.from('attendance').update({ clock_out: nowIso }).eq('id', todayRec.id).select().single();
+      if (res.error) { toast('打卡失敗：' + res.error.message, 'error'); F('btnOut').disabled = false; return; }
+      todayRec = res.data; renderClock(); loadAttendance(); renderTodo(); toast('✅ 下班打卡 ' + hhmm(nowIso));
+    });
+
+    function renderTodo() {
+      const items = [];
+      const inDone = !!todayRec?.clock_in, outDone = !!todayRec?.clock_out;
+      items.push({ done: inDone, t: inDone ? '已上班打卡 ' + hhmm(todayRec.clock_in) : '尚未上班打卡', s: inDone ? '' : '記得到「今日」打卡' });
+      if (inDone) items.push({ done: outDone, t: outDone ? '已下班打卡 ' + hhmm(todayRec.clock_out) : '尚未下班打卡', s: '' });
+      const canDaily = me.role === 'owner' || me.can_daily_close;
+      if (canDaily) items.push({ done: closedToday, t: closedToday ? '今日大交班已完成' : '今日大交班未完成', s: closedToday ? '' : '下班前到「店務」做大交班' });
+      if (pendingReqCount > 0) items.push({ done: false, t: `有 ${pendingReqCount} 筆補打卡待審核`, s: '等店長審核中' });
+      F('todoList').innerHTML = items.map(i => `
+        <div class="todo ${i.done ? 'done' : 'pending'}">
+          <span class="dot"></span>
+          <div class="t"><div>${escapeHtml(i.t)}</div>${i.s ? `<div class="s">${escapeHtml(i.s)}</div>` : ''}</div>
+          ${i.done ? '<span class="badge badge-ok">完成</span>' : '<span class="badge badge-wait">待辦</span>'}
+        </div>`).join('') || '<p class="muted faint">今天沒有待辦 🎉</p>';
+    }
+
+    /* ===== 店務 ===== */
+    function renderStoreTiles(canDaily) {
+      const tiles = [];
+      if (canDaily) tiles.push(`<a class="store-tile" onclick="document.getElementById('dailyCloseCard').scrollIntoView({behavior:'smooth'})"><span class="ic">🧾</span><div class="t">大交班<div class="s">下班結帳、零用金支出</div></div><span class="chev">›</span></a>`);
+      tiles.push(`<a class="store-tile" href="recipes.html"><span class="ic">📖</span><div class="t">菜單 / SOP<div class="s">品項做法、烘烤微波時間</div></div><span class="chev">›</span></a>`);
+      tiles.push(`<div class="store-tile soon"><span class="ic">🛒</span><div class="t">庫存叫貨回報<div class="s">即將推出</div></div></div>`);
+      tiles.push(`<div class="store-tile soon"><span class="ic">🛠</span><div class="t">維修 / 異常回報<div class="s">即將推出</div></div></div>`);
+      F('storeTiles').innerHTML = tiles.join('');
+    }
+
+    /* ===== 補打卡 ===== */
+    const KIND_LABEL = { clock_in: '上班', clock_out: '下班' };
+    const REQ_STATUS = { pending: ['badge-wait','待審核'], approved: ['badge-ok','已核准'], rejected: ['badge-ded','已駁回'] };
+    F('makeupBtn').addEventListener('click', () => { F('mk_date').value = todayStr(); F('mk_kind').value = 'clock_in'; F('mk_time').value = ''; F('mk_reason').value = ''; F('mk_err').textContent = ''; F('makeupModal').classList.add('show'); });
+    F('mk_cancel').addEventListener('click', () => F('makeupModal').classList.remove('show'));
+    F('mk_save').addEventListener('click', async () => {
+      F('mk_err').textContent = '';
+      const date = F('mk_date').value, time = F('mk_time').value, kind = F('mk_kind').value;
+      if (!date || !time) { F('mk_err').textContent = '請填日期與時間'; return; }
+      const btn = F('mk_save'); btn.disabled = true; btn.textContent = '送出中…';
+      const requested_time = new Date(`${date}T${time}:00`).toISOString();
+      const { error } = await sb.from('attendance_requests').insert({ staff_id: me.id, work_date: date, kind, requested_time, reason: F('mk_reason').value.trim() || null });
+      btn.disabled = false; btn.textContent = '送出申請';
+      if (error) { F('mk_err').textContent = '送出失敗：' + error.message; return; }
+      F('makeupModal').classList.remove('show'); toast('✅ 已送出，等待審核'); loadRequests().then(() => { renderTodo(); renderNotify(); });
+    });
+    async function loadRequests() {
+      const { data } = await sb.from('attendance_requests').select('*').eq('staff_id', me.id).order('created_at', { ascending: false }).limit(20);
+      reqRecs = data || [];
+      pendingReqCount = reqRecs.filter(r => r.status === 'pending').length;
+    }
+
+    /* ===== 通知 ===== */
+    function renderNotify() {
+      const list = [];
+      const canDaily = me.role === 'owner' || me.can_daily_close;
+      if (canDaily && !closedToday) list.push({ ic: '🧾', t: '今日大交班尚未完成', s: '下班前記得結帳' });
+      reqRecs.slice(0, 8).forEach(r => {
+        const st = REQ_STATUS[r.status] || ['', r.status];
+        const txt = r.status === 'approved' ? '補打卡已核准' : r.status === 'rejected' ? '補打卡已駁回' : '補打卡審核中';
+        list.push({ ic: r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '⏳', t: txt, s: `${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmm(r.requested_time)}` });
+      });
+      F('notifyList').innerHTML = list.length ? list.map(n => `
+        <div class="todo">
+          <span style="font-size:20px">${n.ic}</span>
+          <div class="t"><div>${escapeHtml(n.t)}</div><div class="s">${escapeHtml(n.s)}</div></div>
+        </div>`).join('') : '<p class="muted faint">目前沒有通知。</p>';
+      const unread = list.length;
+      F('notifyBadge').classList.toggle('hidden', !unread);
+      F('notifyBadge').textContent = unread;
+    }
+
+    /* ===== 個人資料 ===== */
+    function renderProfileView() {
+      const row = (k, v) => `<div class="kv"><span class="k">${k}</span><span>${escapeHtml(v || '—')}</span></div>`;
+      F('profileView').innerHTML = row('手機', me.phone) + row('Email', me.email) + row('通訊地址', me.address)
+        + row('緊急聯絡人', me.emergency_contact ? `${me.emergency_contact}（${me.emergency_relation || ''} ${me.emergency_phone || ''}）` : '')
+        + row('發薪銀行', me.bank_name ? `${me.bank_name} ${me.bank_account || ''}` : '');
+    }
+    F('editProfileToggle').addEventListener('click', () => {
+      const editing = !F('profileEdit').classList.contains('hidden');
+      F('profileEdit').classList.toggle('hidden', editing);
+      F('profileView').classList.toggle('hidden', !editing);
+      F('editProfileToggle').textContent = editing ? '編輯' : '取消';
+    });
+    F('saveProfile').addEventListener('click', async (e) => {
+      const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
+      const patch = {}; PROFILE_FIELDS.forEach(k => { patch[k] = F(k).value.trim() || null; });
+      const { error } = await sb.from('staff').update(patch).eq('id', me.id);
+      btn.disabled = false; btn.textContent = '儲存個人資料';
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      Object.assign(me, patch); renderProfileView();
+      F('profileEdit').classList.add('hidden'); F('profileView').classList.remove('hidden'); F('editProfileToggle').textContent = '編輯';
+      toast('✅ 已儲存');
+    });
+
+    /* ===== 薪資條 ===== */
+    async function loadPayslips() {
+      const { data, error } = await sb.from('payroll_records').select('id,year,month,total_pay,paid_at').eq('staff_id', me.id).order('year', { ascending: false }).order('month', { ascending: false });
+      const box = F('payslipList');
+      if (error) { box.innerHTML = '<p class="muted faint">讀取失敗</p>'; return; }
+      if (!data || !data.length) { box.innerHTML = '<p class="muted faint">目前還沒有薪資條。</p>'; return; }
+      box.innerHTML = data.map(r => `
+        <div class="list-row" onclick="location.href='payslip.html?id=${r.id}'">
+          <div><div style="font-weight:500">${r.year} 年 ${r.month} 月</div><div class="faint">${r.paid_at ? '已於 ' + fmtDate(r.paid_at) + ' 發放' : '處理中'}</div></div>
+          <div class="flex"><span style="font-family:var(--f-serif);font-weight:600">${formatCurrency(r.total_pay)}</span>${r.paid_at ? '<span class="badge badge-ok">已發放</span>' : '<span class="badge badge-wait">處理中</span>'}<span class="faint">›</span></div>
         </div>`).join('');
     }
-    function dcCalc() {
-      let tray = 0, safe = 0;
-      DENOMS.forEach(d => { tray += Number(F('dc_tray_' + d).value) || 0; safe += Number(F('dc_safe_' + d).value) || 0; });
-      F('dc_tray_total').textContent = formatCurrency(tray);
-      F('dc_safe_total').textContent = formatCurrency(safe);
-      F('dc_total').textContent = formatCurrency(tray + safe);
-      return { tray, safe };
-    }
-    let dcStock = [], dcTrayAcc = null, dcAccts = [];
+
+    /* ===== 大交班（點鈔結帳）===== */
+    const DENOMS = [1000, 500, 100, 50, 10, 5, 1];
+    let dcStock = [], dcAccts = [];
+    function dcRows(prefix) { return DENOMS.map(d => `<div class="flex" style="gap:10px;margin-bottom:8px"><span class="muted" style="width:50px;text-align:right">${d}</span><input class="input" type="number" min="0" id="${prefix}_${d}" placeholder="金額" style="flex:1;max-width:150px"></div>`).join(''); }
+    function dcCalc() { let tray = 0, safe = 0; DENOMS.forEach(d => { tray += Number(F('dc_tray_' + d).value) || 0; safe += Number(F('dc_safe_' + d).value) || 0; }); F('dc_tray_total').textContent = formatCurrency(tray); F('dc_safe_total').textContent = formatCurrency(safe); F('dc_total').textContent = formatCurrency(tray + safe); return { tray, safe }; }
     function initDailyClose() {
       F('dc_date').textContent = todayStr().replace(/-/g, '/');
-      F('dc_tray').innerHTML = dcRows('dc_tray');
-      F('dc_safe').innerHTML = dcRows('dc_safe');
+      F('dc_tray').innerHTML = dcRows('dc_tray'); F('dc_safe').innerHTML = dcRows('dc_safe');
       document.querySelectorAll('#dc_tray input, #dc_safe input').forEach(i => i.addEventListener('input', dcCalc));
+      F('dc_review').addEventListener('click', reviewDailyClose);
+      F('dc_back').addEventListener('click', () => F('dcConfirmModal').classList.remove('show'));
       F('dc_save').addEventListener('click', saveDailyClose);
       F('dc_has_purchase').addEventListener('change', () => F('dc_purchase_box').classList.toggle('hidden', !F('dc_has_purchase').checked));
       F('dc_add_line').addEventListener('click', () => dcAddLine());
@@ -279,219 +430,68 @@
         sb.from('accounts').select('id,name,initial_balance'),
         sb.from('cash_counts').select('*').eq('count_date', todayStr()).maybeSingle(),
       ]);
-      dcStock = st || []; dcAccts = ac || []; dcTrayAcc = dcAccts.find(a => a.name === '錢盤') || dcAccts[0] || null;
+      dcStock = st || []; dcAccts = ac || [];
       if (data) DENOMS.forEach(d => { F('dc_tray_' + d).value = (data.tray && data.tray[d]) || ''; F('dc_safe_' + d).value = (data.safe && data.safe[d]) || ''; });
       F('dc_note').value = data ? (data.note || '') : '';
       F('dc_purchase_lines').innerHTML = '';
       const pur = (data && data.purchases) || [];
       if (pur.length) { F('dc_has_purchase').checked = true; F('dc_purchase_box').classList.remove('hidden'); pur.forEach(p => dcAddLine(p.name, p.qty)); }
       else { F('dc_has_purchase').checked = false; F('dc_purchase_box').classList.add('hidden'); }
-      dcCalc();
-      loadDcHistory();
+      dcCalc(); loadDcHistory();
     }
     function dcAddLine(name, qty) {
       const div = document.createElement('div');
       div.style = 'display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center';
       const cats = [...new Set(dcStock.map(s => s.category).filter(Boolean))];
-      div.innerHTML = `
-        <select class="input dcp-cat" style="flex:1;min-width:110px"><option value="">分類…</option>${cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select>
-        <select class="input dcp-item" style="flex:1;min-width:120px"><option value="">品項…</option></select>
-        <input class="input dcp-qty" type="number" min="0" placeholder="數量" style="width:80px">
-        <span class="faint dcp-sub" style="min-width:78px;text-align:right">—</span>
-        <button class="btn btn-danger btn-sm dcp-del" type="button">✕</button>`;
+      div.innerHTML = `<select class="input dcp-cat" style="flex:1;min-width:110px"><option value="">分類…</option>${cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}</select><select class="input dcp-item" style="flex:1;min-width:120px"><option value="">品項…</option></select><input class="input dcp-qty" type="number" min="0" placeholder="數量" style="width:80px"><span class="faint dcp-sub" style="min-width:78px;text-align:right">—</span><button class="btn btn-danger btn-sm dcp-del" type="button">✕</button>`;
       F('dc_purchase_lines').appendChild(div);
       const catSel = div.querySelector('.dcp-cat'), itemSel = div.querySelector('.dcp-item'), qtyIn = div.querySelector('.dcp-qty'), sub = div.querySelector('.dcp-sub');
-      const fillItems = sel => {
-        const c = catSel.value;
-        const items = c ? dcStock.filter(s => s.category === c) : [];
-        itemSel.innerHTML = '<option value="">品項…</option>' + items.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}${s.unit ? '（' + escapeHtml(s.unit) + '）' : ''}</option>`).join('');
-        if (sel) itemSel.value = sel;
-      };
+      const fillItems = sel => { const c = catSel.value; const items = c ? dcStock.filter(s => s.category === c) : []; itemSel.innerHTML = '<option value="">品項…</option>' + items.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}${s.unit ? '（' + escapeHtml(s.unit) + '）' : ''}</option>`).join(''); if (sel) itemSel.value = sel; };
       const calc = () => { const s = dcStock.find(x => x.name === itemSel.value); const c = s ? Number(s.cost || 0) : 0; const q = Number(qtyIn.value) || 0; sub.textContent = q ? formatCurrency(c * q) : '—'; };
-      catSel.addEventListener('change', () => { fillItems(); calc(); });
-      itemSel.addEventListener('change', calc);
-      qtyIn.addEventListener('input', calc);
+      catSel.addEventListener('change', () => { fillItems(); calc(); }); itemSel.addEventListener('change', calc); qtyIn.addEventListener('input', calc);
       div.querySelector('.dcp-del').addEventListener('click', () => div.remove());
       if (name) { const s = dcStock.find(x => x.name === name); if (s && s.category) catSel.value = s.category; fillItems(name); }
-      if (qty) qtyIn.value = qty;
-      calc();
+      if (qty) qtyIn.value = qty; calc();
     }
-    async function saveDailyClose(e) {
+    function collectDcLines() {
+      const lines = [];
+      if (F('dc_has_purchase').checked) document.querySelectorAll('#dc_purchase_lines > div').forEach(div => {
+        const name = div.querySelector('.dcp-item').value, q = Number(div.querySelector('.dcp-qty').value) || 0;
+        if (name && q > 0) { const s = dcStock.find(x => x.name === name); lines.push({ name, qty: q, cost: s ? Number(s.cost || 0) : 0 }); }
+      });
+      return lines;
+    }
+    function reviewDailyClose() {
+      const { tray, safe } = dcCalc();
+      const lines = collectDcLines();
+      const purT = lines.reduce((s, l) => s + l.qty * l.cost, 0);
+      F('dcConfirmBody').innerHTML = `
+        <div class="kv"><span class="k">錢盤</span><span>${formatCurrency(tray)}</span></div>
+        <div class="kv"><span class="k">金庫</span><span>${formatCurrency(safe)}</span></div>
+        <div class="kv" style="font-weight:700;border-top:1px solid var(--line);padding-top:8px"><span>今日店內現金</span><span>${formatCurrency(tray + safe)}</span></div>
+        ${lines.length ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">採購／零用金</p>' + lines.map(l => `<div class="kv"><span class="k">${escapeHtml(l.name)} ×${l.qty}</span><span>${formatCurrency(l.qty * l.cost)}</span></div>`).join('') + `<div class="kv faint"><span>採購合計</span><span>${formatCurrency(purT)}</span></div>` : ''}
+        ${F('dc_note').value.trim() ? `<p class="faint mt8">備註：${escapeHtml(F('dc_note').value.trim())}</p>` : ''}
+        <p class="faint mt8">確認無誤後送出，今日店內現金將更新為上面的金額。</p>`;
+      F('dcConfirmModal').classList.add('show');
+    }
+    async function saveDailyClose() {
       const { tray, safe } = dcCalc();
       const trayObj = {}, safeObj = {};
       DENOMS.forEach(d => { const t = Number(F('dc_tray_' + d).value) || 0, s = Number(F('dc_safe_' + d).value) || 0; if (t) trayObj[d] = t; if (s) safeObj[d] = s; });
-      const lines = [];
-      if (F('dc_has_purchase').checked) {
-        document.querySelectorAll('#dc_purchase_lines > div').forEach(div => {
-          const name = div.querySelector('.dcp-item').value, q = Number(div.querySelector('.dcp-qty').value) || 0;
-          if (name && q > 0) { const s = dcStock.find(x => x.name === name); lines.push({ name, qty: q, unit: s ? s.unit : null, cost: s ? Number(s.cost || 0) : 0, category: s ? s.category : null, vendor: s ? s.vendor : null }); }
-        });
-      }
-      const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
-      const today = todayStr();
-      // 交給後端原子處理：寫大交班 + 採購(叫貨/進貨) + 現金對帳到點到的數字
-      const { data, error } = await sb.functions.invoke('daily-close', {
-        body: { count_date: today, tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, purchases: lines.map(l => ({ name: l.name, qty: l.qty })) },
-      });
-      btn.disabled = false; btn.textContent = '儲存大交班';
+      const lines = collectDcLines();
+      const btn = F('dc_save'); btn.disabled = true; btn.textContent = '送出中…';
+      const { data, error } = await sb.functions.invoke('daily-close', { body: { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, purchases: lines.map(l => ({ name: l.name, qty: l.qty })) } });
+      btn.disabled = false; btn.textContent = '確認送出';
       if (error || (data && data.error)) { toast('儲存失敗：' + (data?.error || error.message), 'error'); return; }
-      toast('✅ 已交班，當日店內現金 ' + formatCurrency(tray + safe)); loadDailyClose();
+      F('dcConfirmModal').classList.remove('show');
+      toast('✅ 已交班，今日店內現金 ' + formatCurrency(tray + safe));
+      closedToday = true; loadDailyClose(); renderTodo(); renderNotify();
     }
     async function loadDcHistory() {
       const { data } = await sb.from('cash_counts').select('count_date,tray_total,safe_total,total').order('count_date', { ascending: false }).limit(14);
       const box = F('dc_history'); const recs = data || [];
       if (!recs.length) { box.innerHTML = '<p class="muted faint">尚無大交班紀錄。</p>'; return; }
-      box.innerHTML = recs.map(r => `
-        <div class="list-row" style="cursor:default">
-          <div><div style="font-weight:500">${r.count_date.replace(/-/g,'/')}</div><div class="faint">錢盤 ${formatCurrency(r.tray_total)}・金庫 ${formatCurrency(r.safe_total)}</div></div>
-          <span style="font-weight:600">${formatCurrency(r.total)}</span>
-        </div>`).join('');
-    }
-
-    async function loadMyShifts() {
-      const d = new Date();
-      const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-      const endD = new Date(d.getFullYear(), d.getMonth()+1, 0);
-      const endStr = `${endD.getFullYear()}-${String(endD.getMonth()+1).padStart(2,'0')}-${String(endD.getDate()).padStart(2,'0')}`;
-      const { data } = await sb.from('shifts').select('*').eq('staff_id', me.id)
-        .gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time');
-      const box = F('myShifts'); const recs = data || [];
-      if (!recs.length) { box.innerHTML = '<p class="muted faint">本月還沒有排班。</p>'; return; }
-      box.innerHTML = recs.map(s => `
-        <div class="list-row" style="cursor:default">
-          <div>
-            <div style="font-weight:500">${s.work_date.replace(/-/g,'/')} ${WEEK[new Date(s.work_date).getDay()]}</div>
-            <div class="faint">${escapeHtml(s.note || '')}</div>
-          </div>
-          <span style="font-weight:500">${s.start_time || ''}${s.end_time ? ' ~ ' + s.end_time : ''}</span>
-        </div>`).join('');
-    }
-
-    /* ===== 補打卡申請 ===== */
-    const KIND_LABEL = { clock_in: '上班', clock_out: '下班' };
-    const REQ_STATUS = { pending: ['badge-wait','待審核'], approved: ['badge-ok','已核准'], rejected: ['badge-ded','已駁回'] };
-
-    F('makeupBtn').addEventListener('click', () => {
-      F('mk_date').value = todayStr(); F('mk_kind').value = 'clock_in'; F('mk_time').value = ''; F('mk_reason').value = ''; F('mk_err').textContent = '';
-      F('makeupModal').classList.add('show');
-    });
-    F('mk_cancel').addEventListener('click', () => F('makeupModal').classList.remove('show'));
-
-    F('mk_save').addEventListener('click', async () => {
-      F('mk_err').textContent = '';
-      const date = F('mk_date').value, time = F('mk_time').value, kind = F('mk_kind').value;
-      if (!date || !time) { F('mk_err').textContent = '請填日期與時間'; return; }
-      const btn = F('mk_save'); btn.disabled = true; btn.textContent = '送出中…';
-      const requested_time = new Date(`${date}T${time}:00`).toISOString();
-      const { error } = await sb.from('attendance_requests').insert({ staff_id: me.id, work_date: date, kind, requested_time, reason: F('mk_reason').value.trim() || null });
-      btn.disabled = false; btn.textContent = '送出申請';
-      if (error) { F('mk_err').textContent = '送出失敗：' + error.message; return; }
-      F('makeupModal').classList.remove('show'); toast('✅ 已送出，等待店長審核'); loadRequests();
-    });
-
-    async function loadRequests() {
-      const { data } = await sb.from('attendance_requests').select('*').eq('staff_id', me.id).order('created_at', { ascending: false }).limit(10);
-      const box = F('reqList');
-      if (!data || !data.length) { box.innerHTML = '<p class="muted faint">目前沒有補打卡申請。</p>'; return; }
-      box.innerHTML = data.map(r => {
-        const [cls, label] = REQ_STATUS[r.status] || ['badge-wait', r.status];
-        return `<div class="list-row" style="cursor:default">
-          <div>
-            <div style="font-weight:500">${r.work_date.replace(/-/g,'/')}　補${KIND_LABEL[r.kind]} ${hhmm(r.requested_time)}</div>
-            <div class="faint">${escapeHtml(r.reason || '')}</div>
-          </div>
-          <span class="badge ${cls}">${label}</span>
-        </div>`;
-      }).join('');
-    }
-
-    /* ===== 打卡 ===== */
-    function tickClock() {
-      const d = new Date();
-      F('clk-date').textContent = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${WEEK[d.getDay()]}`;
-      F('clk-now').textContent = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
-    function hhmm(iso) { return iso ? new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—'; }
-    function worktime(a) {
-      if (!a.clock_in || !a.clock_out) return '—';
-      const m = Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000);
-      return `${Math.floor(m/60)}h${m%60}m`;
-    }
-
-    async function loadAttendance() {
-      const d = new Date();
-      const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-      const end = todayStr();
-      const { data } = await sb.from('attendance').select('*').eq('staff_id', me.id)
-        .gte('work_date', start).lte('work_date', end).order('work_date', { ascending: false });
-      const recs = data || [];
-      todayRec = recs.find(r => r.work_date === todayStr()) || null;
-      renderClock();
-      F('attTable').querySelector('tbody').innerHTML = recs.length
-        ? recs.map(a => `<tr><td>${a.work_date.replace(/-/g,'/').slice(5)} ${WEEK[new Date(a.work_date).getDay()]}</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${worktime(a)}</td></tr>`).join('')
-        : '<tr><td colspan="4" class="muted faint">本月還沒有打卡紀錄</td></tr>';
-    }
-
-    function renderClock() {
-      F('clk-in').textContent = hhmm(todayRec?.clock_in);
-      F('clk-out').textContent = hhmm(todayRec?.clock_out);
-      const inDone = !!todayRec?.clock_in, outDone = !!todayRec?.clock_out;
-      F('btnIn').disabled = inDone;
-      F('btnOut').disabled = !inDone || outDone;
-      F('clk-hint').textContent = !inDone ? '今天還沒打上班卡' : !outDone ? '上班中…記得下班打卡' : '今天已完成打卡 ✓';
-    }
-
-    F('btnIn').addEventListener('click', async () => {
-      F('btnIn').disabled = true;
-      const nowIso = new Date().toISOString(), today = todayStr();
-      let res;
-      if (todayRec) res = await sb.from('attendance').update({ clock_in: nowIso }).eq('id', todayRec.id).select().single();
-      else res = await sb.from('attendance').insert({ staff_id: me.id, work_date: today, clock_in: nowIso }).select().single();
-      if (res.error) { toast('打卡失敗：' + res.error.message, 'error'); F('btnIn').disabled = false; return; }
-      todayRec = res.data; renderClock(); loadAttendance(); toast('✅ 上班打卡 ' + hhmm(nowIso));
-    });
-
-    F('btnOut').addEventListener('click', async () => {
-      if (!todayRec) return;
-      F('btnOut').disabled = true;
-      const nowIso = new Date().toISOString();
-      const res = await sb.from('attendance').update({ clock_out: nowIso }).eq('id', todayRec.id).select().single();
-      if (res.error) { toast('打卡失敗：' + res.error.message, 'error'); F('btnOut').disabled = false; return; }
-      todayRec = res.data; renderClock(); loadAttendance(); toast('✅ 下班打卡 ' + hhmm(nowIso));
-    });
-
-    /* ===== 個人資料 ===== */
-    F('saveProfile').addEventListener('click', async (e) => {
-      const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
-      const patch = {};
-      PROFILE_FIELDS.forEach(k => { patch[k] = F(k).value.trim() || null; });
-      const { error } = await sb.from('staff').update(patch).eq('id', me.id);
-      btn.disabled = false; btn.textContent = '儲存個人資料';
-      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
-      Object.assign(me, patch); toast('✅ 已儲存');
-    });
-
-    /* ===== 薪資條 ===== */
-    async function loadPayslips() {
-      const { data, error } = await sb.from('payroll_records')
-        .select('id,year,month,total_pay,paid_at')
-        .eq('staff_id', me.id)
-        .order('year', { ascending: false }).order('month', { ascending: false });
-      const box = F('payslipList');
-      if (error) { box.innerHTML = '<p class="muted faint">讀取失敗</p>'; return; }
-      if (!data || !data.length) { box.innerHTML = '<p class="muted faint">目前還沒有薪資條。</p>'; return; }
-      box.innerHTML = data.map(r => `
-        <div class="list-row" onclick="location.href='payslip.html?id=${r.id}'">
-          <div>
-            <div style="font-weight:500">${r.year} 年 ${r.month} 月</div>
-            <div class="faint">${r.paid_at ? '已於 ' + fmtDate(r.paid_at) + ' 發放' : '處理中'}</div>
-          </div>
-          <div class="flex">
-            <span style="font-family:var(--f-serif);font-weight:600">${formatCurrency(r.total_pay)}</span>
-            ${r.paid_at ? '<span class="badge badge-ok">已發放</span>' : '<span class="badge badge-wait">處理中</span>'}
-            <span class="faint">›</span>
-          </div>
-        </div>`).join('');
+      box.innerHTML = recs.map(r => `<div class="list-row" style="cursor:default"><div><div style="font-weight:500">${r.count_date.replace(/-/g,'/')}</div><div class="faint">錢盤 ${formatCurrency(r.tray_total)}・金庫 ${formatCurrency(r.safe_total)}</div></div><span style="font-weight:600">${formatCurrency(r.total)}</span></div>`).join('');
     }
   </script>
 </body>
