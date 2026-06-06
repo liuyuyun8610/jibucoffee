@@ -329,30 +329,12 @@
       }
       const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
       const today = todayStr();
-      const payload = { count_date: today, tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, counted_by: me.id, purchases: lines.map(l => ({ name: l.name, qty: l.qty, amount: l.qty * l.cost })) };
-      const { error } = await sb.from('cash_counts').upsert(payload, { onConflict: 'count_date' });
-      if (error) { btn.disabled = false; btn.textContent = '儲存大交班'; toast('儲存失敗：' + error.message, 'error'); return; }
-      await sb.from('ledger_entries').delete().eq('source', 'daily').eq('entry_date', today);
-      await sb.from('purchases').delete().eq('source', 'daily').eq('order_date', today);
-      const purchaseTotal = lines.reduce((s, l) => s + l.qty * l.cost, 0);
-      const payAcc = dcAccts.find(a => a.name === '錢盤') || dcTrayAcc;  // 採購從錢盤/店內現金付
-      if (lines.length) {
-        await sb.from('purchases').insert(lines.map(l => ({ order_date: today, item_name: l.name, category: l.category, quantity: l.qty, unit: l.unit, unit_cost: l.cost, total_cost: l.qty * l.cost, supplier: l.vendor, source: 'daily' })));
-        // 進貨分錄綁付款帳戶（顯示從店內現金支付）；下面對帳會把這筆加回，餘額仍＝點到的現金
-        await sb.from('ledger_entries').insert(lines.map(l => ({ account_id: payAcc ? payAcc.id : null, type: '支出', category: '進貨', amount: l.qty * l.cost, description: `大交班採購：${l.name}`, entry_date: today, source: 'daily' })));
-      }
-      // 對帳：讀帳戶目前實際餘額，補一筆讓餘額＝你點到的數字（最穩，不受手動編輯影響）
-      async function reconAccount(accId, target) {
-        const { data: ents } = await sb.from('ledger_entries').select('type,amount').eq('account_id', accId);
-        const acc = dcAccts.find(a => a.id === accId);
-        const bal = Number(acc ? acc.initial_balance || 0 : 0) + (ents || []).reduce((s, e) => s + ((e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0)), 0);
-        const d = target - bal;
-        if (d) await sb.from('ledger_entries').insert({ account_id: accId, type: d >= 0 ? '收入' : '支出', category: '大交班現金', amount: Math.abs(d), description: '大交班結算', entry_date: today, source: 'daily' });
-      }
-      const acTray = dcAccts.find(a => a.name === '錢盤'), acSafe = dcAccts.find(a => a.name === '金庫');
-      if (acTray && acSafe) { await reconAccount(acTray.id, tray); await reconAccount(acSafe.id, safe); }
-      else if (dcTrayAcc) { await reconAccount(dcTrayAcc.id, tray + safe); }
+      // 交給後端原子處理：寫大交班 + 採購(叫貨/進貨) + 現金對帳到點到的數字
+      const { data, error } = await sb.functions.invoke('daily-close', {
+        body: { count_date: today, tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, purchases: lines.map(l => ({ name: l.name, qty: l.qty })) },
+      });
       btn.disabled = false; btn.textContent = '儲存大交班';
+      if (error || (data && data.error)) { toast('儲存失敗：' + (data?.error || error.message), 'error'); return; }
       toast('✅ 已交班，當日店內現金 ' + formatCurrency(tray + safe)); loadDailyClose();
     }
     async function loadDcHistory() {
