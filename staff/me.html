@@ -22,6 +22,7 @@
   <div class="wrap wrap-narrow" id="app" style="opacity:0">
     <div class="tabs">
       <button class="tab active" data-tab="clock">打卡</button>
+      <button class="tab" data-tab="daily">日結</button>
       <button class="tab" data-tab="shifts">班表</button>
       <button class="tab" data-tab="profile">個人資料</button>
       <button class="tab" data-tab="salary">薪資投保</button>
@@ -59,6 +60,33 @@
       <div class="card">
         <h2 class="card-h">我的補打卡申請</h2>
         <div id="reqList"><p class="muted faint">載入中…</p></div>
+      </div>
+    </section>
+
+    <!-- 日結（點鈔結帳）-->
+    <section data-pane="daily" class="hidden">
+      <div class="card">
+        <h2 class="card-h">今日結帳 <span class="faint" id="dc_date"></span></h2>
+        <p class="faint" style="margin-top:-6px">下班數錢盤＋金庫各面額張數，加總＝今日店內現金。</p>
+        <div class="grid2">
+          <div>
+            <p style="font-weight:600;margin:0 0 8px">錢盤</p>
+            <div id="dc_tray"></div>
+            <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>錢盤小計</span><span id="dc_tray_total">NT$0</span></div>
+          </div>
+          <div>
+            <p style="font-weight:600;margin:0 0 8px">金庫</p>
+            <div id="dc_safe"></div>
+            <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>金庫小計</span><span id="dc_safe_total">NT$0</span></div>
+          </div>
+        </div>
+        <div class="kv mt16" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>當日店內現金</span><span id="dc_total" style="color:var(--accent-deep)">NT$0</span></div>
+        <div class="field mt8"><label class="label">備註</label><input class="input" id="dc_note"></div>
+        <button class="btn btn-primary btn-block" id="dc_save">儲存今日結帳</button>
+      </div>
+      <div class="card">
+        <h2 class="card-h">近期結帳紀錄</h2>
+        <div id="dc_history"><p class="muted faint">載入中…</p></div>
       </div>
     </section>
 
@@ -204,8 +232,71 @@
       loadAttendance();
       loadRequests();
       loadMyShifts();
+      // 日結：僅 owner 或被授權的員工可見
+      if (me.role === 'owner' || me.can_daily_close) initDailyClose();
+      else { const t = document.querySelector('.tab[data-tab="daily"]'); const p = document.querySelector('[data-pane="daily"]'); if (t) t.remove(); if (p) p.remove(); }
       loadPayslips();
     })();
+
+    /* ===== 日結（點鈔結帳）===== */
+    const DENOMS = [1000, 500, 100, 50, 10, 5, 1];
+    function dcRows(prefix) {
+      return DENOMS.map(d => `
+        <div class="flex" style="justify-content:space-between;margin-bottom:6px">
+          <span class="muted" style="width:46px">${d}</span>
+          <input class="input" type="number" min="0" id="${prefix}_${d}" style="width:88px">
+          <span class="faint" id="${prefix}_${d}_s" style="min-width:84px;text-align:right">—</span>
+        </div>`).join('');
+    }
+    function dcCalc() {
+      let tray = 0, safe = 0;
+      DENOMS.forEach(d => {
+        const tn = Number(F('dc_tray_' + d).value) || 0, sn = Number(F('dc_safe_' + d).value) || 0;
+        F('dc_tray_' + d + '_s').textContent = tn ? formatCurrency(d * tn) : '—';
+        F('dc_safe_' + d + '_s').textContent = sn ? formatCurrency(d * sn) : '—';
+        tray += d * tn; safe += d * sn;
+      });
+      F('dc_tray_total').textContent = formatCurrency(tray);
+      F('dc_safe_total').textContent = formatCurrency(safe);
+      F('dc_total').textContent = formatCurrency(tray + safe);
+      return { tray, safe };
+    }
+    function initDailyClose() {
+      F('dc_date').textContent = todayStr().replace(/-/g, '/');
+      F('dc_tray').innerHTML = dcRows('dc_tray');
+      F('dc_safe').innerHTML = dcRows('dc_safe');
+      document.querySelectorAll('#dc_tray input, #dc_safe input').forEach(i => i.addEventListener('input', dcCalc));
+      F('dc_save').addEventListener('click', saveDailyClose);
+      loadDailyClose();
+    }
+    async function loadDailyClose() {
+      const { data } = await sb.from('cash_counts').select('*').eq('count_date', todayStr()).maybeSingle();
+      if (data) DENOMS.forEach(d => { F('dc_tray_' + d).value = (data.tray && data.tray[d]) || ''; F('dc_safe_' + d).value = (data.safe && data.safe[d]) || ''; });
+      F('dc_note').value = data ? (data.note || '') : '';
+      dcCalc();
+      loadDcHistory();
+    }
+    async function saveDailyClose(e) {
+      const { tray, safe } = dcCalc();
+      const trayObj = {}, safeObj = {};
+      DENOMS.forEach(d => { const t = Number(F('dc_tray_' + d).value) || 0, s = Number(F('dc_safe_' + d).value) || 0; if (t) trayObj[d] = t; if (s) safeObj[d] = s; });
+      const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
+      const payload = { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, counted_by: me.id };
+      const { error } = await sb.from('cash_counts').upsert(payload, { onConflict: 'count_date' });
+      btn.disabled = false; btn.textContent = '儲存今日結帳';
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      toast('✅ 已結帳，今日店內現金 ' + formatCurrency(tray + safe)); loadDailyClose();
+    }
+    async function loadDcHistory() {
+      const { data } = await sb.from('cash_counts').select('count_date,tray_total,safe_total,total').order('count_date', { ascending: false }).limit(14);
+      const box = F('dc_history'); const recs = data || [];
+      if (!recs.length) { box.innerHTML = '<p class="muted faint">尚無結帳紀錄。</p>'; return; }
+      box.innerHTML = recs.map(r => `
+        <div class="list-row" style="cursor:default">
+          <div><div style="font-weight:500">${r.count_date.replace(/-/g,'/')}</div><div class="faint">錢盤 ${formatCurrency(r.tray_total)}・金庫 ${formatCurrency(r.safe_total)}</div></div>
+          <span style="font-weight:600">${formatCurrency(r.total)}</span>
+        </div>`).join('');
+    }
 
     async function loadMyShifts() {
       const d = new Date();

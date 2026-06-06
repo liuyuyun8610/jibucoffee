@@ -116,6 +116,7 @@
     F('e_password').value = s ? '' : randPw();
     origEmail = s ? (s.email || '') : '';
     EMP_FIELDS.forEach(k => { if (F('e_' + k)) F('e_' + k).value = (s && s[k] != null) ? s[k] : (k === 'role' ? 'employee' : k === 'employ_type' ? 'FT' : ''); });
+    F('e_can_daily_close').checked = !!(s && s.can_daily_close);
 
     // 編輯模式的額外動作（重設密碼 / 停用）
     const extra = F('editExtra'); extra.innerHTML = '';
@@ -149,6 +150,7 @@
   F('empSave').addEventListener('click', async () => {
     const btn = F('empSave'); F('e_err').textContent = '';
     const profile = collectEmp();
+    profile.can_daily_close = F('e_can_daily_close').checked;
     if (!profile.name) { F('e_err').textContent = '請填姓名'; return; }
     btn.disabled = true; btn.textContent = '儲存中…';
 
