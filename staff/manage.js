@@ -774,6 +774,7 @@
     const s = stockItems.find(x => x.name === F('p_item').value);
     if (s) {
       if (s.unit) F('p_unit').value = s.unit;
+      if (s.vendor) F('p_supplier').value = s.vendor;          // 從庫存檔案自動帶廠商
       if (s.cost && !Number(F('p_cost').value)) { F('p_cost').value = s.cost; calcSub(); }
       if (s.category && !F('p_category').value) F('p_category').value = s.category;
     }
