@@ -1635,7 +1635,7 @@
     const hr = `<div class="divider"></div>`;
     const sub = t => `<p style="font-weight:600;margin:12px 0 6px">${t}</p>`;
     const kv = (k, v, color) => `<div class="kv"><span class="k">${escapeHtml(k)}</span><span${color ? ` style="color:${color}"` : ''}>${v}</span></div>`;
-    const grp = type => { const m = {}; period.filter(e => e.type === type).forEach(e => { const c = e.category || '未分類'; m[c] = (m[c] || 0) + Number(e.amount || 0); }); return m; };
+    const grp = type => { const m = {}; period.filter(e => e.type === type && e.category !== '大交班現金').forEach(e => { const c = e.category || '未分類'; m[c] = (m[c] || 0) + Number(e.amount || 0); }); return m; };
     const rows = m => Object.keys(m).length ? Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => kv(k, formatCurrency(v))).join('') : '<div class="kv"><span class="muted faint">—</span></div>';
 
     // 損益表
