@@ -40,6 +40,7 @@
       <div class="tabs subtabs">
         <button class="subtab active" data-sub="hr">員工資料</button>
         <button class="subtab" data-sub="payroll">薪資</button>
+        <button class="subtab" data-sub="attend">出勤</button>
         <button class="subtab" data-sub="reviews">打卡審核<span id="revBadge"></span></button>
       </div>
 
@@ -70,6 +71,36 @@
         <div class="split">
           <div class="list" id="payEmpList"></div>
           <div id="payDetail"><div class="card center-screen muted faint">← 選擇左側員工開始計算</div></div>
+        </div>
+      </div>
+
+      <!-- 出勤總表 -->
+      <div data-subpane="attend" class="hidden">
+        <div class="row-between" style="margin-bottom:16px">
+          <div class="month-nav">
+            <button id="am-prev">‹</button>
+            <div style="min-width:120px; text-align:center; font-weight:600" id="am-label">—</div>
+            <button id="am-next">›</button>
+          </div>
+          <span class="faint" id="am-sum"></span>
+        </div>
+        <div class="card">
+          <h2 class="card-h">員工出勤總表</h2>
+          <div style="overflow-x:auto">
+            <table class="tbl" id="attSummary">
+              <thead><tr><th>員工</th><th class="num">出勤天數</th><th class="num">總工時</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-h">出勤明細</h2>
+          <div style="overflow-x:auto">
+            <table class="tbl" id="attDetail">
+              <thead><tr><th>日期</th><th>員工</th><th>上班</th><th>下班</th><th class="num">工時</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

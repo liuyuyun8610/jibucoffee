@@ -25,6 +25,7 @@
     document.querySelectorAll('[data-subpane]').forEach(p => p.classList.toggle('hidden', p.dataset.subpane !== name));
     if (name === 'payroll') loadPayrollMonth();
     if (name === 'reviews') loadReviews();
+    if (name === 'attend') loadAttendanceSummary();
     writeHash('people', name);
   }
   function activateTab(name, sub) {
@@ -51,6 +52,7 @@
     categories = cats || [];
     await loadStaff();
     initPayrollNav();
+    initAttendNav();
     refreshReviewBadge();
     // 還原重整前所在的分頁（網址 hash）
     const hp = location.hash.slice(1).split(':');
@@ -965,6 +967,51 @@
     const { error } = await sb.from('attendance_requests').update({ status: 'rejected', reviewed_by: ME.id, reviewed_at: new Date().toISOString() }).eq('id', req.id);
     if (error) { toast('操作失敗：' + error.message, 'error'); return; }
     toast('已駁回'); loadReviews(); refreshReviewBadge();
+  }
+
+  /* ============================================================
+   * 5b) 出勤總表（老闆看全部員工）
+   * ========================================================== */
+  let amYear, amMonth;
+  function initAttendNav() {
+    const d = new Date();
+    amYear = d.getFullYear(); amMonth = d.getMonth() + 1;
+    F('am-prev').addEventListener('click', () => { amMonth--; if (amMonth < 1) { amMonth = 12; amYear--; } loadAttendanceSummary(); });
+    F('am-next').addEventListener('click', () => { amMonth++; if (amMonth > 12) { amMonth = 1; amYear++; } loadAttendanceSummary(); });
+  }
+  async function loadAttendanceSummary() {
+    F('am-label').textContent = `${amYear}年${amMonth}月`;
+    const start = `${amYear}-${String(amMonth).padStart(2, '0')}-01`;
+    const endD = new Date(amYear, amMonth, 0);
+    const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+    const { data } = await sb.from('attendance').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date');
+    const recs = data || [];
+    const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
+    const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+    const wmin = a => (a.clock_in && a.clock_out) ? Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000) : 0;
+    const fmtH = m => m ? `${Math.floor(m / 60)}h${m % 60}m` : '—';
+    const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
+
+    F('am-sum').textContent = `${recs.length} 筆打卡`;
+
+    // 每人彙總
+    const byEmp = {};
+    recs.forEach(a => { const k = a.staff_id; if (!byEmp[k]) byEmp[k] = { days: 0, mins: 0 }; if (a.clock_in) byEmp[k].days++; byEmp[k].mins += wmin(a); });
+    const ids = Object.keys(byEmp).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+    F('attSummary').querySelector('tbody').innerHTML = ids.length
+      ? ids.map(id => `<tr><td>${escapeHtml(nameOf(id))}</td><td class="num">${byEmp[id].days}</td><td class="num">${fmtH(byEmp[id].mins)}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="muted faint">本月無出勤紀錄</td></tr>';
+
+    // 明細
+    F('attDetail').querySelector('tbody').innerHTML = recs.length
+      ? recs.map(a => `<tr>
+          <td style="white-space:nowrap">${a.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(a.work_date).getDay()]})</td>
+          <td>${escapeHtml(nameOf(a.staff_id))}</td>
+          <td>${hhmm(a.clock_in)}</td>
+          <td>${hhmm(a.clock_out)}</td>
+          <td class="num">${fmtH(wmin(a))}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" class="muted faint">本月無出勤紀錄</td></tr>';
   }
 
   /* ============================================================
