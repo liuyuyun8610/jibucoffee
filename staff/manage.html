@@ -294,8 +294,11 @@
       <h3 class="modal-h" id="purModalTitle">新增叫貨</h3>
       <div class="grid3">
         <div class="field"><label class="label">叫貨日期 ★</label><input class="input" type="date" id="p_date"></div>
-        <div class="field"><label class="label">品項 ★</label><select class="input" id="p_item"><option value="">選擇品項…</option></select></div>
-        <div class="field"><label class="label">分類</label><input class="input" id="p_category" list="pcatList" placeholder="例：乳製品"><datalist id="pcatList"></datalist></div>
+        <div class="field"><label class="label">大分類 ★</label><select class="input" id="p_cat_filter"></select></div>
+        <div class="field"><label class="label">品項 ★</label>
+          <select class="input" id="p_item"><option value="">選擇品項…</option></select>
+          <input class="input hidden" id="p_item_custom" placeholder="輸入品項名稱" />
+        </div>
         <div class="field"><label class="label">數量 ★</label><input class="input" type="number" id="p_qty"></div>
         <div class="field"><label class="label">單位</label><input class="input" id="p_unit" list="unitList" placeholder="瓶/箱/包"><datalist id="unitList"><option value="瓶"><option value="箱"><option value="包"><option value="份"><option value="罐"><option value="袋"><option value="公斤"></datalist></div>
         <div class="field"><label class="label">單價</label><input class="input" type="number" id="p_cost"></div>

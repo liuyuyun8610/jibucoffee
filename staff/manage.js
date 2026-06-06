@@ -642,15 +642,16 @@
     refreshDatalists();
   }
 
-  // 把庫存品項填進叫貨的品項下拉；currentName 為編輯時的既有值（即使已停用也保留可選）
+  // 依「大分類」過濾品項下拉；currentName 為編輯時既有值（保留可選）
   function fillItemSelect(currentName) {
-    const sel = F('p_item');
-    const names = stockItems.map(s => s.name);
+    const cat = F('p_cat_filter') ? F('p_cat_filter').value : '';
+    const items = (cat && cat !== '__custom__') ? stockItems.filter(s => s.category === cat) : [];
+    const names = items.map(s => s.name);
     let html = '<option value="">選擇品項…</option>' +
-      stockItems.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}${s.unit ? `（${escapeHtml(s.unit)}）` : ''}</option>`).join('');
+      items.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}${s.unit ? `（${escapeHtml(s.unit)}）` : ''}</option>`).join('');
     if (currentName && !names.includes(currentName)) html += `<option value="${escapeHtml(currentName)}" selected>${escapeHtml(currentName)}（清單外）</option>`;
-    sel.innerHTML = html;
-    if (currentName) sel.value = currentName;
+    F('p_item').innerHTML = html;
+    if (currentName) F('p_item').value = currentName;
   }
 
   function monthRange(which) {
@@ -730,7 +731,6 @@
 
   function refreshDatalists() {
     const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-    F('pcatList').innerHTML = uniq(purchases.map(p => p.category)).map(v => `<option value="${escapeHtml(v)}">`).join('');
     F('supList').innerHTML = uniq([...purchases.map(p => p.supplier), ...stockItems.map(s => s.vendor)]).map(v => `<option value="${escapeHtml(v)}">`).join('');
     F('svendorList').innerHTML = uniq(stockItems.map(s => s.vendor)).map(v => `<option value="${escapeHtml(v)}">`).join('');
   }
@@ -835,18 +835,33 @@
     F('stockModal').classList.remove('show'); toast('已刪除'); loadInventory();
   });
 
-  // 叫貨選品項時自動帶入單位/成本
+  // 叫貨選品項時自動帶入單位/廠商/成本
   F('p_item').addEventListener('change', () => {
     const s = stockItems.find(x => x.name === F('p_item').value);
     if (s) {
-      // 換品項就完整同步該品項的資料（避免換來換去殘留上一個的價格）
       F('p_unit').value = s.unit || '';
       F('p_supplier').value = s.vendor || '';
-      F('p_category').value = s.category || '';
       F('p_cost').value = s.cost || '';
       calcSub();
     }
   });
+
+  // 大分類（跟著庫存分類）→ 選好才選子品項；「自訂」可手打品項
+  function buildPurCatOptions(current) {
+    const cats = [...new Set(stockItems.map(s => s.category).filter(Boolean))]
+      .sort((a, b) => (STOCK_CATS.indexOf(a) < 0 ? 99 : STOCK_CATS.indexOf(a)) - (STOCK_CATS.indexOf(b) < 0 ? 99 : STOCK_CATS.indexOf(b)));
+    F('p_cat_filter').innerHTML = '<option value="">選分類…</option>'
+      + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+      + '<option value="__custom__">自訂</option>';
+    F('p_cat_filter').value = current || '';
+  }
+  function onPurCatChange() {
+    const custom = F('p_cat_filter').value === '__custom__';
+    F('p_item').classList.toggle('hidden', custom);
+    F('p_item_custom').classList.toggle('hidden', !custom);
+    if (!custom) fillItemSelect();
+  }
+  F('p_cat_filter').addEventListener('change', onPurCatChange);
 
   // 叫貨 modal
   let editPurId = null;
@@ -865,8 +880,13 @@
     const p = id ? purchases.find(x => x.id === id) : null;
     F('purModalTitle').textContent = p ? '編輯叫貨' : '新增叫貨';
     F('p_date').value = p ? p.order_date : todayStr();
-    fillItemSelect(p ? p.item_name : null);
-    F('p_category').value = p ? (p.category || '') : '';
+    // 大分類：依品項在庫存的分類；庫存沒有此品項 → 自訂
+    let cat = '';
+    if (p) { const s = stockItems.find(x => x.name === p.item_name); cat = s ? (s.category || '') : '__custom__'; }
+    buildPurCatOptions(cat);
+    onPurCatChange();
+    if (cat === '__custom__') F('p_item_custom').value = p ? p.item_name : '';
+    else fillItemSelect(p ? p.item_name : null);
     F('p_qty').value = p ? p.quantity : '';
     F('p_unit').value = p ? (p.unit || '') : '';
     F('p_cost').value = p ? p.unit_cost : '';
@@ -880,14 +900,16 @@
 
   F('p_save').addEventListener('click', async () => {
     F('p_err').textContent = '';
-    const item = F('p_item').value.trim();
+    const cat = F('p_cat_filter').value;
+    const custom = cat === '__custom__';
+    const item = (custom ? F('p_item_custom').value : F('p_item').value).trim();
     const date = F('p_date').value;
-    if (!date || !item) { F('p_err').textContent = '請填叫貨日期與品項'; return; }
+    if (!date || !item) { F('p_err').textContent = '請選大分類與品項（自訂請填品項名稱）'; return; }
     const qty = Number(F('p_qty').value) || 0;
     const cost = Number(F('p_cost').value) || 0;
     const btn = F('p_save'); btn.disabled = true; btn.textContent = '儲存中…';
     const payload = {
-      order_date: date, item_name: item, category: F('p_category').value.trim() || null,
+      order_date: date, item_name: item, category: (cat && !custom) ? cat : null,
       quantity: qty, unit: F('p_unit').value.trim() || null, unit_cost: cost, total_cost: qty * cost,
       supplier: F('p_supplier').value.trim() || null, note: F('p_note').value.trim() || null,
     };
