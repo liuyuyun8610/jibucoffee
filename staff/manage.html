@@ -185,7 +185,10 @@
           <select class="input" id="led_account" style="width:auto"><option value="">全部帳戶</option></select>
           <span class="faint" id="led_sum"></span>
         </div>
-        <button class="btn btn-primary btn-sm" id="addEntry">＋ 新增分錄</button>
+        <div class="flex">
+          <button class="btn btn-ghost btn-sm" id="viewLogs">異動紀錄</button>
+          <button class="btn btn-primary btn-sm" id="addEntry">＋ 新增分錄</button>
+        </div>
       </div>
       <div class="card">
         <div style="overflow-x:auto">
@@ -530,6 +533,15 @@
         <button class="btn btn-danger" id="en_delete" style="visibility:hidden">刪除</button>
         <div class="flex"><button class="btn btn-ghost" id="en_cancel">取消</button><button class="btn btn-primary" id="en_save">儲存</button></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: 異動紀錄 ===== -->
+  <div class="modal-mask" id="logsModal">
+    <div class="modal">
+      <h3 class="modal-h">分錄異動紀錄</h3>
+      <div id="logsList" style="max-height:60vh;overflow-y:auto"><p class="muted faint">載入中…</p></div>
+      <div class="row-between mt8"><span></span><button class="btn btn-ghost" id="logs_close">關閉</button></div>
     </div>
   </div>
 

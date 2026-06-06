@@ -1417,14 +1417,10 @@
       if (e && e.source === 'transfer') {
         if (!confirm('刪除這筆轉帳？（會一併刪除對應的轉出/轉入兩筆）')) return;
         await sb.from('ledger_entries').delete().eq('source', 'transfer').eq('source_id', e.source_id);
+        await logLedger(e.id, 'delete', `刪除轉帳 ${formatCurrency(e.amount)}`, e, null);
         toast('已刪除轉帳'); loadLedger(); return;
       }
-      if (e && e.source !== 'manual') {
-        const label = e.source === 'payroll' ? '薪資發放' : e.source === 'purchase' ? '叫貨' : e.source === 'daily' ? '大交班' : e.source;
-        if (confirm(`這筆由「${label}」自動產生。確定刪除這筆分錄？（不會刪除原始紀錄）`)) { await sb.from('ledger_entries').delete().eq('id', e.id); toast('已刪除'); loadLedger(); }
-        return;
-      }
-      openEntryModal(tr.dataset.id);
+      openEntryModal(tr.dataset.id);  // 任何分錄都可編輯（含自動產生的）
     }));
   }
   F('led_year').addEventListener('change', renderLedger);
@@ -1479,7 +1475,10 @@
   function fillEntryCats(cur) {
     const kind = F('en_type').value === '收入' ? 'income' : 'expense';
     const cats = ledgerCats.filter(c => c.kind === kind);
-    F('en_category').innerHTML = '<option value="">—</option>' + cats.map(c => `<option ${c.name === cur ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+    let html = '<option value="">—</option>' + cats.map(c => `<option ${c.name === cur ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+    if (cur && !cats.some(c => c.name === cur)) html += `<option selected>${escapeHtml(cur)}</option>`;
+    F('en_category').innerHTML = html;
+    if (cur) F('en_category').value = cur;
   }
   function openEntryModal(id) {
     editEntryId = id;
@@ -1488,7 +1487,7 @@
     F('entryModalTitle').textContent = e ? '編輯分錄' : '新增分錄';
     F('en_type').value = e ? (e.type === '收入' ? '收入' : '支出') : '支出';
     F('en_date').value = e ? e.entry_date : todayStr();
-    const accOpts = accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    const accOpts = '<option value="">（無帳戶）</option>' + accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
     F('en_account').innerHTML = accOpts;
     F('en_account').value = e ? (e.account_id || '') : accounts[0].id;
     F('en_to_account').innerHTML = accOpts;
@@ -1506,13 +1505,12 @@
     const type = F('en_type').value;
     const acc = F('en_account').value, amount = Number(F('en_amount').value) || 0;
     const date = F('en_date').value;
-    if (!acc) { F('en_err').textContent = '請選帳戶'; return; }
     if (!(amount > 0)) { F('en_err').textContent = '請填金額'; return; }
     const btn = F('en_save'); btn.disabled = true; btn.textContent = '儲存中…';
 
     if (type === '轉帳') {
       const to = F('en_to_account').value;
-      if (!to || to === acc) { btn.disabled = false; btn.textContent = '儲存'; F('en_err').textContent = '請選不同的轉入帳戶'; return; }
+      if (!acc || !to || to === acc) { btn.disabled = false; btn.textContent = '儲存'; F('en_err').textContent = '請選不同的轉出/轉入帳戶'; return; }
       const gid = crypto.randomUUID();
       const desc = F('en_desc').value.trim() || `轉帳：${accName(acc)} → ${accName(to)}`;
       const { error } = await sb.from('ledger_entries').insert([
@@ -1525,20 +1523,54 @@
       return;
     }
 
-    const payload = { account_id: acc, type, category: F('en_category').value || null, amount, description: F('en_desc').value.trim() || null, entry_date: date, source: 'manual' };
+    const orig = editEntryId ? ledgerEntries.find(x => x.id === editEntryId) : null;
+    const payload = { account_id: acc || null, type, category: F('en_category').value || null, amount, description: F('en_desc').value.trim() || null, entry_date: date, source: orig ? orig.source : 'manual', source_id: orig ? orig.source_id : null };
     let error;
     if (editEntryId) ({ error } = await sb.from('ledger_entries').update(payload).eq('id', editEntryId));
     else ({ error } = await sb.from('ledger_entries').insert(payload));
     btn.disabled = false; btn.textContent = '儲存';
     if (error) { F('en_err').textContent = '儲存失敗：' + error.message; return; }
+    if (editEntryId && orig) await logLedger(editEntryId, 'update', summarizeDiff(orig, payload), orig, payload);
     F('entryModal').classList.remove('show'); toast('✅ 已儲存'); loadLedger();
   });
   F('en_delete').addEventListener('click', async () => {
     if (!editEntryId || !confirm('刪除這筆分錄？')) return;
+    const orig = ledgerEntries.find(x => x.id === editEntryId);
     const { error } = await sb.from('ledger_entries').delete().eq('id', editEntryId);
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    await logLedger(editEntryId, 'delete', `刪除：${orig ? (orig.category || orig.type) : ''} ${orig ? formatCurrency(orig.amount) : ''}`, orig, null);
     F('entryModal').classList.remove('show'); toast('已刪除'); loadLedger();
   });
+
+  // ── 異動紀錄 ──────────────────────────────────────
+  function summarizeDiff(before, after) {
+    const fields = { account_id: '帳戶', type: '類型', category: '分類', amount: '金額', entry_date: '日期', description: '說明' };
+    const an = id => (accounts.find(a => a.id === id) || {}).name || '無';
+    const parts = [];
+    Object.keys(fields).forEach(k => {
+      let b = before ? before[k] : undefined, a = after[k];
+      if (k === 'account_id') { b = an(b); a = an(a); }
+      if ((b == null ? '' : b) !== (a == null ? '' : a)) parts.push(`${fields[k]} ${b == null || b === '' ? '空' : b}→${a == null || a === '' ? '空' : a}`);
+    });
+    return parts.join('，') || '無變更';
+  }
+  async function logLedger(entryId, action, summary, before, after) {
+    await sb.from('ledger_logs').insert({ entry_id: entryId, action, summary, before: before || null, after: after || null, changed_by: ME.id, changed_at: new Date().toISOString() });
+  }
+  F('viewLogs').addEventListener('click', loadLogs);
+  F('logs_close').addEventListener('click', () => F('logsModal').classList.remove('show'));
+  async function loadLogs() {
+    F('logsModal').classList.add('show');
+    F('logsList').innerHTML = '<p class="muted faint">載入中…</p>';
+    const { data } = await sb.from('ledger_logs').select('*').order('changed_at', { ascending: false }).limit(100);
+    const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
+    const recs = data || [];
+    F('logsList').innerHTML = recs.length ? recs.map(l => `
+      <div style="border-bottom:1px solid var(--line-soft);padding:9px 0">
+        <div class="flex" style="justify-content:space-between"><span style="font-weight:500">${l.action === 'delete' ? '🗑 刪除' : '✏️ 編輯'}</span><span class="faint">${new Date(l.changed_at).toLocaleString('zh-TW')}・${escapeHtml(nameOf(l.changed_by))}</span></div>
+        <div class="faint" style="margin-top:2px">${escapeHtml(l.summary || '')}</div>
+      </div>`).join('') : '<p class="muted faint">尚無異動紀錄。</p>';
+  }
 
   /* ============================================================
    * 7b) 大交班查詢（老闆看店員每日結帳）
