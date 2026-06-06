@@ -35,6 +35,7 @@
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     if (name === 'revenue') loadRevenue();
     if (name === 'ledger') loadLedger();
+    if (name === 'reports') loadReports();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
     if (name === 'people') activateSub(sub || currentSub());
@@ -1497,4 +1498,65 @@
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
     F('entryModal').classList.remove('show'); toast('已刪除'); loadLedger();
   });
+
+  /* ============================================================
+   * 8) 財務三大報表（用帳本資料即時算）
+   * ========================================================== */
+  let repAccounts = [], repEntries = [];
+  async function loadReports() {
+    const [{ data: accs }, { data: ents }] = await Promise.all([
+      sb.from('accounts').select('*'),
+      sb.from('ledger_entries').select('*'),
+    ]);
+    repAccounts = accs || []; repEntries = ents || [];
+    fillYearSelect(F('rep_year'), repEntries.map(e => e.entry_date), F('rep_year').value);
+    renderReports();
+  }
+  F('rep_year').addEventListener('change', renderReports);
+  F('rep_month').addEventListener('change', renderReports);
+
+  function renderReports() {
+    const yr = F('rep_year').value, mo = F('rep_month').value;
+    let pStart, pEnd, label;
+    if (yr === 'all') { pStart = '0000-01-01'; pEnd = '9999-12-31'; label = '全部期間'; }
+    else if (mo === 'all') { pStart = `${yr}-01-01`; pEnd = `${yr}-12-31`; label = `${yr}年`; }
+    else { const m = String(mo).padStart(2, '0'); const last = new Date(Number(yr), Number(mo), 0).getDate(); pStart = `${yr}-${m}-01`; pEnd = `${yr}-${m}-${String(last).padStart(2, '0')}`; label = `${yr}年${mo}月`; }
+    F('rep_pl_period').textContent = label;
+    F('rep_hint').textContent = `期間 ${pStart.replace(/-/g,'/')} ~ ${pEnd.replace(/-/g,'/')}`;
+
+    const period = repEntries.filter(e => e.entry_date >= pStart && e.entry_date <= pEnd);
+    const sign = e => (e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0);
+    const initSum = repAccounts.reduce((s, a) => s + Number(a.initial_balance || 0), 0);
+    const hr = `<div class="divider"></div>`;
+    const sub = t => `<p style="font-weight:600;margin:12px 0 6px">${t}</p>`;
+    const kv = (k, v, color) => `<div class="kv"><span class="k">${escapeHtml(k)}</span><span${color ? ` style="color:${color}"` : ''}>${v}</span></div>`;
+    const grp = type => { const m = {}; period.filter(e => e.type === type).forEach(e => { const c = e.category || '未分類'; m[c] = (m[c] || 0) + Number(e.amount || 0); }); return m; };
+    const rows = m => Object.keys(m).length ? Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => kv(k, formatCurrency(v))).join('') : '<div class="kv"><span class="muted faint">—</span></div>';
+
+    // 損益表
+    const inc = grp('收入'), exp = grp('支出');
+    const incT = Object.values(inc).reduce((s, v) => s + v, 0), expT = Object.values(exp).reduce((s, v) => s + v, 0);
+    const net = incT - expT;
+    F('rep_pl').innerHTML = sub('營業收入') + rows(inc) + kv('收入合計', `<b>${formatCurrency(incT)}</b>`) + hr
+      + sub('營業支出') + rows(exp) + kv('支出合計', `<b>${formatCurrency(expT)}</b>`) + hr
+      + `<div class="kv" style="font-size:16px;font-weight:700"><span>本期淨利</span><span style="color:${net >= 0 ? 'var(--ok)' : 'var(--danger)'}">${formatCurrency(net)}</span></div>`;
+
+    // 現金流量表
+    const opening = initSum + repEntries.filter(e => e.entry_date < pStart).reduce((s, e) => s + sign(e), 0);
+    const inflow = period.filter(e => e.type === '收入' || e.type === '轉入').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const outflow = period.filter(e => e.type === '支出' || e.type === '轉出').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const ending = opening + inflow - outflow;
+    F('rep_cf').innerHTML = kv('期初現金', formatCurrency(opening))
+      + kv('本期現金流入（收入）', '+' + formatCurrency(inflow), 'var(--ok)')
+      + kv('本期現金流出（支出）', '-' + formatCurrency(outflow), 'var(--danger)') + hr
+      + `<div class="kv" style="font-weight:700"><span>期末現金</span><span>${formatCurrency(ending)}</span></div>`;
+
+    // 資產負債表（期末）
+    const accBalAt = id => initSum * 0 + (() => { const a = repAccounts.find(x => x.id === id); if (!a) return 0; return Number(a.initial_balance || 0) + repEntries.filter(e => e.account_id === id && e.entry_date <= pEnd).reduce((s, e) => s + sign(e), 0); })();
+    const assetRows = repAccounts.length ? repAccounts.map(a => kv(a.name, formatCurrency(accBalAt(a.id)))).join('') : '<div class="kv"><span class="muted faint">尚無帳戶</span></div>';
+    const totalAssets = repAccounts.reduce((s, a) => s + accBalAt(a.id), 0);
+    F('rep_bs').innerHTML = sub('資產（現金及約當現金）') + assetRows + kv('資產合計', `<b>${formatCurrency(totalAssets)}</b>`) + hr
+      + kv('負債（目前未追蹤應付）', formatCurrency(0)) + hr
+      + `<div class="kv" style="font-weight:700"><span>業主權益</span><span>${formatCurrency(totalAssets)}</span></div>`;
+  }
 })();

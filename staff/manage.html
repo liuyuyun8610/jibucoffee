@@ -31,6 +31,7 @@
       <button class="tab active" data-tab="people">人事管理</button>
       <button class="tab" data-tab="revenue">營收預測</button>
       <button class="tab" data-tab="ledger">帳本</button>
+      <button class="tab" data-tab="reports">財務報表</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
       <button class="tab" data-tab="maintenance">維運紀錄</button>
       <a class="tab" href="recipes.html">菜單</a>
@@ -193,6 +194,24 @@
           </table>
         </div>
       </div>
+    </section>
+
+    <!-- ===== 財務報表 ===== -->
+    <section data-pane="reports" class="hidden">
+      <div class="flex" style="margin-bottom:16px; gap:8px; flex-wrap:wrap">
+        <select class="input" id="rep_year" style="width:auto"></select>
+        <select class="input" id="rep_month" style="width:auto">
+          <option value="all">全年</option>
+          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+        </select>
+        <span class="faint" id="rep_hint"></span>
+      </div>
+      <div class="card"><h2 class="card-h">損益表 <span class="faint" id="rep_pl_period"></span></h2><div id="rep_pl"></div></div>
+      <div class="card"><h2 class="card-h">現金流量表</h2><div id="rep_cf"></div></div>
+      <div class="card"><h2 class="card-h">資產負債表 <span class="faint">（期末）</span></h2><div id="rep_bs"></div></div>
     </section>
 
     <!-- ===== 庫存叫貨 ===== -->
