@@ -304,7 +304,11 @@
         <div class="field"><label class="label">職位</label><input class="input" id="e_position" /></div>
         <div class="field"><label class="label">到職日</label><input class="input" type="date" id="e_hire_date" /></div>
         <div class="field"><label class="label">手機</label><input class="input" id="e_phone" /></div>
-        <div class="field"><label class="label">月薪（底薪）</label><input class="input" type="number" id="e_base_salary" /></div>
+        <div class="field"><label class="label">雇用類型</label>
+          <select class="input" id="e_employ_type"><option value="FT">FT 月薪制</option><option value="PT">PT 時薪制</option></select>
+        </div>
+        <div class="field"><label class="label">月薪（FT 月薪制用）</label><input class="input" type="number" id="e_base_salary" /></div>
+        <div class="field"><label class="label">時薪（PT 時薪制用）</label><input class="input" type="number" id="e_hourly_rate" /></div>
         <div class="field"><label class="label">投保薪資級距</label><input class="input" type="number" id="e_insured_salary" /></div>
         <div class="field"><label class="label">勞保狀態</label><input class="input" id="e_labor_insurance" placeholder="例：已加保" /></div>
         <div class="field"><label class="label">健保狀態</label><input class="input" id="e_health_insurance" placeholder="例：已加保" /></div>

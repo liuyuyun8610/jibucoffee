@@ -84,7 +84,7 @@
       row.addEventListener('click', () => openEmpModal(row.dataset.id)));
   }
 
-  const EMP_FIELDS = ['name','employee_no','role','department','position','hire_date','phone','base_salary','insured_salary','labor_insurance','health_insurance','pension','birthday','id_number','address','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
+  const EMP_FIELDS = ['name','employee_no','role','department','position','hire_date','phone','employ_type','base_salary','hourly_rate','insured_salary','labor_insurance','health_insurance','pension','birthday','id_number','address','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
   let editingId = null;
 
   let origEmail = '';
@@ -109,7 +109,7 @@
     F('e_email').value = s ? (s.email || '') : '';
     F('e_password').value = s ? '' : randPw();
     origEmail = s ? (s.email || '') : '';
-    EMP_FIELDS.forEach(k => { if (F('e_' + k)) F('e_' + k).value = (s && s[k] != null) ? s[k] : (k === 'role' ? 'employee' : ''); });
+    EMP_FIELDS.forEach(k => { if (F('e_' + k)) F('e_' + k).value = (s && s[k] != null) ? s[k] : (k === 'role' ? 'employee' : k === 'employ_type' ? 'FT' : ''); });
 
     // 編輯模式的額外動作（重設密碼 / 停用）
     const extra = F('editExtra'); extra.innerHTML = '';
@@ -131,8 +131,9 @@
     const p = {};
     EMP_FIELDS.forEach(k => {
       let v = F('e_' + k) ? F('e_' + k).value.trim() : '';
-      if (k === 'base_salary') v = v === '' ? 0 : Number(v);
+      if (k === 'base_salary' || k === 'hourly_rate') v = v === '' ? 0 : Number(v);
       else if (k === 'insured_salary') v = v === '' ? null : Number(v);
+      else if (k === 'employ_type') v = v || 'FT';
       else if (v === '') v = null;
       p[k] = v;
     });
@@ -195,7 +196,7 @@
   /* ============================================================
    * 2) 薪資計算
    * ========================================================== */
-  let pYear, pMonth, monthRecords = [], selectedEmpId = null, editRec = null, editItems = [];
+  let pYear, pMonth, monthRecords = [], selectedEmpId = null, editRec = null, editItems = [], editEmp = null;
 
   function initPayrollNav() {
     const d = new Date();
@@ -236,11 +237,20 @@
     selectedEmpId = empId;
     renderPayEmpList();
     const emp = staffList.find(s => s.id === empId);
+    editEmp = emp;
+    const isPT = emp.employ_type === 'PT';
     const existing = monthRecords.find(r => r.staff_id === empId);
     if (existing) {
       const { data: items } = await sb.from('payroll_items').select('*').eq('payroll_id', existing.id);
       editRec = { ...existing };
+      if (isPT && !editRec.hourly_rate) editRec.hourly_rate = emp.hourly_rate || 0;
       editItems = items || [];
+    } else if (isPT) {
+      editRec = {
+        staff_id: empId, year: pYear, month: pMonth, base_salary: 0, work_days: 0, work_hours: 0,
+        hourly_rate: emp.hourly_rate || 0, ot_weekday_minutes: 0, ot_restday_minutes: 0, ot_pay: 0, total_pay: 0, note: '',
+      };
+      editItems = [];
     } else {
       editRec = {
         staff_id: empId, year: pYear, month: pMonth,
@@ -249,16 +259,37 @@
       };
       editItems = [];
     }
-    const { otPay, total } = recalcTotal(editRec, editItems);
-    editRec.ot_pay = otPay; editRec.total_pay = total;
+    recalcPay();
     renderPayDetail(emp);
+  }
+
+  // 依雇用類型計算：PT=時薪×時數；FT=月薪+加班費。結果寫回 editRec。
+  function recalcPay() {
+    const add = editItems.filter(i => i.type === 'addition').reduce((s, i) => s + num(i.amount), 0);
+    const ded = editItems.filter(i => i.type === 'deduction').reduce((s, i) => s + num(i.amount), 0);
+    if (editEmp && editEmp.employ_type === 'PT') {
+      const base = Math.round((editRec.hourly_rate || 0) * (editRec.work_hours || 0));
+      editRec.base_salary = base; editRec.ot_pay = 0;
+      editRec.total_pay = Math.round(base + add - ded);
+    } else {
+      const { otPay, total } = recalcTotal(editRec, editItems);
+      editRec.ot_pay = otPay; editRec.total_pay = total;
+    }
   }
 
   function renderPayDetail(emp) {
     const r = editRec;
+    const isPT = emp.employ_type === 'PT';
     const hr = (r.base_salary || 0) / 240;
-    const wdH = (r.ot_weekday_minutes || 0) / 60, rdH = (r.ot_restday_minutes || 0) / 60;
-    F('payDetail').innerHTML = `
+    const basicCard = isPT ? `
+      <div class="card">
+        <h2 class="card-h">${escapeHtml(emp.name)} <span class="badge badge-wait">PT 時薪制</span> — ${pYear}/${String(pMonth).padStart(2,'0')} 薪資</h2>
+        <div class="grid3">
+          <div class="field"><label class="label">時薪</label><input class="input" type="number" id="f_hourly" value="${r.hourly_rate || ''}"></div>
+          <div class="field"><label class="label">本月工作時數</label><input class="input" type="number" id="f_hours" value="${r.work_hours || ''}"></div>
+          <div class="field"><label class="label">薪資小計（時薪×時數）</label><input class="input" readonly id="f_basepay" value="${formatCurrency(r.base_salary || 0)}"></div>
+        </div>
+      </div>` : `
       <div class="card">
         <h2 class="card-h">${escapeHtml(emp.name)} — ${pYear}/${String(pMonth).padStart(2,'0')} 薪資</h2>
         <div class="grid3">
@@ -270,7 +301,8 @@
           <div class="field"><label class="label">加班費小計</label><input class="input" readonly id="f_otpay" value="${formatCurrency(r.ot_pay || 0)}"></div>
         </div>
         <div id="otDetail"></div>
-      </div>
+      </div>`;
+    F('payDetail').innerHTML = basicCard + `
       <div class="card">
         <div class="row-between" style="margin-bottom:10px">
           <h2 class="card-h" style="margin:0">自訂項目（獎金/扣款）</h2>
@@ -294,10 +326,15 @@
         <div id="payBox"></div>
       </div>`;
 
-    F('f_base').addEventListener('input', () => updateField('base_salary', num(F('f_base').value)));
-    F('f_days').addEventListener('input', () => { editRec.work_days = num(F('f_days').value); });
-    F('f_wd').addEventListener('input', () => updateField('ot_weekday_minutes', num(F('f_wd').value)));
-    F('f_rd').addEventListener('input', () => updateField('ot_restday_minutes', num(F('f_rd').value)));
+    if (emp.employ_type === 'PT') {
+      F('f_hourly').addEventListener('input', () => updateField('hourly_rate', num(F('f_hourly').value)));
+      F('f_hours').addEventListener('input', () => updateField('work_hours', num(F('f_hours').value)));
+    } else {
+      F('f_base').addEventListener('input', () => updateField('base_salary', num(F('f_base').value)));
+      F('f_days').addEventListener('input', () => { editRec.work_days = num(F('f_days').value); });
+      F('f_wd').addEventListener('input', () => updateField('ot_weekday_minutes', num(F('f_wd').value)));
+      F('f_rd').addEventListener('input', () => updateField('ot_restday_minutes', num(F('f_rd').value)));
+    }
     F('f_note').addEventListener('input', () => { editRec.note = F('f_note').value; });
     F('addAdd').addEventListener('click', () => { editItems.push({ name: '', amount: 0, type: 'addition' }); renderItems(); refreshTotals(); });
     F('addDed').addEventListener('click', () => { editItems.push({ name: '', amount: 0, type: 'deduction' }); renderItems(); refreshTotals(); });
@@ -308,12 +345,13 @@
   const num = v => Number(v) || 0;
   function updateField(k, v) { editRec[k] = v; refreshTotals(); renderOtDetail(); }
   function refreshTotals() {
-    const { otPay, total } = recalcTotal(editRec, editItems);
-    editRec.ot_pay = otPay; editRec.total_pay = total;
-    if (F('f_otpay')) F('f_otpay').value = formatCurrency(otPay);
-    if (F('f_total')) F('f_total').textContent = formatCurrency(total);
+    recalcPay();
+    if (F('f_otpay')) F('f_otpay').value = formatCurrency(editRec.ot_pay || 0);
+    if (F('f_basepay')) F('f_basepay').value = formatCurrency(editRec.base_salary || 0);
+    if (F('f_total')) F('f_total').textContent = formatCurrency(editRec.total_pay || 0);
   }
   function renderOtDetail() {
+    if (!F('otDetail')) return;   // PT 沒有加班明細區
     const r = editRec, hr = (r.base_salary || 0) / 240;
     const wdH = (r.ot_weekday_minutes || 0) / 60, rdH = (r.ot_restday_minutes || 0) / 60;
     if (!(wdH > 0 || rdH > 0)) { F('otDetail').innerHTML = ''; return; }
@@ -368,6 +406,7 @@
     const payload = {
       staff_id: editRec.staff_id, year: pYear, month: pMonth,
       base_salary: editRec.base_salary || 0, work_days: editRec.work_days || 0,
+      work_hours: editRec.work_hours || 0, hourly_rate: editRec.hourly_rate || 0,
       ot_weekday_minutes: editRec.ot_weekday_minutes || 0, ot_restday_minutes: editRec.ot_restday_minutes || 0,
       ot_pay: editRec.ot_pay || 0, total_pay: editRec.total_pay || 0, note: editRec.note || null,
     };
