@@ -1419,7 +1419,11 @@
         await sb.from('ledger_entries').delete().eq('source', 'transfer').eq('source_id', e.source_id);
         toast('已刪除轉帳'); loadLedger(); return;
       }
-      if (e && e.source !== 'manual') { toast('這筆由' + (e.source === 'payroll' ? '薪資發放' : e.source === 'purchase' ? '叫貨' : e.source) + '自動產生，請到該處修改'); return; }
+      if (e && e.source !== 'manual') {
+        const label = e.source === 'payroll' ? '薪資發放' : e.source === 'purchase' ? '叫貨' : e.source === 'daily' ? '大交班' : e.source;
+        if (confirm(`這筆由「${label}」自動產生。確定刪除這筆分錄？（不會刪除原始紀錄）`)) { await sb.from('ledger_entries').delete().eq('id', e.id); toast('已刪除'); loadLedger(); }
+        return;
+      }
       openEntryModal(tr.dataset.id);
     }));
   }
@@ -1539,7 +1543,7 @@
   /* ============================================================
    * 7b) 大交班查詢（老闆看店員每日結帳）
    * ========================================================== */
-  let hoList = [];
+  let hoList = [], editHoId = null;
   async function loadHandover() {
     const { data } = await sb.from('cash_counts').select('*').order('count_date', { ascending: false });
     hoList = data || [];
@@ -1571,7 +1575,17 @@
     }).join('') : '<tr><td colspan="7" class="muted faint">這段期間沒有大交班紀錄</td></tr>';
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openHandoverDetail(tr.dataset.id)));
   }
+  F('ho_delete').addEventListener('click', async () => {
+    const r = hoList.find(x => x.id === editHoId); if (!r) return;
+    if (!confirm(`確定刪除 ${r.count_date.replace(/-/g,'/')} 的大交班紀錄？（會一併刪除當天大交班產生的採購與帳本分錄）`)) return;
+    await sb.from('ledger_entries').delete().eq('source', 'daily').eq('entry_date', r.count_date);
+    await sb.from('purchases').delete().eq('source', 'daily').eq('order_date', r.count_date);
+    const { error } = await sb.from('cash_counts').delete().eq('id', editHoId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('hoModal').classList.remove('show'); toast('已刪除大交班'); loadHandover();
+  });
   function openHandoverDetail(id) {
+    editHoId = id;
     const r = hoList.find(x => x.id === id); if (!r) return;
     const DEN = [1000, 500, 100, 50, 10, 5, 1];
     const denRows = obj => DEN.filter(d => obj && obj[d]).map(d => `<div class="kv"><span class="k">${d}</span><span>${formatCurrency(obj[d])}</span></div>`).join('') || '<div class="kv"><span class="muted faint">—</span></div>';

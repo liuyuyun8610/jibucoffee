@@ -334,9 +334,10 @@
       if (error) { btn.disabled = false; btn.textContent = '儲存大交班'; toast('儲存失敗：' + error.message, 'error'); return; }
       await sb.from('ledger_entries').delete().eq('source', 'daily').eq('entry_date', today);
       await sb.from('purchases').delete().eq('source', 'daily').eq('order_date', today);
-      if (lines.length && dcTrayAcc) {
+      if (lines.length) {
         await sb.from('purchases').insert(lines.map(l => ({ order_date: today, item_name: l.name, category: l.category, quantity: l.qty, unit: l.unit, unit_cost: l.cost, total_cost: l.qty * l.cost, supplier: l.vendor, source: 'daily' })));
-        await sb.from('ledger_entries').insert(lines.map(l => ({ account_id: dcTrayAcc.id, type: '支出', category: '進貨', amount: l.qty * l.cost, description: `大交班採購：${l.name}`, entry_date: today, source: 'daily' })));
+        // 只記成本(進貨)給損益表，不綁現金帳戶（現金以大交班點鈔為準，不重複扣）
+        await sb.from('ledger_entries').insert(lines.map(l => ({ account_id: null, type: '支出', category: '進貨', amount: l.qty * l.cost, description: `大交班採購：${l.name}`, entry_date: today, source: 'daily' })));
       }
       btn.disabled = false; btn.textContent = '儲存大交班';
       toast('✅ 已交班，當日店內現金 ' + formatCurrency(tray + safe)); loadDailyClose();
