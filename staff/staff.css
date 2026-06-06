@@ -114,8 +114,8 @@ textarea.input { resize: vertical; }
   transition: opacity .15s, background .15s;
 }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
-.btn-primary { background: #ADA9A3; color: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.16); }
-.btn-primary:hover:not(:disabled) { background: #9b968f; box-shadow: 0 5px 14px rgba(0,0,0,.22); }
+.btn-primary { background: #BDB7AE; color: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.16); }
+.btn-primary:hover:not(:disabled) { background: #aca69b; box-shadow: 0 5px 14px rgba(0,0,0,.22); }
 .btn-primary:active:not(:disabled) { box-shadow: 0 1px 3px rgba(0,0,0,.2); transform: translateY(1px); }
 .btn-ghost { background: transparent; border-color: var(--line); color: var(--ink-soft); }
 .btn-ghost:hover:not(:disabled) { background: var(--bg-soft); }
