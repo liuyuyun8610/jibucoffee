@@ -340,6 +340,15 @@
       <div class="card">
         <h2 class="card-h">薪資發放紀錄</h2>
         <div id="payBox"></div>
+      </div>
+      <div class="card">
+        <h2 class="card-h">本月打卡明細 <span class="faint" id="payAttSum"></span></h2>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="payAttTable">
+            <thead><tr><th>日期</th><th>上班</th><th>下班</th><th class="num">工時</th></tr></thead>
+            <tbody><tr><td colspan="4" class="muted faint">載入中…</td></tr></tbody>
+          </table>
+        </div>
       </div>`;
 
     if (emp.employ_type === 'PT') {
@@ -360,6 +369,23 @@
     F('addDed').addEventListener('click', () => { editItems.push({ name: '', amount: 0, type: 'deduction' }); renderItems(); refreshTotals(); });
     F('saveRec').addEventListener('click', saveRecord);
     renderItems(); renderOtDetail(); renderPayBox();
+    loadPayAttendance(editRec.staff_id);
+  }
+
+  async function loadPayAttendance(staffId) {
+    const start = `${pYear}-${String(pMonth).padStart(2, '0')}-01`;
+    const endD = new Date(pYear, pMonth, 0);
+    const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+    const { data } = await sb.from('attendance').select('*').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr).order('work_date');
+    if (!F('payAttTable')) return;
+    const recs = data || [];
+    const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+    const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
+    let totalMin = 0;
+    const wt = a => { if (!(a.clock_in && a.clock_out)) return '—'; const m = Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000); totalMin += m; return `${Math.floor(m / 60)}h${m % 60}m`; };
+    const body = recs.map(a => `<tr><td style="white-space:nowrap">${a.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(a.work_date).getDay()]})</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${wt(a)}</td></tr>`).join('');
+    F('payAttTable').querySelector('tbody').innerHTML = recs.length ? body : '<tr><td colspan="4" class="muted faint">本月無打卡紀錄</td></tr>';
+    if (F('payAttSum')) F('payAttSum').textContent = recs.length ? `— 合計 ${Math.round(totalMin / 60 * 10) / 10} 小時` : '';
   }
 
   const num = v => Number(v) || 0;
