@@ -680,7 +680,7 @@
   /* ============================================================
    * 4) 庫存叫貨
    * ========================================================== */
-  let purchases = [], stockItems = [], invLoaded = false;
+  let purchases = [], stockItems = [], invLoaded = false, invMonthInited = false;
 
   async function loadInventory() {
     const [{ data: pdata, error }, { data: sdata }] = await Promise.all([
@@ -692,6 +692,7 @@
     stockItems = sdata || [];
     invLoaded = true;
     fillYearSelect(F('inv_year'), purchases.map(p => p.order_date), F('inv_year').value);
+    if (!invMonthInited) { F('inv_month').value = String(new Date().getMonth() + 1); invMonthInited = true; }  // 預設當月
     renderInventory();
     renderStockList();
     fillItemSelect();
