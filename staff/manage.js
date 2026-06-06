@@ -84,7 +84,7 @@
       row.addEventListener('click', () => openEmpModal(row.dataset.id)));
   }
 
-  const EMP_FIELDS = ['name','employee_no','role','department','position','hire_date','phone','base_salary','insured_salary','labor_insurance','health_insurance','pension'];
+  const EMP_FIELDS = ['name','employee_no','role','department','position','hire_date','phone','base_salary','insured_salary','labor_insurance','health_insurance','pension','birthday','id_number','address','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
   let editingId = null;
 
   F('addEmp').addEventListener('click', () => openEmpModal(null));
