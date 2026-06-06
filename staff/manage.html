@@ -30,6 +30,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="people">人事管理</button>
       <button class="tab" data-tab="revenue">營收預測</button>
+      <button class="tab" data-tab="ledger">帳本</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
       <button class="tab" data-tab="maintenance">維運紀錄</button>
       <a class="tab" href="recipes.html">菜單</a>
@@ -155,6 +156,39 @@
         <div style="overflow-x:auto">
           <table class="tbl" id="revTable">
             <thead><tr><th>月份</th><th class="num">營收</th><th class="num">人事成本</th><th class="num">其他成本</th><th class="num">淨利</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 帳本 ===== -->
+    <section data-pane="ledger" class="hidden">
+      <div class="row-between" style="margin-bottom:12px">
+        <h2 class="card-h" style="margin:0">帳戶</h2>
+        <button class="btn btn-ghost btn-sm" id="addAccount">＋ 新增帳戶</button>
+      </div>
+      <div id="accountCards" class="grid3" style="margin-bottom:20px"></div>
+
+      <div class="row-between" style="margin-bottom:12px; gap:10px; flex-wrap:wrap">
+        <div class="flex" style="flex-wrap:wrap; gap:8px">
+          <select class="input" id="led_year" style="width:auto"></select>
+          <select class="input" id="led_month" style="width:auto">
+            <option value="all">全月</option>
+            <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+            <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+            <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+          </select>
+          <select class="input" id="led_account" style="width:auto"><option value="">全部帳戶</option></select>
+          <span class="faint" id="led_sum"></span>
+        </div>
+        <button class="btn btn-primary btn-sm" id="addEntry">＋ 新增分錄</button>
+      </div>
+      <div class="card">
+        <div style="overflow-x:auto">
+          <table class="tbl" id="ledTable">
+            <thead><tr><th>日期</th><th>帳戶</th><th>類型</th><th>分類</th><th class="num">金額</th><th>說明</th><th></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -396,6 +430,48 @@
           <button class="btn btn-ghost" id="empCancel">取消</button>
           <button class="btn btn-primary" id="empSave">儲存</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: 帳戶 ===== -->
+  <div class="modal-mask" id="accountModal">
+    <div class="modal">
+      <h3 class="modal-h" id="accountModalTitle">新增帳戶</h3>
+      <div class="grid2">
+        <div class="field"><label class="label">名稱 ★</label><input class="input" id="ac_name" placeholder="例：現金、台新銀行"></div>
+        <div class="field"><label class="label">類型</label>
+          <select class="input" id="ac_type"><option>現金</option><option>銀行</option><option>其他</option></select>
+        </div>
+        <div class="field"><label class="label">期初餘額</label><input class="input" type="number" id="ac_initial"></div>
+        <div class="field"><label class="label">備註</label><input class="input" id="ac_note"></div>
+      </div>
+      <div id="ac_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="ac_delete" style="visibility:hidden">刪除</button>
+        <div class="flex"><button class="btn btn-ghost" id="ac_cancel">取消</button><button class="btn btn-primary" id="ac_save">儲存</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: 分錄 ===== -->
+  <div class="modal-mask" id="entryModal">
+    <div class="modal">
+      <h3 class="modal-h" id="entryModalTitle">新增分錄</h3>
+      <div class="grid2">
+        <div class="field"><label class="label">類型 ★</label>
+          <select class="input" id="en_type"><option value="支出">支出</option><option value="收入">收入</option></select>
+        </div>
+        <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="en_date"></div>
+        <div class="field"><label class="label">帳戶 ★</label><select class="input" id="en_account"></select></div>
+        <div class="field"><label class="label">分類</label><select class="input" id="en_category"></select></div>
+        <div class="field"><label class="label">金額 ★</label><input class="input" type="number" id="en_amount"></div>
+        <div class="field"><label class="label">說明</label><input class="input" id="en_desc"></div>
+      </div>
+      <div id="en_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="en_delete" style="visibility:hidden">刪除</button>
+        <div class="flex"><button class="btn btn-ghost" id="en_cancel">取消</button><button class="btn btn-primary" id="en_save">儲存</button></div>
       </div>
     </div>
   </div>

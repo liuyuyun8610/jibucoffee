@@ -34,6 +34,7 @@
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     if (name === 'revenue') loadRevenue();
+    if (name === 'ledger') loadLedger();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
     if (name === 'people') activateSub(sub || currentSub());
@@ -1318,4 +1319,150 @@
   });
 
   F('m_delete').addEventListener('click', deleteMaint);
+
+  /* ============================================================
+   * 7) 帳本（帳戶 + 分錄；薪資/叫貨可選帳戶扣款）
+   * ========================================================== */
+  let accounts = [], ledgerEntries = [], ledgerCats = [], editAccountId = null, editEntryId = null;
+
+  async function loadLedger() {
+    const [{ data: accs }, { data: ents }, { data: cats }] = await Promise.all([
+      sb.from('accounts').select('*').order('sort_order').order('created_at'),
+      sb.from('ledger_entries').select('*').order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
+      sb.from('ledger_categories').select('*').order('kind').order('sort_order'),
+    ]);
+    accounts = accs || []; ledgerEntries = ents || []; ledgerCats = cats || [];
+    fillYearSelect(F('led_year'), ledgerEntries.map(e => e.entry_date), F('led_year').value);
+    F('led_account').innerHTML = '<option value="">全部帳戶</option>' + accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    renderAccounts();
+    renderLedger();
+  }
+  function accountBalance(id) {
+    const a = accounts.find(x => x.id === id); if (!a) return 0;
+    let bal = Number(a.initial_balance || 0);
+    ledgerEntries.forEach(e => { if (e.account_id === id) bal += (e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0); });
+    return bal;
+  }
+  function accName(id) { const a = accounts.find(x => x.id === id); return a ? a.name : '—'; }
+
+  function renderAccounts() {
+    F('accountCards').innerHTML = accounts.length ? accounts.map(a => `
+      <div class="stat" data-acc="${a.id}" style="cursor:pointer">
+        <div class="k">${escapeHtml(a.name)} <span class="faint">${escapeHtml(a.type)}</span></div>
+        <div class="v">${formatCurrency(accountBalance(a.id))}</div>
+      </div>`).join('') : '<p class="muted faint">尚無帳戶，點右上「新增帳戶」</p>';
+    F('accountCards').querySelectorAll('[data-acc]').forEach(el => el.addEventListener('click', () => openAccountModal(el.dataset.acc)));
+  }
+  function renderLedger() {
+    const yr = F('led_year').value, mo = F('led_month').value, acc = F('led_account').value;
+    let rows = ledgerEntries;
+    if (yr && yr !== 'all') rows = rows.filter(e => (e.entry_date || '').slice(0, 4) === yr);
+    if (mo !== 'all') rows = rows.filter(e => Number((e.entry_date || '').slice(5, 7)) === Number(mo));
+    if (acc) rows = rows.filter(e => e.account_id === acc);
+    const inc = rows.filter(e => e.type === '收入' || e.type === '轉入').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const exp = rows.filter(e => e.type === '支出' || e.type === '轉出').reduce((s, e) => s + Number(e.amount || 0), 0);
+    F('led_sum').textContent = `收入 ${formatCurrency(inc)}・支出 ${formatCurrency(exp)}・淨 ${formatCurrency(inc - exp)}`;
+    const tb = F('ledTable').querySelector('tbody');
+    tb.innerHTML = rows.length ? rows.map(e => {
+      const isIn = e.type === '收入' || e.type === '轉入';
+      const srcLabel = e.source === 'payroll' ? '薪資' : e.source === 'purchase' ? '叫貨' : e.source === 'maintenance' ? '維運' : '';
+      return `<tr data-id="${e.id}" style="cursor:pointer">
+        <td style="white-space:nowrap">${(e.entry_date || '').replace(/-/g,'/').slice(5)}</td>
+        <td>${escapeHtml(accName(e.account_id))}</td>
+        <td style="white-space:nowrap"><span class="badge ${isIn ? 'badge-ok' : 'badge-ded'}">${e.type}</span></td>
+        <td>${escapeHtml(e.category || '')}${srcLabel ? ` <span class="faint">·${srcLabel}</span>` : ''}</td>
+        <td class="num" style="white-space:nowrap;color:${isIn ? 'var(--ok)' : 'var(--danger)'}">${isIn ? '+' : '-'}${formatCurrency(e.amount)}</td>
+        <td class="faint">${escapeHtml(e.description || '')}</td>
+        <td class="num faint">${e.source === 'manual' ? '編輯 ›' : ''}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" class="muted faint">沒有分錄</td></tr>';
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => {
+      const e = ledgerEntries.find(x => x.id === tr.dataset.id);
+      if (e && e.source !== 'manual') { toast('這筆由' + (e.source === 'payroll' ? '薪資發放' : e.source === 'purchase' ? '叫貨' : e.source) + '自動產生，請到該處修改'); return; }
+      openEntryModal(tr.dataset.id);
+    }));
+  }
+  F('led_year').addEventListener('change', renderLedger);
+  F('led_month').addEventListener('change', renderLedger);
+  F('led_account').addEventListener('change', renderLedger);
+
+  // 帳戶 modal
+  F('addAccount').addEventListener('click', () => openAccountModal(null));
+  F('ac_cancel').addEventListener('click', () => F('accountModal').classList.remove('show'));
+  function openAccountModal(id) {
+    editAccountId = id;
+    const a = id ? accounts.find(x => x.id === id) : null;
+    F('accountModalTitle').textContent = a ? '編輯帳戶' : '新增帳戶';
+    F('ac_name').value = a ? a.name : '';
+    F('ac_type').value = a ? a.type : '現金';
+    F('ac_initial').value = a ? a.initial_balance : '';
+    F('ac_note').value = a ? (a.note || '') : '';
+    F('ac_err').textContent = '';
+    F('ac_delete').style.visibility = a ? 'visible' : 'hidden';
+    F('accountModal').classList.add('show');
+  }
+  F('ac_save').addEventListener('click', async () => {
+    const name = F('ac_name').value.trim();
+    if (!name) { F('ac_err').textContent = '請填名稱'; return; }
+    const btn = F('ac_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const payload = { name, type: F('ac_type').value, initial_balance: Number(F('ac_initial').value) || 0, note: F('ac_note').value.trim() || null };
+    let error;
+    if (editAccountId) ({ error } = await sb.from('accounts').update(payload).eq('id', editAccountId));
+    else ({ error } = await sb.from('accounts').insert(payload));
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { F('ac_err').textContent = '儲存失敗：' + error.message; return; }
+    F('accountModal').classList.remove('show'); toast('✅ 已儲存'); loadLedger();
+  });
+  F('ac_delete').addEventListener('click', async () => {
+    if (!editAccountId || !confirm('刪除帳戶？該帳戶的分錄會保留但失去關聯。')) return;
+    const { error } = await sb.from('accounts').delete().eq('id', editAccountId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('accountModal').classList.remove('show'); toast('已刪除'); loadLedger();
+  });
+
+  // 分錄 modal
+  F('addEntry').addEventListener('click', () => openEntryModal(null));
+  F('en_cancel').addEventListener('click', () => F('entryModal').classList.remove('show'));
+  F('en_type').addEventListener('change', () => fillEntryCats(F('en_category').value));
+  function fillEntryCats(cur) {
+    const kind = F('en_type').value === '收入' ? 'income' : 'expense';
+    const cats = ledgerCats.filter(c => c.kind === kind);
+    F('en_category').innerHTML = '<option value="">—</option>' + cats.map(c => `<option ${c.name === cur ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+  }
+  function openEntryModal(id) {
+    editEntryId = id;
+    const e = id ? ledgerEntries.find(x => x.id === id) : null;
+    if (!accounts.length) { toast('請先新增至少一個帳戶'); return; }
+    F('entryModalTitle').textContent = e ? '編輯分錄' : '新增分錄';
+    F('en_type').value = e ? (e.type === '收入' ? '收入' : '支出') : '支出';
+    F('en_date').value = e ? e.entry_date : todayStr();
+    F('en_account').innerHTML = accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    F('en_account').value = e ? (e.account_id || '') : accounts[0].id;
+    fillEntryCats(e ? e.category : '');
+    F('en_amount').value = e ? e.amount : '';
+    F('en_desc').value = e ? (e.description || '') : '';
+    F('en_err').textContent = '';
+    F('en_delete').style.visibility = e ? 'visible' : 'hidden';
+    F('entryModal').classList.add('show');
+  }
+  F('en_save').addEventListener('click', async () => {
+    F('en_err').textContent = '';
+    const acc = F('en_account').value, amount = Number(F('en_amount').value) || 0;
+    if (!acc) { F('en_err').textContent = '請選帳戶'; return; }
+    if (!(amount > 0)) { F('en_err').textContent = '請填金額'; return; }
+    const btn = F('en_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const payload = { account_id: acc, type: F('en_type').value, category: F('en_category').value || null, amount, description: F('en_desc').value.trim() || null, entry_date: F('en_date').value, source: 'manual' };
+    let error;
+    if (editEntryId) ({ error } = await sb.from('ledger_entries').update(payload).eq('id', editEntryId));
+    else ({ error } = await sb.from('ledger_entries').insert(payload));
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { F('en_err').textContent = '儲存失敗：' + error.message; return; }
+    F('entryModal').classList.remove('show'); toast('✅ 已儲存'); loadLedger();
+  });
+  F('en_delete').addEventListener('click', async () => {
+    if (!editEntryId || !confirm('刪除這筆分錄？')) return;
+    const { error } = await sb.from('ledger_entries').delete().eq('id', editEntryId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('entryModal').classList.remove('show'); toast('已刪除'); loadLedger();
+  });
 })();
