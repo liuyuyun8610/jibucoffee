@@ -334,21 +334,23 @@
       if (error) { btn.disabled = false; btn.textContent = '儲存大交班'; toast('儲存失敗：' + error.message, 'error'); return; }
       await sb.from('ledger_entries').delete().eq('source', 'daily').eq('entry_date', today);
       await sb.from('purchases').delete().eq('source', 'daily').eq('order_date', today);
+      const purchaseTotal = lines.reduce((s, l) => s + l.qty * l.cost, 0);
+      const payAcc = dcAccts.find(a => a.name === '錢盤') || dcTrayAcc;  // 採購從錢盤/店內現金付
       if (lines.length) {
         await sb.from('purchases').insert(lines.map(l => ({ order_date: today, item_name: l.name, category: l.category, quantity: l.qty, unit: l.unit, unit_cost: l.cost, total_cost: l.qty * l.cost, supplier: l.vendor, source: 'daily' })));
-        // 只記成本(進貨)給損益表，不綁現金帳戶（現金以大交班點鈔為準，不重複扣）
-        await sb.from('ledger_entries').insert(lines.map(l => ({ account_id: null, type: '支出', category: '進貨', amount: l.qty * l.cost, description: `大交班採購：${l.name}`, entry_date: today, source: 'daily' })));
+        // 進貨分錄綁付款帳戶（顯示從店內現金支付）；下面對帳會把這筆加回，餘額仍＝點到的現金
+        await sb.from('ledger_entries').insert(lines.map(l => ({ account_id: payAcc ? payAcc.id : null, type: '支出', category: '進貨', amount: l.qty * l.cost, description: `大交班採購：${l.name}`, entry_date: today, source: 'daily' })));
       }
-      // 對帳：把現金帳戶餘額設成大交班點到的數字（用「本次-上次」差額累加，category=大交班現金 不算損益）
+      // 對帳：把現金帳戶餘額設成大交班點到的數字（差額累加；採購已扣故加回 purchaseTotal）
       const { data: prev } = await sb.from('cash_counts').select('tray_total,safe_total,total').lt('count_date', today).order('count_date', { ascending: false }).limit(1).maybeSingle();
       const acTray = dcAccts.find(a => a.name === '錢盤'), acSafe = dcAccts.find(a => a.name === '金庫');
       const mk = (acc, d) => ({ account_id: acc, type: d >= 0 ? '收入' : '支出', category: '大交班現金', amount: Math.abs(d), description: '大交班結算', entry_date: today, source: 'daily' });
       const recon = [];
       if (acTray && acSafe) {
-        const dT = tray - (prev ? Number(prev.tray_total || 0) : 0), dS = safe - (prev ? Number(prev.safe_total || 0) : 0);
+        const dT = (tray - (prev ? Number(prev.tray_total || 0) : 0)) + purchaseTotal, dS = safe - (prev ? Number(prev.safe_total || 0) : 0);
         if (dT) recon.push(mk(acTray.id, dT)); if (dS) recon.push(mk(acSafe.id, dS));
       } else if (dcTrayAcc) {
-        const d = (tray + safe) - (prev ? Number(prev.total || 0) : 0);
+        const d = ((tray + safe) - (prev ? Number(prev.total || 0) : 0)) + purchaseTotal;
         if (d) recon.push(mk(dcTrayAcc.id, d));
       }
       if (recon.length) await sb.from('ledger_entries').insert(recon);
