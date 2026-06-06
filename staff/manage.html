@@ -112,11 +112,7 @@
     <section data-pane="inventory" class="hidden">
       <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
         <div class="flex">
-          <select class="input" id="inv_range" style="width:auto">
-            <option value="month">本月</option>
-            <option value="last">上個月</option>
-            <option value="all">全部</option>
-          </select>
+          <select class="input" id="inv_year" style="width:auto"></select>
           <span class="faint" id="inv_sum"></span>
         </div>
         <button class="btn btn-primary btn-sm" id="addPurchase">＋ 新增叫貨</button>
@@ -162,7 +158,10 @@
     <!-- ===== 維運紀錄 ===== -->
     <section data-pane="maintenance" class="hidden">
       <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
-        <p class="muted faint" style="margin:0">設備維修紀錄 <span id="maint_sum"></span></p>
+        <div class="flex">
+          <select class="input" id="maint_year" style="width:auto"></select>
+          <span class="muted faint" id="maint_sum"></span>
+        </div>
         <button class="btn btn-primary btn-sm" id="addMaint">＋ 新增紀錄</button>
       </div>
       <input class="input" id="maint_search" placeholder="搜尋設備 / 內容 / 標籤…" style="max-width:320px; margin-bottom:10px">

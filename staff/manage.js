@@ -633,6 +633,7 @@
     purchases = pdata || [];
     stockItems = sdata || [];
     invLoaded = true;
+    fillYearSelect(F('inv_year'), purchases.map(p => p.order_date), F('inv_year').value);
     renderInventory();
     renderStockList();
     fillItemSelect();
@@ -660,15 +661,22 @@
     return { start, end: endStr };
   }
 
-  F('inv_range').addEventListener('change', renderInventory);
+  // 年份下拉共用：依資料的日期建年份選項 + 全部，預設今年
+  function fillYearSelect(el, dates, keep) {
+    const cur = String(new Date().getFullYear());
+    const years = [...new Set(dates.map(d => (d || '').slice(0, 4)).filter(Boolean))];
+    if (!years.includes(cur)) years.push(cur);
+    years.sort().reverse();
+    const sel = (keep && (years.includes(keep) || keep === 'all')) ? keep : cur;
+    el.innerHTML = years.map(y => `<option value="${y}">${y}年</option>`).join('') + '<option value="all">全部</option>';
+    el.value = sel;
+  }
+
+  F('inv_year').addEventListener('change', renderInventory);
 
   function renderInventory() {
-    const which = F('inv_range').value;
-    let rows = purchases;
-    if (which !== 'all') {
-      const { start, end } = monthRange(which);
-      rows = purchases.filter(p => p.order_date >= start && p.order_date <= end);
-    }
+    const yr = F('inv_year').value;
+    const rows = (yr === 'all') ? purchases : purchases.filter(p => (p.order_date || '').slice(0, 4) === yr);
     const total = rows.reduce((s, p) => s + Number(p.total_cost || 0), 0);
     F('inv_sum').textContent = `${rows.length} 筆・採購成本 ${formatCurrency(total)}`;
 
@@ -969,8 +977,11 @@
     const { data, error } = await sb.from('maintenance_records').select('*').order('repair_date', { ascending: false }).order('created_at', { ascending: false });
     if (error) { F('maintTable').querySelector('tbody').innerHTML = `<tr><td colspan="6" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
     maintList = data || [];
+    fillYearSelect(F('maint_year'), maintList.map(m => m.repair_date), F('maint_year').value);
     renderMaintenance();
   }
+
+  F('maint_year').addEventListener('change', renderMaintenance);
 
   function renderMaintenance() {
     // 標籤篩選列
@@ -984,7 +995,9 @@
     }));
 
     const q = maintQuery.trim().toLowerCase();
+    const yr = F('maint_year').value;
     let rows = maintList;                                  // 已依日期新→舊排序
+    if (yr && yr !== 'all') rows = rows.filter(m => (m.repair_date || '').slice(0, 4) === yr);
     if (maintTagFilter) rows = rows.filter(m => (m.tags || []).includes(maintTagFilter));
     if (q) rows = rows.filter(m => `${m.equipment || ''} ${m.content || ''} ${(m.tags || []).join(' ')} ${m.vendor || ''}`.toLowerCase().includes(q));
 
