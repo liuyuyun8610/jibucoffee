@@ -694,10 +694,12 @@
   }
 
   F('inv_year').addEventListener('change', renderInventory);
+  F('inv_month').addEventListener('change', renderInventory);
 
   function renderInventory() {
-    const yr = F('inv_year').value;
-    const rows = (yr === 'all') ? purchases : purchases.filter(p => (p.order_date || '').slice(0, 4) === yr);
+    const yr = F('inv_year').value, mo = F('inv_month').value;
+    let rows = (yr === 'all') ? purchases : purchases.filter(p => (p.order_date || '').slice(0, 4) === yr);
+    if (mo !== 'all') rows = rows.filter(p => Number((p.order_date || '').slice(5, 7)) === Number(mo));
     const total = rows.reduce((s, p) => s + Number(p.total_cost || 0), 0);
     F('inv_sum').textContent = `${rows.length} 筆・採購成本 ${formatCurrency(total)}`;
 

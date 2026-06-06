@@ -166,6 +166,13 @@
       <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
         <div class="flex">
           <select class="input" id="inv_year" style="width:auto"></select>
+          <select class="input" id="inv_month" style="width:auto">
+            <option value="all">全月</option>
+            <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+            <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+            <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+          </select>
           <span class="faint" id="inv_sum"></span>
         </div>
         <button class="btn btn-primary btn-sm" id="addPurchase">＋ 新增叫貨</button>
@@ -174,12 +181,12 @@
       <div class="card">
         <div class="row-between" style="margin-bottom:10px">
           <h2 class="card-h" id="stockToggle" style="margin:0; cursor:pointer; user-select:none">
-            <span id="stockChev" style="display:inline-block; color:var(--ink-faint)">▾</span>
+            <span id="stockChev" style="display:inline-block; color:var(--ink-faint)">▸</span>
             庫存品項 <span class="faint" style="font-weight:400">— 叫貨清單（<span id="stockCount">0</span>）</span>
           </h2>
           <button class="btn btn-ghost btn-sm" id="addStock">＋ 新增品項</button>
         </div>
-        <div id="stockBody" style="overflow-x:auto">
+        <div id="stockBody" class="hidden" style="overflow-x:auto">
           <table class="tbl" id="stockTable">
             <thead><tr><th>品名</th><th>分類</th><th>容量</th><th>單位</th><th class="num">成本</th><th>廠商</th><th></th></tr></thead>
             <tbody><tr><td colspan="7" class="muted faint">載入中…</td></tr></tbody>
@@ -198,7 +205,7 @@
       </div>
 
       <div class="card">
-        <h2 class="card-h">叫貨參考 <span class="faint" style="font-weight:400">— 每個品項上次叫多少、近期平均，決定這次叫幾個</span></h2>
+        <h2 class="card-h">訂貨PARS <span class="faint" style="font-weight:400">— 每個品項上次叫多少、近期平均，決定這次叫幾個</span></h2>
         <div style="overflow-x:auto">
           <table class="tbl" id="invRefTable">
             <thead><tr><th>品項</th><th class="num">上次數量</th><th>上次日期</th><th class="num">近期平均</th><th class="num">叫貨次數</th><th class="num">累計花費</th></tr></thead>
