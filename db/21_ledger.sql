@@ -14,6 +14,12 @@ create table if not exists public.accounts (
   updated_at timestamptz not null default now()
 );
 
+-- 1b) 預設帳戶：錢盤（店內收找錢的盒子）、金庫（備用現金，補錢盤用）。實際現金 = 錢盤 + 金庫
+insert into public.accounts (name, type, sort_order)
+select '錢盤','現金',1 where not exists (select 1 from public.accounts where name='錢盤');
+insert into public.accounts (name, type, sort_order)
+select '金庫','現金',2 where not exists (select 1 from public.accounts where name='金庫');
+
 -- 2) 分錄分類
 create table if not exists public.ledger_categories (
   id uuid primary key default gen_random_uuid(),

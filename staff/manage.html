@@ -480,11 +480,12 @@
       <h3 class="modal-h" id="entryModalTitle">新增分錄</h3>
       <div class="grid2">
         <div class="field"><label class="label">類型 ★</label>
-          <select class="input" id="en_type"><option value="支出">支出</option><option value="收入">收入</option></select>
+          <select class="input" id="en_type"><option value="支出">支出</option><option value="收入">收入</option><option value="轉帳">轉帳（帳戶互轉）</option></select>
         </div>
         <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="en_date"></div>
-        <div class="field"><label class="label">帳戶 ★</label><select class="input" id="en_account"></select></div>
-        <div class="field"><label class="label">分類</label><select class="input" id="en_category"></select></div>
+        <div class="field"><label class="label" id="en_acc_label">帳戶 ★</label><select class="input" id="en_account"></select></div>
+        <div class="field" id="en_to_field" style="display:none"><label class="label">轉入帳戶 ★</label><select class="input" id="en_to_account"></select></div>
+        <div class="field" id="en_cat_field"><label class="label">分類</label><select class="input" id="en_category"></select></div>
         <div class="field"><label class="label">金額 ★</label><input class="input" type="number" id="en_amount"></div>
         <div class="field"><label class="label">說明</label><input class="input" id="en_desc"></div>
       </div>

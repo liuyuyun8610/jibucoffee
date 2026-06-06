@@ -1409,8 +1409,13 @@
         <td class="num faint">${e.source === 'manual' ? '編輯 ›' : ''}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="7" class="muted faint">沒有分錄</td></tr>';
-    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => {
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', async () => {
       const e = ledgerEntries.find(x => x.id === tr.dataset.id);
+      if (e && e.source === 'transfer') {
+        if (!confirm('刪除這筆轉帳？（會一併刪除對應的轉出/轉入兩筆）')) return;
+        await sb.from('ledger_entries').delete().eq('source', 'transfer').eq('source_id', e.source_id);
+        toast('已刪除轉帳'); loadLedger(); return;
+      }
       if (e && e.source !== 'manual') { toast('這筆由' + (e.source === 'payroll' ? '薪資發放' : e.source === 'purchase' ? '叫貨' : e.source) + '自動產生，請到該處修改'); return; }
       openEntryModal(tr.dataset.id);
     }));
@@ -1456,7 +1461,14 @@
   // 分錄 modal
   F('addEntry').addEventListener('click', () => openEntryModal(null));
   F('en_cancel').addEventListener('click', () => F('entryModal').classList.remove('show'));
-  F('en_type').addEventListener('change', () => fillEntryCats(F('en_category').value));
+  F('en_type').addEventListener('change', applyEntryType);
+  function applyEntryType() {
+    const isT = F('en_type').value === '轉帳';
+    F('en_to_field').style.display = isT ? '' : 'none';
+    F('en_cat_field').style.display = isT ? 'none' : '';
+    F('en_acc_label').textContent = isT ? '轉出帳戶 ★' : '帳戶 ★';
+    if (!isT) fillEntryCats(F('en_category').value);
+  }
   function fillEntryCats(cur) {
     const kind = F('en_type').value === '收入' ? 'income' : 'expense';
     const cats = ledgerCats.filter(c => c.kind === kind);
@@ -1469,9 +1481,13 @@
     F('entryModalTitle').textContent = e ? '編輯分錄' : '新增分錄';
     F('en_type').value = e ? (e.type === '收入' ? '收入' : '支出') : '支出';
     F('en_date').value = e ? e.entry_date : todayStr();
-    F('en_account').innerHTML = accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    const accOpts = accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    F('en_account').innerHTML = accOpts;
     F('en_account').value = e ? (e.account_id || '') : accounts[0].id;
+    F('en_to_account').innerHTML = accOpts;
+    if (accounts[1]) F('en_to_account').value = accounts[1].id;
     fillEntryCats(e ? e.category : '');
+    applyEntryType();
     F('en_amount').value = e ? e.amount : '';
     F('en_desc').value = e ? (e.description || '') : '';
     F('en_err').textContent = '';
@@ -1480,11 +1496,29 @@
   }
   F('en_save').addEventListener('click', async () => {
     F('en_err').textContent = '';
+    const type = F('en_type').value;
     const acc = F('en_account').value, amount = Number(F('en_amount').value) || 0;
+    const date = F('en_date').value;
     if (!acc) { F('en_err').textContent = '請選帳戶'; return; }
     if (!(amount > 0)) { F('en_err').textContent = '請填金額'; return; }
     const btn = F('en_save'); btn.disabled = true; btn.textContent = '儲存中…';
-    const payload = { account_id: acc, type: F('en_type').value, category: F('en_category').value || null, amount, description: F('en_desc').value.trim() || null, entry_date: F('en_date').value, source: 'manual' };
+
+    if (type === '轉帳') {
+      const to = F('en_to_account').value;
+      if (!to || to === acc) { btn.disabled = false; btn.textContent = '儲存'; F('en_err').textContent = '請選不同的轉入帳戶'; return; }
+      const gid = crypto.randomUUID();
+      const desc = F('en_desc').value.trim() || `轉帳：${accName(acc)} → ${accName(to)}`;
+      const { error } = await sb.from('ledger_entries').insert([
+        { account_id: acc, type: '轉出', category: null, amount, description: desc, entry_date: date, source: 'transfer', source_id: gid },
+        { account_id: to, type: '轉入', category: null, amount, description: desc, entry_date: date, source: 'transfer', source_id: gid },
+      ]);
+      btn.disabled = false; btn.textContent = '儲存';
+      if (error) { F('en_err').textContent = '儲存失敗：' + error.message; return; }
+      F('entryModal').classList.remove('show'); toast('✅ 已轉帳'); loadLedger();
+      return;
+    }
+
+    const payload = { account_id: acc, type, category: F('en_category').value || null, amount, description: F('en_desc').value.trim() || null, entry_date: date, source: 'manual' };
     let error;
     if (editEntryId) ({ error } = await sb.from('ledger_entries').update(payload).eq('id', editEntryId));
     else ({ error } = await sb.from('ledger_entries').insert(payload));
@@ -1543,8 +1577,8 @@
 
     // 現金流量表
     const opening = initSum + repEntries.filter(e => e.entry_date < pStart).reduce((s, e) => s + sign(e), 0);
-    const inflow = period.filter(e => e.type === '收入' || e.type === '轉入').reduce((s, e) => s + Number(e.amount || 0), 0);
-    const outflow = period.filter(e => e.type === '支出' || e.type === '轉出').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const inflow = period.filter(e => e.type === '收入').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const outflow = period.filter(e => e.type === '支出').reduce((s, e) => s + Number(e.amount || 0), 0);
     const ending = opening + inflow - outflow;
     F('rep_cf').innerHTML = kv('期初現金', formatCurrency(opening))
       + kv('本期現金流入（收入）', '+' + formatCurrency(inflow), 'var(--ok)')
