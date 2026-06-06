@@ -688,15 +688,17 @@
 
   /* ===== 庫存品項主檔 ===== */
   const UNIT_PRESETS = ['g', '磅', 'ml', '罐'];
+  const STOCK_CATS = ['糖漿', '乳品', '茶包｜茶粉', '咖啡豆', '耗材'];
   let editStockId = null;
 
   function renderStockList() {
     F('stockCount').textContent = stockItems.length;
     const tb = F('stockTable').querySelector('tbody');
-    if (!stockItems.length) { tb.innerHTML = '<tr><td colspan="6" class="muted faint">尚無品項，點「新增品項」建立叫貨用的清單</td></tr>'; return; }
+    if (!stockItems.length) { tb.innerHTML = '<tr><td colspan="7" class="muted faint">尚無品項，點「新增品項」建立叫貨用的清單</td></tr>'; return; }
     tb.innerHTML = stockItems.map(s => `
       <tr data-id="${s.id}" style="cursor:pointer">
         <td style="font-weight:500">${escapeHtml(s.name)}</td>
+        <td style="white-space:nowrap">${escapeHtml(s.category || '')}</td>
         <td style="white-space:nowrap">${escapeHtml(s.capacity || '')}</td>
         <td style="white-space:nowrap">${escapeHtml(s.unit || '')}</td>
         <td class="num" style="white-space:nowrap">${s.cost ? formatCurrency(s.cost) : '—'}</td>
@@ -725,6 +727,19 @@
     }
   });
 
+  function buildCategoryOptions(current) {
+    const cats = [...new Set([...STOCK_CATS, ...stockItems.map(s => s.category).filter(Boolean), current].filter(Boolean))];
+    F('s_category').innerHTML = '<option value="">—</option>'
+      + cats.map(c => `<option value="${escapeHtml(c)}" ${c === current ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')
+      + '<option value="__add__">＋ 新增分類…</option>';
+  }
+  F('s_category') && F('s_category').addEventListener('change', () => {
+    if (F('s_category').value === '__add__') {
+      const c = prompt('新增分類：');
+      buildCategoryOptions(c && c.trim() ? c.trim() : '');
+    }
+  });
+
   F('addStock').addEventListener('click', () => openStockModal(null));
   F('s_cancel').addEventListener('click', () => F('stockModal').classList.remove('show'));
 
@@ -738,6 +753,7 @@
     F('s_capacity').value = s ? (s.capacity || '') : '';
     F('s_note').value = s ? (s.note || '') : '';
     buildUnitOptions(s ? (s.unit || '') : '');
+    buildCategoryOptions(s ? (s.category || '') : '');
     F('s_err').textContent = '';
     F('s_delete').style.visibility = s ? 'visible' : 'hidden';
     F('stockModal').classList.add('show');
@@ -748,9 +764,10 @@
     const name = F('s_name').value.trim();
     if (!name) { F('s_err').textContent = '請填品名'; return; }
     let unit = F('s_unit').value; if (unit === '__add__') unit = '';
+    let category = F('s_category').value; if (category === '__add__') category = '';
     const btn = F('s_save'); btn.disabled = true; btn.textContent = '儲存中…';
     const payload = {
-      name, cost: Number(F('s_cost').value) || 0,
+      name, cost: Number(F('s_cost').value) || 0, category: category || null,
       vendor: F('s_vendor').value.trim() || null, unit: unit || null,
       capacity: F('s_capacity').value.trim() || null, note: F('s_note').value.trim() || null,
     };

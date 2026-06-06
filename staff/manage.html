@@ -132,8 +132,8 @@
         </div>
         <div id="stockBody" style="overflow-x:auto">
           <table class="tbl" id="stockTable">
-            <thead><tr><th>品名</th><th>容量</th><th>單位</th><th class="num">成本</th><th>廠商</th><th></th></tr></thead>
-            <tbody><tr><td colspan="6" class="muted faint">載入中…</td></tr></tbody>
+            <thead><tr><th>品名</th><th>分類</th><th>容量</th><th>單位</th><th class="num">成本</th><th>廠商</th><th></th></tr></thead>
+            <tbody><tr><td colspan="7" class="muted faint">載入中…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -184,6 +184,7 @@
       <h3 class="modal-h" id="stockModalTitle">新增品項</h3>
       <div class="grid3">
         <div class="field"><label class="label">品名 ★</label><input class="input" id="s_name" placeholder="例：鮮奶"></div>
+        <div class="field"><label class="label">分類</label><select class="input" id="s_category"></select></div>
         <div class="field"><label class="label">成本（進貨）</label><input class="input" type="number" id="s_cost"></div>
         <div class="field"><label class="label">廠商名稱</label><input class="input" id="s_vendor" list="svendorList"><datalist id="svendorList"></datalist></div>
         <div class="field"><label class="label">單位</label><select class="input" id="s_unit"></select></div>
