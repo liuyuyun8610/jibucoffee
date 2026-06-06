@@ -76,6 +76,17 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // 5) 修改登入 Email（同步改 auth 帳號 + staff 表）
+    if (action === 'update_email') {
+      const { user_id, email } = body;
+      if (!user_id || !email) return json({ error: '缺少參數' }, 400);
+      const { error: eErr } = await admin.auth.admin.updateUserById(user_id, { email, email_confirm: true });
+      if (eErr) return json({ error: eErr.message }, 400);
+      const { error: sErr } = await admin.from('staff').update({ email }).eq('id', user_id);
+      if (sErr) return json({ error: '帳號已改，但寫入員工資料失敗：' + sErr.message }, 400);
+      return json({ ok: true });
+    }
+
     return json({ error: '未知的 action' }, 400);
   } catch (e) {
     return json({ error: String(e?.message || e) }, 500);

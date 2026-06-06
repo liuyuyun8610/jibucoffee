@@ -87,6 +87,7 @@
   const EMP_FIELDS = ['name','employee_no','role','department','position','hire_date','phone','base_salary','insured_salary','labor_insurance','health_insurance','pension','birthday','id_number','address','emergency_contact','emergency_phone','emergency_relation','bank_name','bank_account','bank_account_name'];
   let editingId = null;
 
+  let origEmail = '';
   F('addEmp').addEventListener('click', () => openEmpModal(null));
   F('empCancel').addEventListener('click', () => F('empModal').classList.remove('show'));
   F('genPw').addEventListener('click', () => { F('e_password').value = randPw(); });
@@ -103,9 +104,11 @@
     const s = id ? staffList.find(x => x.id === id) : null;
     F('empModalTitle').textContent = s ? '編輯員工' : '新增員工';
     F('e_err').textContent = '';
-    // 新增才顯示 email/密碼欄
-    F('empAuthFields').style.display = s ? 'none' : 'block';
-    F('e_email').value = ''; F('e_password').value = s ? '' : randPw();
+    // 密碼欄只在新增時出現；email 兩種模式都可填／改
+    F('pwField').style.display = s ? 'none' : 'block';
+    F('e_email').value = s ? (s.email || '') : '';
+    F('e_password').value = s ? '' : randPw();
+    origEmail = s ? (s.email || '') : '';
     EMP_FIELDS.forEach(k => { if (F('e_' + k)) F('e_' + k).value = (s && s[k] != null) ? s[k] : (k === 'role' ? 'employee' : ''); });
 
     // 編輯模式的額外動作（重設密碼 / 停用）
@@ -143,6 +146,14 @@
     btn.disabled = true; btn.textContent = '儲存中…';
 
     if (editingId) {
+      const newEmail = F('e_email').value.trim();
+      if (!newEmail) { btn.disabled = false; btn.textContent = '儲存'; F('e_err').textContent = '請填登入 Email'; return; }
+      // email 有變更 → 走後端同步改 auth 帳號 + staff
+      if (newEmail !== origEmail) {
+        const { data, error: fErr } = await sb.functions.invoke('staff-admin', { body: { action: 'update_email', user_id: editingId, email: newEmail } });
+        if (fErr || (data && data.error)) { btn.disabled = false; btn.textContent = '儲存'; F('e_err').textContent = '修改 Email 失敗：' + (data?.error || fErr.message); return; }
+        origEmail = newEmail;
+      }
       const { error } = await sb.from('staff').update(profile).eq('id', editingId);
       btn.disabled = false; btn.textContent = '儲存';
       if (error) { F('e_err').textContent = '儲存失敗：' + error.message; return; }
