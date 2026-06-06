@@ -22,7 +22,7 @@
   <div class="wrap wrap-narrow" id="app" style="opacity:0">
     <div class="tabs">
       <button class="tab active" data-tab="clock">打卡</button>
-      <button class="tab" data-tab="daily">日結</button>
+      <button class="tab" data-tab="daily">大交班</button>
       <button class="tab" data-tab="shifts">班表</button>
       <button class="tab" data-tab="profile">個人資料</button>
       <button class="tab" data-tab="salary">薪資投保</button>
@@ -66,8 +66,8 @@
     <!-- 日結（點鈔結帳）-->
     <section data-pane="daily" class="hidden">
       <div class="card">
-        <h2 class="card-h">今日結帳 <span class="faint" id="dc_date"></span></h2>
-        <p class="faint" style="margin-top:-6px">下班數錢盤＋金庫各面額張數，加總＝今日店內現金。</p>
+        <h2 class="card-h">大交班 <span class="faint" id="dc_date"></span></h2>
+        <p class="faint" style="margin-top:-6px">下班結帳：輸入錢盤＋金庫各面額的「總金額」，加總＝今日店內現金。</p>
         <div class="grid2">
           <div>
             <p style="font-weight:600;margin:0 0 8px">錢盤</p>
@@ -81,11 +81,18 @@
           </div>
         </div>
         <div class="kv mt16" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>當日店內現金</span><span id="dc_total" style="color:var(--accent-deep)">NT$0</span></div>
-        <div class="field mt8"><label class="label">備註</label><input class="input" id="dc_note"></div>
-        <button class="btn btn-primary btn-block" id="dc_save">儲存今日結帳</button>
+        <div class="divider"></div>
+        <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="dc_has_purchase"> 今日有用現金（錢盤）採購物料？</label>
+        <div id="dc_purchase_box" class="hidden mt8">
+          <div id="dc_purchase_lines"></div>
+          <button class="btn btn-ghost btn-sm" id="dc_add_line" type="button">＋ 新增採購品項</button>
+          <p class="faint mt8">採購金額會自動從「錢盤」扣，並記入叫貨與帳本，這樣帳面現金才會等於你點到的現金。</p>
+        </div>
+        <div class="field mt16"><label class="label">備註</label><input class="input" id="dc_note"></div>
+        <button class="btn btn-primary btn-block" id="dc_save">儲存大交班</button>
       </div>
       <div class="card">
-        <h2 class="card-h">近期結帳紀錄</h2>
+        <h2 class="card-h">近期大交班紀錄</h2>
         <div id="dc_history"><p class="muted faint">載入中…</p></div>
       </div>
     </section>
@@ -242,55 +249,90 @@
     const DENOMS = [1000, 500, 100, 50, 10, 5, 1];
     function dcRows(prefix) {
       return DENOMS.map(d => `
-        <div class="flex" style="justify-content:space-between;margin-bottom:6px">
-          <span class="muted" style="width:46px">${d}</span>
-          <input class="input" type="number" min="0" id="${prefix}_${d}" style="width:88px">
-          <span class="faint" id="${prefix}_${d}_s" style="min-width:84px;text-align:right">—</span>
+        <div class="flex" style="gap:10px;margin-bottom:8px">
+          <span class="muted" style="width:50px;text-align:right">${d}</span>
+          <input class="input" type="number" min="0" id="${prefix}_${d}" placeholder="金額" style="flex:1;max-width:150px">
         </div>`).join('');
     }
     function dcCalc() {
       let tray = 0, safe = 0;
-      DENOMS.forEach(d => {
-        const tn = Number(F('dc_tray_' + d).value) || 0, sn = Number(F('dc_safe_' + d).value) || 0;
-        F('dc_tray_' + d + '_s').textContent = tn ? formatCurrency(d * tn) : '—';
-        F('dc_safe_' + d + '_s').textContent = sn ? formatCurrency(d * sn) : '—';
-        tray += d * tn; safe += d * sn;
-      });
+      DENOMS.forEach(d => { tray += Number(F('dc_tray_' + d).value) || 0; safe += Number(F('dc_safe_' + d).value) || 0; });
       F('dc_tray_total').textContent = formatCurrency(tray);
       F('dc_safe_total').textContent = formatCurrency(safe);
       F('dc_total').textContent = formatCurrency(tray + safe);
       return { tray, safe };
     }
+    let dcStock = [], dcTrayAcc = null;
     function initDailyClose() {
       F('dc_date').textContent = todayStr().replace(/-/g, '/');
       F('dc_tray').innerHTML = dcRows('dc_tray');
       F('dc_safe').innerHTML = dcRows('dc_safe');
       document.querySelectorAll('#dc_tray input, #dc_safe input').forEach(i => i.addEventListener('input', dcCalc));
       F('dc_save').addEventListener('click', saveDailyClose);
+      F('dc_has_purchase').addEventListener('change', () => F('dc_purchase_box').classList.toggle('hidden', !F('dc_has_purchase').checked));
+      F('dc_add_line').addEventListener('click', () => dcAddLine());
       loadDailyClose();
     }
     async function loadDailyClose() {
-      const { data } = await sb.from('cash_counts').select('*').eq('count_date', todayStr()).maybeSingle();
+      const [{ data: st }, { data: ac }, { data }] = await Promise.all([
+        sb.from('stock_items').select('id,name,unit,cost,category,vendor').eq('is_active', true).order('name'),
+        sb.from('accounts').select('id,name'),
+        sb.from('cash_counts').select('*').eq('count_date', todayStr()).maybeSingle(),
+      ]);
+      dcStock = st || []; dcTrayAcc = (ac || []).find(a => a.name === '錢盤') || (ac || [])[0] || null;
       if (data) DENOMS.forEach(d => { F('dc_tray_' + d).value = (data.tray && data.tray[d]) || ''; F('dc_safe_' + d).value = (data.safe && data.safe[d]) || ''; });
       F('dc_note').value = data ? (data.note || '') : '';
+      F('dc_purchase_lines').innerHTML = '';
+      const pur = (data && data.purchases) || [];
+      if (pur.length) { F('dc_has_purchase').checked = true; F('dc_purchase_box').classList.remove('hidden'); pur.forEach(p => dcAddLine(p.name, p.qty)); }
+      else { F('dc_has_purchase').checked = false; F('dc_purchase_box').classList.add('hidden'); }
       dcCalc();
       loadDcHistory();
+    }
+    function dcAddLine(name, qty) {
+      const div = document.createElement('div');
+      div.className = 'flex'; div.style = 'gap:8px;margin-bottom:8px';
+      div.innerHTML = `
+        <select class="input dcp-item" style="flex:1">${dcStock.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}${s.unit ? '（' + escapeHtml(s.unit) + '）' : ''}</option>`).join('')}</select>
+        <input class="input dcp-qty" type="number" min="0" placeholder="數量" style="width:84px">
+        <span class="faint dcp-sub" style="min-width:80px;text-align:right">—</span>
+        <button class="btn btn-danger btn-sm dcp-del" type="button">✕</button>`;
+      F('dc_purchase_lines').appendChild(div);
+      const itemSel = div.querySelector('.dcp-item'), qtyIn = div.querySelector('.dcp-qty'), sub = div.querySelector('.dcp-sub');
+      if (name) itemSel.value = name; if (qty) qtyIn.value = qty;
+      const calc = () => { const s = dcStock.find(x => x.name === itemSel.value); const c = s ? Number(s.cost || 0) : 0; const q = Number(qtyIn.value) || 0; sub.textContent = q ? formatCurrency(c * q) : '—'; };
+      itemSel.addEventListener('change', calc); qtyIn.addEventListener('input', calc); calc();
+      div.querySelector('.dcp-del').addEventListener('click', () => div.remove());
     }
     async function saveDailyClose(e) {
       const { tray, safe } = dcCalc();
       const trayObj = {}, safeObj = {};
       DENOMS.forEach(d => { const t = Number(F('dc_tray_' + d).value) || 0, s = Number(F('dc_safe_' + d).value) || 0; if (t) trayObj[d] = t; if (s) safeObj[d] = s; });
+      const lines = [];
+      if (F('dc_has_purchase').checked) {
+        document.querySelectorAll('#dc_purchase_lines > div').forEach(div => {
+          const name = div.querySelector('.dcp-item').value, q = Number(div.querySelector('.dcp-qty').value) || 0;
+          if (name && q > 0) { const s = dcStock.find(x => x.name === name); lines.push({ name, qty: q, unit: s ? s.unit : null, cost: s ? Number(s.cost || 0) : 0, category: s ? s.category : null, vendor: s ? s.vendor : null }); }
+        });
+      }
       const btn = e.target; btn.disabled = true; btn.textContent = '儲存中…';
-      const payload = { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, counted_by: me.id };
+      const today = todayStr();
+      const payload = { count_date: today, tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, counted_by: me.id, purchases: lines.map(l => ({ name: l.name, qty: l.qty, amount: l.qty * l.cost })) };
       const { error } = await sb.from('cash_counts').upsert(payload, { onConflict: 'count_date' });
-      btn.disabled = false; btn.textContent = '儲存今日結帳';
-      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
-      toast('✅ 已結帳，今日店內現金 ' + formatCurrency(tray + safe)); loadDailyClose();
+      if (error) { btn.disabled = false; btn.textContent = '儲存大交班'; toast('儲存失敗：' + error.message, 'error'); return; }
+      await sb.from('ledger_entries').delete().eq('source', 'daily').eq('entry_date', today);
+      await sb.from('purchases').delete().eq('source', 'daily').eq('order_date', today);
+      if (lines.length && dcTrayAcc) {
+        await sb.from('purchases').insert(lines.map(l => ({ order_date: today, item_name: l.name, category: l.category, quantity: l.qty, unit: l.unit, unit_cost: l.cost, total_cost: l.qty * l.cost, supplier: l.vendor, source: 'daily' })));
+        await sb.from('ledger_entries').insert(lines.map(l => ({ account_id: dcTrayAcc.id, type: '支出', category: '進貨', amount: l.qty * l.cost, description: `大交班採購：${l.name}`, entry_date: today, source: 'daily' })));
+      }
+      btn.disabled = false; btn.textContent = '儲存大交班';
+      toast('✅ 已交班，當日店內現金 ' + formatCurrency(tray + safe)); loadDailyClose();
     }
     async function loadDcHistory() {
       const { data } = await sb.from('cash_counts').select('count_date,tray_total,safe_total,total').order('count_date', { ascending: false }).limit(14);
       const box = F('dc_history'); const recs = data || [];
-      if (!recs.length) { box.innerHTML = '<p class="muted faint">尚無結帳紀錄。</p>'; return; }
+      if (!recs.length) { box.innerHTML = '<p class="muted faint">尚無大交班紀錄。</p>'; return; }
       box.innerHTML = recs.map(r => `
         <div class="list-row" style="cursor:default">
           <div><div style="font-weight:500">${r.count_date.replace(/-/g,'/')}</div><div class="faint">錢盤 ${formatCurrency(r.tray_total)}・金庫 ${formatCurrency(r.safe_total)}</div></div>

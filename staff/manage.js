@@ -36,6 +36,7 @@
     if (name === 'revenue') loadRevenue();
     if (name === 'ledger') loadLedger();
     if (name === 'reports') loadReports();
+    if (name === 'handover') loadHandover();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
     if (name === 'people') activateSub(sub || currentSub());
@@ -1534,6 +1535,60 @@
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
     F('entryModal').classList.remove('show'); toast('已刪除'); loadLedger();
   });
+
+  /* ============================================================
+   * 7b) 大交班查詢（老闆看店員每日結帳）
+   * ========================================================== */
+  let hoList = [];
+  async function loadHandover() {
+    const { data } = await sb.from('cash_counts').select('*').order('count_date', { ascending: false });
+    hoList = data || [];
+    fillYearSelect(F('ho_year'), hoList.map(r => r.count_date), F('ho_year').value);
+    renderHandover();
+  }
+  F('ho_year').addEventListener('change', renderHandover);
+  F('ho_month').addEventListener('change', renderHandover);
+  F('ho_close').addEventListener('click', () => F('hoModal').classList.remove('show'));
+  function renderHandover() {
+    const yr = F('ho_year').value, mo = F('ho_month').value;
+    let rows = hoList;
+    if (yr !== 'all') rows = rows.filter(r => (r.count_date || '').slice(0, 4) === yr);
+    if (mo !== 'all') rows = rows.filter(r => Number((r.count_date || '').slice(5, 7)) === Number(mo));
+    F('ho_sum').textContent = `${rows.length} 天`;
+    const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
+    const tb = F('hoTable').querySelector('tbody');
+    tb.innerHTML = rows.length ? rows.map(r => {
+      const pur = r.purchases || [], purT = pur.reduce((s, p) => s + Number(p.amount || 0), 0);
+      return `<tr data-id="${r.id}" style="cursor:pointer">
+        <td style="white-space:nowrap">${r.count_date.replace(/-/g,'/')}</td>
+        <td class="num">${formatCurrency(r.tray_total)}</td>
+        <td class="num">${formatCurrency(r.safe_total)}</td>
+        <td class="num" style="font-weight:600">${formatCurrency(r.total)}</td>
+        <td class="faint">${pur.length ? `${pur.length}筆 ${formatCurrency(purT)}` : '—'}</td>
+        <td class="faint">${escapeHtml(nameOf(r.counted_by))}</td>
+        <td class="num faint">明細 ›</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" class="muted faint">這段期間沒有大交班紀錄</td></tr>';
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openHandoverDetail(tr.dataset.id)));
+  }
+  function openHandoverDetail(id) {
+    const r = hoList.find(x => x.id === id); if (!r) return;
+    const DEN = [1000, 500, 100, 50, 10, 5, 1];
+    const denRows = obj => DEN.filter(d => obj && obj[d]).map(d => `<div class="kv"><span class="k">${d}</span><span>${formatCurrency(obj[d])}</span></div>`).join('') || '<div class="kv"><span class="muted faint">—</span></div>';
+    const pur = r.purchases || [];
+    F('hoModalTitle').textContent = `大交班明細 ${r.count_date.replace(/-/g,'/')}`;
+    F('hoDetail').innerHTML = `
+      <div class="grid2">
+        <div><p style="font-weight:600;margin:0 0 6px">錢盤 ${formatCurrency(r.tray_total)}</p>${denRows(r.tray)}</div>
+        <div><p style="font-weight:600;margin:0 0 6px">金庫 ${formatCurrency(r.safe_total)}</p>${denRows(r.safe)}</div>
+      </div>
+      <div class="kv mt8" style="font-weight:700;border-top:1px solid var(--line);padding-top:8px"><span>店內現金</span><span>${formatCurrency(r.total)}</span></div>
+      <div class="divider"></div>
+      <p style="font-weight:600;margin:0 0 6px">當日採購</p>
+      ${pur.length ? pur.map(p => `<div class="kv"><span class="k">${escapeHtml(p.name)} ×${p.qty}</span><span>${formatCurrency(p.amount)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無</span></div>'}
+      ${r.note ? `<div class="divider"></div><p class="faint">備註：${escapeHtml(r.note)}</p>` : ''}`;
+    F('hoModal').classList.add('show');
+  }
 
   /* ============================================================
    * 8) 財務三大報表（用帳本資料即時算）
