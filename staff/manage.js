@@ -235,6 +235,17 @@
     if (selectedEmpId) selectEmp(selectedEmpId); else F('payDetail').innerHTML = '<div class="card center-screen muted faint">← 選擇左側員工開始計算</div>';
   }
 
+  // 加總某員工某月打卡時數（上班~下班），回傳小時（一位小數）
+  async function attendanceHours(staffId, year, month) {
+    const start = `${year}-${String(month).padStart(2, '0')}-01`;
+    const endD = new Date(year, month, 0);
+    const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+    const { data } = await sb.from('attendance').select('clock_in,clock_out').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr);
+    let mins = 0;
+    (data || []).forEach(a => { if (a.clock_in && a.clock_out) mins += (new Date(a.clock_out) - new Date(a.clock_in)) / 60000; });
+    return Math.round(mins / 60 * 10) / 10;
+  }
+
   async function selectEmp(empId) {
     selectedEmpId = empId;
     renderPayEmpList();
@@ -248,8 +259,9 @@
       if (isPT && !editRec.hourly_rate) editRec.hourly_rate = emp.hourly_rate || 0;
       editItems = items || [];
     } else if (isPT) {
+      const hrs = await attendanceHours(empId, pYear, pMonth);   // 自動帶入打卡時數
       editRec = {
-        staff_id: empId, year: pYear, month: pMonth, base_salary: 0, work_days: 0, work_hours: 0,
+        staff_id: empId, year: pYear, month: pMonth, base_salary: 0, work_days: 0, work_hours: hrs,
         hourly_rate: emp.hourly_rate || 0, ot_weekday_minutes: 0, ot_restday_minutes: 0, ot_pay: 0, total_pay: 0, note: '',
       };
       editItems = [];
@@ -288,7 +300,7 @@
         <h2 class="card-h">${escapeHtml(emp.name)} <span class="badge badge-wait">PT 時薪制</span> — ${pYear}/${String(pMonth).padStart(2,'0')} 薪資</h2>
         <div class="grid3">
           <div class="field"><label class="label">時薪</label><input class="input" type="number" id="f_hourly" value="${r.hourly_rate || ''}"></div>
-          <div class="field"><label class="label">本月工作時數</label><input class="input" type="number" id="f_hours" value="${r.work_hours || ''}"></div>
+          <div class="field"><label class="label">本月工作時數 <button type="button" id="f_pullhours" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:11px;margin-left:4px">↻ 帶入打卡</button></label><input class="input" type="number" id="f_hours" value="${r.work_hours || ''}"></div>
           <div class="field"><label class="label">薪資小計（時薪×時數）</label><input class="input" readonly id="f_basepay" value="${formatCurrency(r.base_salary || 0)}"></div>
         </div>
       </div>` : `
@@ -331,6 +343,10 @@
     if (emp.employ_type === 'PT') {
       F('f_hourly').addEventListener('input', () => updateField('hourly_rate', num(F('f_hourly').value)));
       F('f_hours').addEventListener('input', () => updateField('work_hours', num(F('f_hours').value)));
+      F('f_pullhours').addEventListener('click', async () => {
+        const hrs = await attendanceHours(editRec.staff_id, pYear, pMonth);
+        F('f_hours').value = hrs; updateField('work_hours', hrs); toast(`已帶入打卡時數 ${hrs} 小時`);
+      });
     } else {
       F('f_base').addEventListener('input', () => updateField('base_salary', num(F('f_base').value)));
       F('f_days').addEventListener('input', () => { editRec.work_days = num(F('f_days').value); });
