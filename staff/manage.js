@@ -790,10 +790,12 @@
   F('p_item').addEventListener('change', () => {
     const s = stockItems.find(x => x.name === F('p_item').value);
     if (s) {
-      if (s.unit) F('p_unit').value = s.unit;
-      if (s.vendor) F('p_supplier').value = s.vendor;          // 從庫存檔案自動帶廠商
-      if (s.cost && !Number(F('p_cost').value)) { F('p_cost').value = s.cost; calcSub(); }
-      if (s.category && !F('p_category').value) F('p_category').value = s.category;
+      // 換品項就完整同步該品項的資料（避免換來換去殘留上一個的價格）
+      F('p_unit').value = s.unit || '';
+      F('p_supplier').value = s.vendor || '';
+      F('p_category').value = s.category || '';
+      F('p_cost').value = s.cost || '';
+      calcSub();
     }
   });
 
