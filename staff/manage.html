@@ -41,6 +41,7 @@
         <button class="subtab active" data-sub="hr">員工資料</button>
         <button class="subtab" data-sub="payroll">薪資</button>
         <button class="subtab" data-sub="attend">出勤</button>
+        <button class="subtab" data-sub="shifts">班表</button>
         <button class="subtab" data-sub="reviews">打卡審核<span id="revBadge"></span></button>
       </div>
 
@@ -98,6 +99,27 @@
           <div style="overflow-x:auto">
             <table class="tbl" id="attDetail">
               <thead><tr><th>日期</th><th>員工</th><th>上班</th><th>下班</th><th class="num">工時</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 班表 -->
+      <div data-subpane="shifts" class="hidden">
+        <div class="row-between" style="margin-bottom:16px">
+          <div class="month-nav">
+            <button id="sm-prev">‹</button>
+            <div style="min-width:120px; text-align:center; font-weight:600" id="sm-label">—</div>
+            <button id="sm-next">›</button>
+          </div>
+          <button class="btn btn-primary btn-sm" id="addShift">＋ 排班</button>
+        </div>
+        <div class="card">
+          <h2 class="card-h">本月班表 <span class="faint" id="sm-sum"></span></h2>
+          <div style="overflow-x:auto">
+            <table class="tbl" id="shiftTable">
+              <thead><tr><th>日期</th><th>員工</th><th>時段</th><th>備註</th><th></th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -366,6 +388,28 @@
         <div class="flex">
           <button class="btn btn-ghost" id="empCancel">取消</button>
           <button class="btn btn-primary" id="empSave">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: 班次 ===== -->
+  <div class="modal-mask" id="shiftModal">
+    <div class="modal">
+      <h3 class="modal-h" id="shiftModalTitle">排班</h3>
+      <div class="grid2">
+        <div class="field"><label class="label">員工 ★</label><select class="input" id="sh_staff"></select></div>
+        <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="sh_date"></div>
+        <div class="field"><label class="label">開始時間</label><input class="input" type="time" id="sh_start"></div>
+        <div class="field"><label class="label">結束時間</label><input class="input" type="time" id="sh_end"></div>
+      </div>
+      <div class="field"><label class="label">備註</label><input class="input" id="sh_note" placeholder="例：外場 / 內場 / 早班"></div>
+      <div id="sh_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+      <div class="row-between mt8">
+        <button class="btn btn-danger" id="sh_delete" style="visibility:hidden">刪除</button>
+        <div class="flex">
+          <button class="btn btn-ghost" id="sh_cancel">取消</button>
+          <button class="btn btn-primary" id="sh_save">儲存</button>
         </div>
       </div>
     </div>

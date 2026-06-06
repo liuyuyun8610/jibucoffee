@@ -26,6 +26,7 @@
     if (name === 'payroll') loadPayrollMonth();
     if (name === 'reviews') loadReviews();
     if (name === 'attend') loadAttendanceSummary();
+    if (name === 'shifts') loadShifts();
     writeHash('people', name);
   }
   function activateTab(name, sub) {
@@ -53,6 +54,7 @@
     await loadStaff();
     initPayrollNav();
     initAttendNav();
+    initShiftNav();
     refreshReviewBadge();
     // 還原重整前所在的分頁（網址 hash）
     const hp = location.hash.slice(1).split(':');
@@ -1050,6 +1052,84 @@
           <td class="num">${fmtH(wmin(a))}</td>
         </tr>`).join('')
       : '<tr><td colspan="5" class="muted faint">本月無出勤紀錄</td></tr>';
+  }
+
+  /* ============================================================
+   * 5c) 班表（老闆排班；員工在 me.html 看自己的）
+   * ========================================================== */
+  let smYear, smMonth, shiftList = [], editShiftId = null;
+  function initShiftNav() {
+    const d = new Date();
+    smYear = d.getFullYear(); smMonth = d.getMonth() + 1;
+    F('sm-prev').addEventListener('click', () => { smMonth--; if (smMonth < 1) { smMonth = 12; smYear--; } loadShifts(); });
+    F('sm-next').addEventListener('click', () => { smMonth++; if (smMonth > 12) { smMonth = 1; smYear++; } loadShifts(); });
+    F('addShift').addEventListener('click', () => openShiftModal(null));
+    F('sh_cancel').addEventListener('click', () => F('shiftModal').classList.remove('show'));
+    F('sh_save').addEventListener('click', saveShift);
+    F('sh_delete').addEventListener('click', deleteShift);
+  }
+  async function loadShifts() {
+    F('sm-label').textContent = `${smYear}年${smMonth}月`;
+    const start = `${smYear}-${String(smMonth).padStart(2, '0')}-01`;
+    const endD = new Date(smYear, smMonth, 0);
+    const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+    const { data } = await sb.from('shifts').select('*').gte('work_date', start).lte('work_date', endStr)
+      .order('work_date').order('start_time');
+    shiftList = data || [];
+    renderShifts();
+  }
+  function renderShifts() {
+    const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
+    const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+    F('sm-sum').textContent = `・${shiftList.length} 個班`;
+    const tb = F('shiftTable').querySelector('tbody');
+    tb.innerHTML = shiftList.length ? shiftList.map(s => `
+      <tr data-id="${s.id}" style="cursor:pointer">
+        <td style="white-space:nowrap">${s.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(s.work_date).getDay()]})</td>
+        <td>${escapeHtml(nameOf(s.staff_id))}</td>
+        <td style="white-space:nowrap">${s.start_time || ''}${s.end_time ? ' ~ ' + s.end_time : ''}</td>
+        <td class="faint">${escapeHtml(s.note || '')}</td>
+        <td class="num faint">編輯 ›</td>
+      </tr>`).join('') : '<tr><td colspan="5" class="muted faint">本月尚未排班，點右上「排班」新增</td></tr>';
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openShiftModal(tr.dataset.id)));
+  }
+  function openShiftModal(id) {
+    editShiftId = id;
+    const s = id ? shiftList.find(x => x.id === id) : null;
+    F('shiftModalTitle').textContent = s ? '編輯班次' : '排班';
+    F('sh_staff').innerHTML = staffList.filter(x => x.is_active !== false)
+      .map(x => `<option value="${x.id}">${escapeHtml(x.name)}${x.employ_type === 'PT' ? '（PT）' : ''}</option>`).join('');
+    F('sh_staff').value = s ? s.staff_id : (staffList[0] ? staffList[0].id : '');
+    F('sh_date').value = s ? s.work_date : `${smYear}-${String(smMonth).padStart(2, '0')}-01`;
+    F('sh_start').value = s ? (s.start_time || '') : '';
+    F('sh_end').value = s ? (s.end_time || '') : '';
+    F('sh_note').value = s ? (s.note || '') : '';
+    F('sh_err').textContent = '';
+    F('sh_delete').style.visibility = s ? 'visible' : 'hidden';
+    F('shiftModal').classList.add('show');
+  }
+  async function saveShift() {
+    F('sh_err').textContent = '';
+    const staff_id = F('sh_staff').value, date = F('sh_date').value;
+    if (!staff_id || !date) { F('sh_err').textContent = '請選員工與日期'; return; }
+    const btn = F('sh_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const payload = {
+      staff_id, work_date: date,
+      start_time: F('sh_start').value || null, end_time: F('sh_end').value || null,
+      note: F('sh_note').value.trim() || null,
+    };
+    let error;
+    if (editShiftId) ({ error } = await sb.from('shifts').update(payload).eq('id', editShiftId));
+    else ({ error } = await sb.from('shifts').insert(payload));
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { F('sh_err').textContent = '儲存失敗：' + error.message; return; }
+    F('shiftModal').classList.remove('show'); toast('✅ 已排班'); loadShifts();
+  }
+  async function deleteShift() {
+    if (!editShiftId || !confirm('確定刪除這個班次？')) return;
+    const { error } = await sb.from('shifts').delete().eq('id', editShiftId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('shiftModal').classList.remove('show'); toast('已刪除'); loadShifts();
   }
 
   /* ============================================================

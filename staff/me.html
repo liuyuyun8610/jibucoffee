@@ -22,6 +22,7 @@
   <div class="wrap wrap-narrow" id="app" style="opacity:0">
     <div class="tabs">
       <button class="tab active" data-tab="clock">打卡</button>
+      <button class="tab" data-tab="shifts">班表</button>
       <button class="tab" data-tab="profile">個人資料</button>
       <button class="tab" data-tab="salary">薪資投保</button>
       <button class="tab" data-tab="payslips">薪資條</button>
@@ -58,6 +59,14 @@
       <div class="card">
         <h2 class="card-h">我的補打卡申請</h2>
         <div id="reqList"><p class="muted faint">載入中…</p></div>
+      </div>
+    </section>
+
+    <!-- 班表 -->
+    <section data-pane="shifts" class="hidden">
+      <div class="card">
+        <h2 class="card-h">我的班表（本月）</h2>
+        <div id="myShifts"><p class="muted faint">載入中…</p></div>
       </div>
     </section>
 
@@ -194,8 +203,28 @@
       tickClock(); setInterval(tickClock, 1000);
       loadAttendance();
       loadRequests();
+      loadMyShifts();
       loadPayslips();
     })();
+
+    async function loadMyShifts() {
+      const d = new Date();
+      const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+      const endD = new Date(d.getFullYear(), d.getMonth()+1, 0);
+      const endStr = `${endD.getFullYear()}-${String(endD.getMonth()+1).padStart(2,'0')}-${String(endD.getDate()).padStart(2,'0')}`;
+      const { data } = await sb.from('shifts').select('*').eq('staff_id', me.id)
+        .gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time');
+      const box = F('myShifts'); const recs = data || [];
+      if (!recs.length) { box.innerHTML = '<p class="muted faint">本月還沒有排班。</p>'; return; }
+      box.innerHTML = recs.map(s => `
+        <div class="list-row" style="cursor:default">
+          <div>
+            <div style="font-weight:500">${s.work_date.replace(/-/g,'/')} ${WEEK[new Date(s.work_date).getDay()]}</div>
+            <div class="faint">${escapeHtml(s.note || '')}</div>
+          </div>
+          <span style="font-weight:500">${s.start_time || ''}${s.end_time ? ' ~ ' + s.end_time : ''}</span>
+        </div>`).join('');
+    }
 
     /* ===== 補打卡申請 ===== */
     const KIND_LABEL = { clock_in: '上班', clock_out: '下班' };
