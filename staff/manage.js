@@ -254,6 +254,7 @@
     renderPayEmpList();
     const emp = staffList.find(s => s.id === empId);
     editEmp = emp;
+    await ensureAccounts();
     const isPT = emp.employ_type === 'PT';
     const existing = monthRecords.find(r => r.staff_id === empId);
     if (existing) {
@@ -496,9 +497,14 @@
         <div class="field"><label class="label">入帳日期</label><input class="input" type="date" id="pay_date" value="${editRec.paid_at ? editRec.paid_at.slice(0,10) : todayStr()}"></div>
         <div class="field"><label class="label">備註（選填）</label><input class="input" id="pay_note" value="${escapeHtml(editRec.paid_note || '')}"></div>
       </div>
+      <div class="field"><label class="label">出款帳戶（帳本扣款）</label><select class="input" id="pay_account">${accountOptions('')}</select></div>
       <div class="field"><label class="label">轉帳憑證圖片（選填）</label><input type="file" accept="image/*" id="pay_file"></div>
       <button class="btn btn-primary btn-sm" id="savePay">記錄發放</button>`;
     F('savePay').addEventListener('click', savePayment);
+    if (editRec.id) (async () => {
+      const { data: le } = await sb.from('ledger_entries').select('account_id').eq('source', 'payroll').eq('source_id', editRec.id).maybeSingle();
+      if (le && F('pay_account')) F('pay_account').value = le.account_id;
+    })();
   }
   async function savePayment() {
     const btn = F('savePay'); const date = F('pay_date').value;
@@ -517,6 +523,10 @@
     btn.disabled = false; btn.textContent = '記錄發放';
     if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
     Object.assign(editRec, patch);
+    // 連動帳本：選了出款帳戶就記一筆「支出・薪資」
+    const accId = F('pay_account') ? F('pay_account').value : '';
+    await sb.from('ledger_entries').delete().eq('source', 'payroll').eq('source_id', editRec.id);
+    if (accId) await sb.from('ledger_entries').insert({ account_id: accId, type: '支出', category: '薪資', amount: editRec.total_pay || 0, description: `薪資發放：${editEmp ? editEmp.name : ''} ${pYear}/${pMonth}`, entry_date: F('pay_date').value, source: 'payroll', source_id: editRec.id });
     toast('✅ 已記錄發放');
     renderPayBox();
   }
@@ -525,6 +535,7 @@
     if (editRec.paid_proof_path) await sb.storage.from('payroll-proofs').remove([editRec.paid_proof_path]);
     const { error } = await sb.from('payroll_records').update({ paid_at: null, paid_note: null, paid_proof_path: null }).eq('id', editRec.id);
     if (error) { toast('操作失敗：' + error.message, 'error'); return; }
+    await sb.from('ledger_entries').delete().eq('source', 'payroll').eq('source_id', editRec.id);
     editRec.paid_at = null; editRec.paid_note = null; editRec.paid_proof_path = null;
     renderPayBox();
   }
@@ -922,7 +933,7 @@
   F('p_qty').addEventListener('input', calcSub);
   F('p_cost').addEventListener('input', calcSub);
 
-  function openPurModal(id) {
+  async function openPurModal(id) {
     editPurId = id;
     const p = id ? purchases.find(x => x.id === id) : null;
     F('purModalTitle').textContent = p ? '編輯叫貨' : '新增叫貨';
@@ -942,6 +953,10 @@
     F('p_err').textContent = '';
     calcSub();
     F('p_delete').style.visibility = p ? 'visible' : 'hidden';
+    await ensureAccounts();
+    let accId = '';
+    if (p) { const { data: le } = await sb.from('ledger_entries').select('account_id').eq('source', 'purchase').eq('source_id', p.id).maybeSingle(); accId = le ? le.account_id : ''; }
+    F('p_account').innerHTML = accountOptions(accId);
     F('purModal').classList.add('show');
   }
 
@@ -960,16 +975,21 @@
       quantity: qty, unit: F('p_unit').value.trim() || null, unit_cost: cost, total_cost: qty * cost,
       supplier: F('p_supplier').value.trim() || null, note: F('p_note').value.trim() || null,
     };
-    let error;
-    if (editPurId) ({ error } = await sb.from('purchases').update(payload).eq('id', editPurId));
-    else ({ error } = await sb.from('purchases').insert(payload));
+    let saved, error;
+    if (editPurId) ({ data: saved, error } = await sb.from('purchases').update(payload).eq('id', editPurId).select().single());
+    else ({ data: saved, error } = await sb.from('purchases').insert(payload).select().single());
+    if (error) { btn.disabled = false; btn.textContent = '儲存'; F('p_err').textContent = '儲存失敗：' + error.message; return; }
+    // 連動帳本：選了付款帳戶就記一筆「支出・進貨」（重存先清舊的）
+    const accId = F('p_account').value;
+    await sb.from('ledger_entries').delete().eq('source', 'purchase').eq('source_id', saved.id);
+    if (accId) await sb.from('ledger_entries').insert({ account_id: accId, type: '支出', category: '進貨', amount: payload.total_cost, description: `叫貨：${payload.item_name}`, entry_date: payload.order_date, source: 'purchase', source_id: saved.id });
     btn.disabled = false; btn.textContent = '儲存';
-    if (error) { F('p_err').textContent = '儲存失敗：' + error.message; return; }
     F('purModal').classList.remove('show'); toast('✅ 已儲存'); loadInventory();
   });
 
   F('p_delete').addEventListener('click', async () => {
     if (!editPurId || !confirm('確定刪除這筆叫貨紀錄？')) return;
+    await sb.from('ledger_entries').delete().eq('source', 'purchase').eq('source_id', editPurId);
     const { error } = await sb.from('purchases').delete().eq('id', editPurId);
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
     F('purModal').classList.remove('show'); toast('已刪除'); loadInventory();
@@ -1324,6 +1344,17 @@
    * 7) 帳本（帳戶 + 分錄；薪資/叫貨可選帳戶扣款）
    * ========================================================== */
   let accounts = [], ledgerEntries = [], ledgerCats = [], editAccountId = null, editEntryId = null;
+
+  // 給薪資/叫貨的帳戶下拉用（若帳本尚未建立則回空）
+  async function ensureAccounts() {
+    if (accounts.length) return;
+    const { data } = await sb.from('accounts').select('*').eq('is_active', true).order('sort_order');
+    accounts = data || [];
+  }
+  function accountOptions(selectedId, emptyLabel) {
+    return `<option value="">${emptyLabel || '（不記帳）'}</option>` +
+      accounts.map(a => `<option value="${a.id}" ${a.id === selectedId ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('');
+  }
 
   async function loadLedger() {
     const [{ data: accs }, { data: ents }, { data: cats }] = await Promise.all([
