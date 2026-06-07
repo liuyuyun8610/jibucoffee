@@ -179,6 +179,11 @@
       </div>
 
       <div class="card">
+        <h2 class="card-h">我的補打卡申請</h2>
+        <div id="myReqList"><p class="muted faint">載入中…</p></div>
+      </div>
+
+      <div class="card">
         <h2 class="card-h">我的薪資條</h2>
         <div id="payslipList"><p class="muted faint">載入中…</p></div>
       </div>
@@ -260,6 +265,7 @@
       const name = b.dataset.nav;
       document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
       window.scrollTo(0, 0);
+      if (name === 'notify') markAllNotifRead();
     }));
 
     (async () => {
@@ -446,26 +452,61 @@
       const { data } = await sb.from('attendance_requests').select('*').eq('staff_id', me.id).order('created_at', { ascending: false }).limit(20);
       reqRecs = data || [];
       pendingReqCount = reqRecs.filter(r => r.status === 'pending').length;
+      renderMyReqs();
+    }
+    function renderMyReqs() {
+      const box = F('myReqList');
+      if (!box) return;
+      box.innerHTML = reqRecs.length ? reqRecs.map(r => {
+        const st = REQ_STATUS[r.status] || ['', r.status];
+        return `<div class="list-row" style="cursor:default">
+          <div><div style="font-weight:500">${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmm(r.requested_time)}</div>${r.reason ? `<div class="faint">${escapeHtml(r.reason)}</div>` : ''}</div>
+          <div class="flex" style="gap:8px;align-items:center"><span class="badge ${st[0]}">${st[1]}</span><button class="btn btn-danger btn-sm" data-delreq="${r.id}">刪除</button></div>
+        </div>`;
+      }).join('') : '<p class="muted faint">尚無補打卡申請。</p>';
+      box.querySelectorAll('[data-delreq]').forEach(b => b.addEventListener('click', () => deleteMyReq(b.dataset.delreq)));
+    }
+    async function deleteMyReq(id) {
+      if (!confirm('確定刪除這筆補打卡申請？')) return;
+      const { error } = await sb.from('attendance_requests').delete().eq('id', id);
+      if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+      toast('已刪除'); loadRequests().then(() => { renderTodo(); renderNotify(); });
     }
 
     /* ===== 通知 ===== */
-    function renderNotify() {
+    function buildNotifList() {
       const list = [];
       const canDaily = me.role === 'owner' || me.can_daily_close;
-      if (canDaily && !closedToday) list.push({ ic: '🧾', t: '今日大交班尚未完成', s: '下班前記得結帳' });
+      if (canDaily && !closedToday) list.push({ id: 'dc-' + todayStr(), ic: '🧾', t: '今日大交班尚未完成', s: '下班前記得結帳' });
       reqRecs.slice(0, 8).forEach(r => {
-        const st = REQ_STATUS[r.status] || ['', r.status];
         const txt = r.status === 'approved' ? '補打卡已核准' : r.status === 'rejected' ? '補打卡已駁回' : '補打卡審核中';
-        list.push({ ic: r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '⏳', t: txt, s: `${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmm(r.requested_time)}` });
+        list.push({ id: `req-${r.id}-${r.status}`, ic: r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '⏳', t: txt, s: `${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmm(r.requested_time)}` });
       });
-      F('notifyList').innerHTML = list.length ? list.map(n => `
-        <div class="todo">
+      return list;
+    }
+    function notifReadSet() { try { return new Set(JSON.parse(localStorage.getItem('jb_notif_read_' + me.id) || '[]')); } catch (e) { return new Set(); } }
+    function saveNotifRead(set) { try { localStorage.setItem('jb_notif_read_' + me.id, JSON.stringify([...set].slice(-100))); } catch (e) {} }
+    function renderNotify() {
+      const list = buildNotifList();
+      const read = notifReadSet();
+      F('notifyList').innerHTML = list.length ? list.map(n => {
+        const unread = !read.has(n.id);
+        return `<div class="todo">
           <span style="font-size:20px">${n.ic}</span>
-          <div class="t"><div>${escapeHtml(n.t)}</div><div class="s">${escapeHtml(n.s)}</div></div>
-        </div>`).join('') : '<p class="muted faint">目前沒有通知。</p>';
-      const unread = list.length;
+          <div class="t"><div>${escapeHtml(n.t)}${unread ? ' <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--danger);vertical-align:middle"></span>' : ''}</div><div class="s">${escapeHtml(n.s)}</div></div>
+        </div>`;
+      }).join('') : '<p class="muted faint">目前沒有通知。</p>';
+      const unread = list.filter(n => !read.has(n.id)).length;
       F('notifyBadge').classList.toggle('hidden', !unread);
       F('notifyBadge').textContent = unread;
+    }
+    function markAllNotifRead() {
+      const list = buildNotifList();
+      const read = notifReadSet();
+      let changed = false;
+      list.forEach(n => { if (!read.has(n.id)) { read.add(n.id); changed = true; } });
+      if (changed) saveNotifRead(read);
+      renderNotify();
     }
 
     /* ===== 個人資料 ===== */

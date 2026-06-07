@@ -1032,16 +1032,24 @@
         <div class="flex">
           <button class="btn btn-primary btn-sm" data-ok="${r.id}">核准</button>
           <button class="btn btn-ghost btn-sm" data-no="${r.id}">駁回</button>
+          <button class="btn btn-danger btn-sm" data-del="${r.id}">刪除</button>
         </div>
       </div>`).join('') : '<p class="muted faint">目前沒有待審核的申請 🎉</p>';
 
     F('reviewDone').innerHTML = done.length ? done.map(r => {
       const st = r.status === 'approved' ? '<span class="badge badge-ok">已核准</span>' : '<span class="badge badge-ded">已駁回</span>';
-      return `<div class="list-row" style="cursor:default"><div>${escapeHtml(nameOf(r.staff_id))}　${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmmIso(r.requested_time)}</div>${st}</div>`;
+      return `<div class="list-row" style="cursor:default"><div>${escapeHtml(nameOf(r.staff_id))}　${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmmIso(r.requested_time)}</div><div class="flex" style="gap:8px;align-items:center">${st}<button class="btn btn-danger btn-sm" data-del="${r.id}">刪除</button></div></div>`;
     }).join('') : '<p class="muted faint">尚無紀錄</p>';
 
     F('reviewPending').querySelectorAll('[data-ok]').forEach(b => b.addEventListener('click', () => approveReq(reviewMap[b.dataset.ok])));
     F('reviewPending').querySelectorAll('[data-no]').forEach(b => b.addEventListener('click', () => rejectReq(reviewMap[b.dataset.no])));
+    document.querySelectorAll('#reviewPending [data-del], #reviewDone [data-del]').forEach(b => b.addEventListener('click', () => deleteReq(reviewMap[b.dataset.del])));
+  }
+  async function deleteReq(req) {
+    if (!req || !confirm('確定刪除這筆補打卡申請？（不影響已核准寫入的打卡紀錄）')) return;
+    const { error } = await sb.from('attendance_requests').delete().eq('id', req.id);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    toast('已刪除'); loadReviews(); refreshReviewBadge();
   }
 
   async function approveReq(req) {

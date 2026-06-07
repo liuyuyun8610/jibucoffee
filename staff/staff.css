@@ -28,6 +28,7 @@ body {
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  touch-action: manipulation; /* 停掉雙擊放大，避免點月曆/按鈕誤觸縮放卡住；雙指縮放仍可用 */
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
