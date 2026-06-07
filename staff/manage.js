@@ -1135,14 +1135,14 @@
   }
   function renderShifts() {
     const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
-    const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+    const WEEK = ['一', '二', '三', '四', '五', '六', '日'];
     F('sm-sum').textContent = `・${shiftList.length} 個班`;
     const first = new Date(smYear, smMonth - 1, 1);
     const days = new Date(smYear, smMonth, 0).getDate();
     const now = new Date();
     const todayS = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     let html = WEEK.map(w => `<div class="cal-dow">${w}</div>`).join('');
-    for (let i = 0; i < first.getDay(); i++) html += '<div class="cal-cell pad"></div>';
+    for (let i = 0; i < (first.getDay() + 6) % 7; i++) html += '<div class="cal-cell pad"></div>';
     for (let d = 1; d <= days; d++) {
       const ds = `${smYear}-${String(smMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const chips = shiftList.filter(s => s.work_date === ds).map(s => {

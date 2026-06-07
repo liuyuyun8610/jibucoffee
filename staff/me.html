@@ -311,12 +311,12 @@
       renderMyShiftCal();
     }
     function renderMyShiftCal() {
-      const WEEK = ['日','一','二','三','四','五','六'];
+      const WEEK = ['一','二','三','四','五','六','日'];
       const first = new Date(msYear, msMonth - 1, 1);
       const days = new Date(msYear, msMonth, 0).getDate();
       const todayS = todayStr();
       let html = WEEK.map(w => `<div class="cal-dow">${w}</div>`).join('');
-      for (let i = 0; i < first.getDay(); i++) html += '<div class="cal-cell pad"></div>';
+      for (let i = 0; i < (first.getDay() + 6) % 7; i++) html += '<div class="cal-cell pad"></div>';
       for (let d = 1; d <= days; d++) {
         const ds = `${msYear}-${String(msMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const chips = myShifts.filter(s => s.work_date === ds).map(s => {
