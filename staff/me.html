@@ -412,7 +412,8 @@
       items.push({ done: inDone, t: inDone ? '已上班打卡 ' + hhmm(todayRec.clock_in) : '尚未上班打卡', s: inDone ? '' : '記得到「今日」打卡' });
       if (inDone) items.push({ done: outDone, t: outDone ? '已下班打卡 ' + hhmm(todayRec.clock_out) : '尚未下班打卡', s: '' });
       const canDaily = me.role === 'owner' || me.can_daily_close;
-      if (canDaily) items.push({ done: closedToday, t: closedToday ? '今日大交班已完成' : '今日大交班未完成', s: closedToday ? '' : '下班前到「店務」做大交班' });
+      // 有大交班權限 + 今日有被排班，才在待辦提醒做大交班
+      if (canDaily && myShiftToday) items.push({ done: closedToday, t: closedToday ? '今日大交班已完成' : '今日大交班未完成', s: closedToday ? '' : '下班前到「店務」做大交班' });
       if (pendingReqCount > 0) items.push({ done: false, t: `有 ${pendingReqCount} 筆補打卡待審核`, s: '等店長審核中' });
       F('todoList').innerHTML = items.map(i => `
         <div class="todo ${i.done ? 'done' : 'pending'}">
@@ -477,7 +478,7 @@
     function buildNotifList() {
       const list = [];
       const canDaily = me.role === 'owner' || me.can_daily_close;
-      if (canDaily && !closedToday) list.push({ id: 'dc-' + todayStr(), ic: '🧾', t: '今日大交班尚未完成', s: '下班前記得結帳' });
+      if (canDaily && myShiftToday && !closedToday) list.push({ id: 'dc-' + todayStr(), ic: '🧾', t: '今日大交班尚未完成', s: '下班前記得結帳' });
       reqRecs.slice(0, 8).forEach(r => {
         const txt = r.status === 'approved' ? '補打卡已核准' : r.status === 'rejected' ? '補打卡已駁回' : '補打卡審核中';
         list.push({ id: `req-${r.id}-${r.status}`, ic: r.status === 'approved' ? '✅' : r.status === 'rejected' ? '❌' : '⏳', t: txt, s: `${r.work_date.replace(/-/g,'/')} 補${KIND_LABEL[r.kind]} ${hhmm(r.requested_time)}` });
