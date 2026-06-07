@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
     await admin.from('cash_counts').upsert({
       count_date: cd, tray: b.tray || {}, safe: b.safe || {},
       tray_total: Number(b.tray_total) || 0, safe_total: Number(b.safe_total) || 0, total: Number(b.total) || 0,
+      linepay_total: Number(b.linepay_total) || 0, remit_total: Number(b.remit_total) || 0,
       note: b.note || null, counted_by: user.id, purchases: b.purchases || [],
     }, { onConflict: 'count_date' });
 
@@ -61,6 +62,16 @@ Deno.serve(async (req) => {
     };
     if (acTray && acSafe) { await recon(acTray, Number(b.tray_total) || 0); await recon(acSafe, Number(b.safe_total) || 0); }
     else if (payAcc) { await recon(payAcc, Number(b.total) || 0); }
+
+    // 6) 非現金收入：LINE Pay / 匯款 各自歸戶（後台 site_settings 設定的帳戶），記成收入分錄（不碰現金對帳）
+    const { data: cfg } = await admin.from('site_settings').select('linepay_account_id,remit_account_id').eq('id', 1).maybeSingle();
+    const nonCash = [
+      { amt: Number(b.linepay_total) || 0, acc: cfg?.linepay_account_id, cat: 'LINE Pay', desc: '大交班 LINE Pay 收入' },
+      { amt: Number(b.remit_total)   || 0, acc: cfg?.remit_account_id,   cat: '匯款',     desc: '大交班 匯款收入' },
+    ].filter(x => x.amt > 0 && x.acc);
+    if (nonCash.length) {
+      await admin.from('ledger_entries').insert(nonCash.map(x => ({ account_id: x.acc, type: '收入', category: x.cat, amount: x.amt, description: x.desc, entry_date: cd, source: 'daily' })));
+    }
 
     return json({ ok: true });
   } catch (e) {

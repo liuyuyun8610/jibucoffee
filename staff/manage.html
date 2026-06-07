@@ -173,6 +173,16 @@
       </div>
       <div id="accountCards" class="grid3" style="margin-bottom:20px"></div>
 
+      <div class="card" style="margin-bottom:20px">
+        <h2 class="card-h">收入歸戶設定</h2>
+        <p class="faint" style="margin-top:-6px">員工大交班填的 LINE Pay／匯款金額，會自動記入這裡指定的帳戶。設定後即固定，員工端不能改。</p>
+        <div class="grid2">
+          <div class="field"><label class="label">LINE Pay 收入歸戶</label><select class="input" id="rev_linepay"></select></div>
+          <div class="field"><label class="label">匯款收入歸戶</label><select class="input" id="rev_remit"></select></div>
+        </div>
+        <div class="flex" style="justify-content:flex-end"><span class="faint" id="rev_msg" style="margin-right:auto"></span><button class="btn btn-primary btn-sm" id="rev_save">儲存歸戶設定</button></div>
+      </div>
+
       <div class="row-between" style="margin-bottom:12px; gap:10px; flex-wrap:wrap">
         <div class="flex" style="flex-wrap:wrap; gap:8px">
           <select class="input" id="led_year" style="width:auto"></select>

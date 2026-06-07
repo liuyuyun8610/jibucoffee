@@ -94,6 +94,13 @@
           </div>
           <div class="kv mt16" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>今日店內現金</span><span id="dc_total" style="color:var(--accent-deep)">NT$0</span></div>
           <div class="divider"></div>
+          <p style="font-weight:600;margin:0 0 8px">今日非現金收入</p>
+          <div class="grid2">
+            <div class="field"><label class="label">LINE Pay 收入</label><input class="input" type="number" min="0" id="dc_linepay" placeholder="0"></div>
+            <div class="field"><label class="label">匯款收入</label><input class="input" type="number" min="0" id="dc_remit" placeholder="0"></div>
+          </div>
+          <p class="faint" style="margin-top:-4px">LINE Pay 與匯款會各自記入帳本對應帳戶（歸戶由後台設定），不影響現金對帳。</p>
+          <div class="divider"></div>
           <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="dc_has_purchase"> 今日有用現金（錢盤）採購／零用金支出？</label>
           <div id="dc_purchase_box" class="hidden mt8">
             <div id="dc_purchase_lines"></div>
@@ -440,6 +447,8 @@
       ]);
       dcStock = st || []; dcAccts = ac || [];
       if (data) DENOMS.forEach(d => { F('dc_tray_' + d).value = (data.tray && data.tray[d]) || ''; F('dc_safe_' + d).value = (data.safe && data.safe[d]) || ''; });
+      F('dc_linepay').value = data && data.linepay_total ? data.linepay_total : '';
+      F('dc_remit').value = data && data.remit_total ? data.remit_total : '';
       F('dc_note').value = data ? (data.note || '') : '';
       F('dc_purchase_lines').innerHTML = '';
       const pur = (data && data.purchases) || [];
@@ -473,10 +482,12 @@
       const { tray, safe } = dcCalc();
       const lines = collectDcLines();
       const purT = lines.reduce((s, l) => s + l.qty * l.cost, 0);
+      const linepay = Number(F('dc_linepay').value) || 0, remit = Number(F('dc_remit').value) || 0;
       F('dcConfirmBody').innerHTML = `
         <div class="kv"><span class="k">錢盤</span><span>${formatCurrency(tray)}</span></div>
         <div class="kv"><span class="k">金庫</span><span>${formatCurrency(safe)}</span></div>
         <div class="kv" style="font-weight:700;border-top:1px solid var(--line);padding-top:8px"><span>今日店內現金</span><span>${formatCurrency(tray + safe)}</span></div>
+        ${(linepay || remit) ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">非現金收入</p>' + (linepay ? `<div class="kv"><span class="k">LINE Pay</span><span>${formatCurrency(linepay)}</span></div>` : '') + (remit ? `<div class="kv"><span class="k">匯款</span><span>${formatCurrency(remit)}</span></div>` : '') : ''}
         ${lines.length ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">採購／零用金</p>' + lines.map(l => `<div class="kv"><span class="k">${escapeHtml(l.name)} ×${l.qty}</span><span>${formatCurrency(l.qty * l.cost)}</span></div>`).join('') + `<div class="kv faint"><span>採購合計</span><span>${formatCurrency(purT)}</span></div>` : ''}
         ${F('dc_note').value.trim() ? `<p class="faint mt8">備註：${escapeHtml(F('dc_note').value.trim())}</p>` : ''}
         <p class="faint mt8">確認無誤後送出，今日店內現金將更新為上面的金額。</p>`;
@@ -488,7 +499,7 @@
       DENOMS.forEach(d => { const t = Number(F('dc_tray_' + d).value) || 0, s = Number(F('dc_safe_' + d).value) || 0; if (t) trayObj[d] = t; if (s) safeObj[d] = s; });
       const lines = collectDcLines();
       const btn = F('dc_save'); btn.disabled = true; btn.textContent = '送出中…';
-      const { data, error } = await sb.functions.invoke('daily-close', { body: { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, note: F('dc_note').value.trim() || null, purchases: lines.map(l => ({ name: l.name, qty: l.qty })) } });
+      const { data, error } = await sb.functions.invoke('daily-close', { body: { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, linepay_total: Number(F('dc_linepay').value) || 0, remit_total: Number(F('dc_remit').value) || 0, note: F('dc_note').value.trim() || null, purchases: lines.map(l => ({ name: l.name, qty: l.qty })) } });
       btn.disabled = false; btn.textContent = '確認送出';
       if (error || (data && data.error)) { toast('儲存失敗：' + (data?.error || error.message), 'error'); return; }
       F('dcConfirmModal').classList.remove('show');
@@ -496,10 +507,10 @@
       closedToday = true; loadDailyClose(); renderTodo(); renderNotify();
     }
     async function loadDcHistory() {
-      const { data } = await sb.from('cash_counts').select('count_date,tray_total,safe_total,total').order('count_date', { ascending: false }).limit(14);
+      const { data } = await sb.from('cash_counts').select('count_date,tray_total,safe_total,total,linepay_total,remit_total').order('count_date', { ascending: false }).limit(14);
       const box = F('dc_history'); const recs = data || [];
       if (!recs.length) { box.innerHTML = '<p class="muted faint">尚無大交班紀錄。</p>'; return; }
-      box.innerHTML = recs.map(r => `<div class="list-row" style="cursor:default"><div><div style="font-weight:500">${r.count_date.replace(/-/g,'/')}</div><div class="faint">錢盤 ${formatCurrency(r.tray_total)}・金庫 ${formatCurrency(r.safe_total)}</div></div><span style="font-weight:600">${formatCurrency(r.total)}</span></div>`).join('');
+      box.innerHTML = recs.map(r => { const lp = Number(r.linepay_total) || 0, rm = Number(r.remit_total) || 0; const extra = [lp ? 'LINE Pay ' + formatCurrency(lp) : '', rm ? '匯款 ' + formatCurrency(rm) : ''].filter(Boolean).join('・'); return `<div class="list-row" style="cursor:default"><div><div style="font-weight:500">${r.count_date.replace(/-/g,'/')}</div><div class="faint">錢盤 ${formatCurrency(r.tray_total)}・金庫 ${formatCurrency(r.safe_total)}${extra ? '・' + extra : ''}</div></div><span style="font-weight:600">${formatCurrency(r.total)}</span></div>`; }).join('');
     }
   </script>
 </body>

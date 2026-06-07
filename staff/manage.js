@@ -1389,7 +1389,7 @@
   /* ============================================================
    * 7) 帳本（帳戶 + 分錄；薪資/叫貨可選帳戶扣款）
    * ========================================================== */
-  let accounts = [], ledgerEntries = [], ledgerCats = [], editAccountId = null, editEntryId = null;
+  let accounts = [], ledgerEntries = [], ledgerCats = [], editAccountId = null, editEntryId = null, revSettings = {};
 
   // 給薪資/叫貨的帳戶下拉用（若帳本尚未建立則回空）
   async function ensureAccounts() {
@@ -1403,17 +1403,34 @@
   }
 
   async function loadLedger() {
-    const [{ data: accs }, { data: ents }, { data: cats }] = await Promise.all([
+    const [{ data: accs }, { data: ents }, { data: cats }, { data: cfg }] = await Promise.all([
       sb.from('accounts').select('*').order('sort_order').order('created_at'),
       sb.from('ledger_entries').select('*').order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
       sb.from('ledger_categories').select('*').order('kind').order('sort_order'),
+      sb.from('site_settings').select('linepay_account_id,remit_account_id').eq('id', 1).maybeSingle(),
     ]);
-    accounts = accs || []; ledgerEntries = ents || []; ledgerCats = cats || [];
+    accounts = accs || []; ledgerEntries = ents || []; ledgerCats = cats || []; revSettings = cfg || {};
     fillYearSelect(F('led_year'), ledgerEntries.map(e => e.entry_date), F('led_year').value);
     F('led_account').innerHTML = '<option value="">全部帳戶</option>' + accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
     renderAccounts();
+    renderRevenueSettings();
     renderLedger();
   }
+  function renderRevenueSettings() {
+    const opts = sel => '<option value="">（不記帳）</option>' + accounts.map(a => `<option value="${a.id}" ${a.id === sel ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('');
+    F('rev_linepay').innerHTML = opts(revSettings.linepay_account_id);
+    F('rev_remit').innerHTML = opts(revSettings.remit_account_id);
+    F('rev_msg').textContent = '';
+  }
+  F('rev_save').addEventListener('click', async () => {
+    const btn = F('rev_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const { error } = await sb.from('site_settings').update({ linepay_account_id: F('rev_linepay').value || null, remit_account_id: F('rev_remit').value || null }).eq('id', 1);
+    btn.disabled = false; btn.textContent = '儲存歸戶設定';
+    if (error) { F('rev_msg').textContent = '儲存失敗：' + error.message; return; }
+    revSettings.linepay_account_id = F('rev_linepay').value || null;
+    revSettings.remit_account_id = F('rev_remit').value || null;
+    F('rev_msg').textContent = '✅ 已儲存'; toast('✅ 歸戶設定已更新');
+  });
   function accountBalance(id) {
     const a = accounts.find(x => x.id === id); if (!a) return 0;
     let bal = Number(a.initial_balance || 0);
