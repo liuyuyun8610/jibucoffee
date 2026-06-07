@@ -72,13 +72,13 @@ a:hover { text-decoration: underline; }
 
 /* 子分頁（人事管理內）*/
 .subtabs { margin-bottom: 18px; }
-.subtab {
+.subtab, .fsubtab {
   padding: 7px 14px; font-size: 13px; color: var(--ink-soft); white-space: nowrap;
   border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
   margin-bottom: -1px; font-family: var(--f-sans);
 }
-.subtab:hover { color: var(--ink); }
-.subtab.active { color: var(--accent-deep); border-bottom-color: var(--accent); font-weight: 500; }
+.subtab:hover, .fsubtab:hover { color: var(--ink); }
+.subtab.active, .fsubtab.active { color: var(--accent-deep); border-bottom-color: var(--accent); font-weight: 500; }
 
 /* ── 卡片 ─────────────────────────────────────────── */
 .card {

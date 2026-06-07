@@ -12,7 +12,9 @@
 
   // 分頁切換
   function writeHash(tab, sub) {
-    const h = tab === 'people' ? `people${sub && sub !== 'hr' ? ':' + sub : ''}` : tab;
+    let h = tab;
+    if (tab === 'people') h = `people${sub && sub !== 'hr' ? ':' + sub : ''}`;
+    else if (tab === 'finance') h = `finance${sub && sub !== 'ledger' ? ':' + sub : ''}`;
     if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
   }
   function currentSub() {
@@ -30,23 +32,34 @@
     if (name === 'announce') loadAnnounce();
     writeHash('people', name);
   }
+  // 財務分頁的子分頁（帳本 / 財務報表 / 財務設定）
+  let curFsub = 'ledger';
+  function activateFsub(name) {
+    if (!document.querySelector(`.fsubtab[data-fsub="${name}"]`)) name = 'ledger';
+    curFsub = name;
+    document.querySelectorAll('.fsubtab').forEach(x => x.classList.toggle('active', x.dataset.fsub === name));
+    document.querySelectorAll('[data-fsubpane]').forEach(p => p.classList.toggle('hidden', p.dataset.fsubpane !== name));
+    if (name === 'ledger' || name === 'finset') loadLedger(); // 兩者都要帳戶清單（歸戶下拉）
+    if (name === 'reports') loadReports();
+    writeHash('finance', name);
+  }
   function activateTab(name, sub) {
     if (!document.querySelector(`.tab[data-tab="${name}"]`)) name = 'people';
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     if (name === 'revenue') loadRevenue();
-    if (name === 'ledger') loadLedger();
-    if (name === 'reports') loadReports();
     if (name === 'handover') loadHandover();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
     if (name === 'insights') loadInsights();
     if (name === 'people') activateSub(sub || currentSub());
+    else if (name === 'finance') activateFsub(sub || curFsub);
     else writeHash(name);
   }
 
   document.querySelectorAll('.tab[data-tab]').forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
   document.querySelectorAll('.subtab').forEach(t => t.addEventListener('click', () => activateSub(t.dataset.sub)));
+  document.querySelectorAll('.fsubtab').forEach(t => t.addEventListener('click', () => activateFsub(t.dataset.fsub)));
 
   (async () => {
     const auth = await requireAuth({ role: 'owner' });

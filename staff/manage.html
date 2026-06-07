@@ -30,8 +30,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="people">人事管理</button>
       <button class="tab" data-tab="revenue">營收預測</button>
-      <button class="tab" data-tab="ledger">帳本</button>
-      <button class="tab" data-tab="reports">財務報表</button>
+      <button class="tab" data-tab="finance">財務</button>
       <button class="tab" data-tab="handover">大交班</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
       <button class="tab" data-tab="maintenance">維運紀錄</button>
@@ -177,47 +176,78 @@
     </section>
 
     <!-- ===== 帳本 ===== -->
-    <section data-pane="ledger" class="hidden">
-      <div class="row-between" style="margin-bottom:12px">
-        <h2 class="card-h" style="margin:0">帳戶</h2>
-        <button class="btn btn-ghost btn-sm" id="addAccount">＋ 新增帳戶</button>
+    <!-- ===== 財務（帳本 / 財務報表 / 財務設定）===== -->
+    <section data-pane="finance" class="hidden">
+      <div class="tabs subtabs">
+        <button class="fsubtab active" data-fsub="ledger">帳本</button>
+        <button class="fsubtab" data-fsub="reports">財務報表</button>
+        <button class="fsubtab" data-fsub="finset">財務設定</button>
       </div>
-      <div id="accountCards" class="grid3" style="margin-bottom:20px"></div>
 
-      <div class="card" style="margin-bottom:20px">
-        <h2 class="card-h">收入歸戶設定</h2>
-        <p class="faint" style="margin-top:-6px">員工大交班填的 LINE Pay／匯款金額，會自動記入這裡指定的帳戶。設定後即固定，員工端不能改。</p>
-        <div class="grid2">
-          <div class="field"><label class="label">LINE Pay 收入歸戶</label><select class="input" id="rev_linepay"></select></div>
-          <div class="field"><label class="label">匯款收入歸戶</label><select class="input" id="rev_remit"></select></div>
+      <!-- 帳本 -->
+      <div data-fsubpane="ledger">
+        <div class="row-between" style="margin-bottom:12px">
+          <h2 class="card-h" style="margin:0">帳戶</h2>
+          <button class="btn btn-ghost btn-sm" id="addAccount">＋ 新增帳戶</button>
         </div>
-        <div class="flex" style="justify-content:flex-end"><span class="faint" id="rev_msg" style="margin-right:auto"></span><button class="btn btn-primary btn-sm" id="rev_save">儲存歸戶設定</button></div>
+        <div id="accountCards" class="grid3" style="margin-bottom:20px"></div>
+
+        <div class="row-between" style="margin-bottom:12px; gap:10px; flex-wrap:wrap">
+          <div class="flex" style="flex-wrap:wrap; gap:8px">
+            <select class="input" id="led_year" style="width:auto"></select>
+            <select class="input" id="led_month" style="width:auto">
+              <option value="all">全月</option>
+              <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+              <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+              <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+              <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+            </select>
+            <select class="input" id="led_account" style="width:auto"><option value="">全部帳戶</option></select>
+            <span class="faint" id="led_sum"></span>
+          </div>
+          <div class="flex">
+            <button class="btn btn-ghost btn-sm" id="viewLogs">異動紀錄</button>
+            <button class="btn btn-primary btn-sm" id="addEntry">＋ 新增分錄</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="overflow-x:auto">
+            <table class="tbl" id="ledTable">
+              <thead><tr><th>日期</th><th>帳戶</th><th>類型</th><th>分類</th><th class="num">金額</th><th>說明</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <div class="row-between" style="margin-bottom:12px; gap:10px; flex-wrap:wrap">
-        <div class="flex" style="flex-wrap:wrap; gap:8px">
-          <select class="input" id="led_year" style="width:auto"></select>
-          <select class="input" id="led_month" style="width:auto">
-            <option value="all">全月</option>
+      <!-- 財務報表 -->
+      <div data-fsubpane="reports" class="hidden">
+        <div class="flex" style="margin-bottom:16px; gap:8px; flex-wrap:wrap">
+          <select class="input" id="rep_year" style="width:auto"></select>
+          <select class="input" id="rep_month" style="width:auto">
+            <option value="all">全年</option>
             <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
             <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
             <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
             <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
           </select>
-          <select class="input" id="led_account" style="width:auto"><option value="">全部帳戶</option></select>
-          <span class="faint" id="led_sum"></span>
+          <span class="faint" id="rep_hint"></span>
         </div>
-        <div class="flex">
-          <button class="btn btn-ghost btn-sm" id="viewLogs">異動紀錄</button>
-          <button class="btn btn-primary btn-sm" id="addEntry">＋ 新增分錄</button>
-        </div>
+        <div class="card"><h2 class="card-h">損益表 <span class="faint" id="rep_pl_period"></span></h2><div id="rep_pl"></div></div>
+        <div class="card"><h2 class="card-h">現金流量表</h2><div id="rep_cf"></div></div>
+        <div class="card"><h2 class="card-h">資產負債表 <span class="faint">（期末）</span></h2><div id="rep_bs"></div></div>
       </div>
-      <div class="card">
-        <div style="overflow-x:auto">
-          <table class="tbl" id="ledTable">
-            <thead><tr><th>日期</th><th>帳戶</th><th>類型</th><th>分類</th><th class="num">金額</th><th>說明</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
+
+      <!-- 財務設定（歸戶）-->
+      <div data-fsubpane="finset" class="hidden">
+        <div class="card">
+          <h2 class="card-h">收入歸戶設定</h2>
+          <p class="faint" style="margin-top:-6px">員工大交班填的 LINE Pay／匯款金額，會自動記入這裡指定的帳戶。設定後即固定，員工端不能改。</p>
+          <div class="grid2">
+            <div class="field"><label class="label">LINE Pay 收入歸戶</label><select class="input" id="rev_linepay"></select></div>
+            <div class="field"><label class="label">匯款收入歸戶</label><select class="input" id="rev_remit"></select></div>
+          </div>
+          <div class="flex" style="justify-content:flex-end"><span class="faint" id="rev_msg" style="margin-right:auto"></span><button class="btn btn-primary btn-sm" id="rev_save">儲存歸戶設定</button></div>
         </div>
       </div>
     </section>
@@ -254,23 +284,6 @@
       </div>
     </div>
 
-    <!-- ===== 財務報表 ===== -->
-    <section data-pane="reports" class="hidden">
-      <div class="flex" style="margin-bottom:16px; gap:8px; flex-wrap:wrap">
-        <select class="input" id="rep_year" style="width:auto"></select>
-        <select class="input" id="rep_month" style="width:auto">
-          <option value="all">全年</option>
-          <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
-          <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
-          <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
-          <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
-        </select>
-        <span class="faint" id="rep_hint"></span>
-      </div>
-      <div class="card"><h2 class="card-h">損益表 <span class="faint" id="rep_pl_period"></span></h2><div id="rep_pl"></div></div>
-      <div class="card"><h2 class="card-h">現金流量表</h2><div id="rep_cf"></div></div>
-      <div class="card"><h2 class="card-h">資產負債表 <span class="faint">（期末）</span></h2><div id="rep_bs"></div></div>
-    </section>
 
     <!-- ===== 庫存叫貨 ===== -->
     <section data-pane="inventory" class="hidden">
