@@ -40,6 +40,7 @@
     document.querySelectorAll('.fsubtab').forEach(x => x.classList.toggle('active', x.dataset.fsub === name));
     document.querySelectorAll('[data-fsubpane]').forEach(p => p.classList.toggle('hidden', p.dataset.fsubpane !== name));
     if (name === 'ledger' || name === 'finset') loadLedger(); // 兩者都要帳戶清單（歸戶下拉）
+    if (name === 'handover') loadHandover();
     if (name === 'reports') loadReports();
     writeHash('finance', name);
   }
@@ -48,7 +49,6 @@
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     if (name === 'revenue') loadRevenue();
-    if (name === 'handover') loadHandover();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
     if (name === 'insights') loadInsights();
