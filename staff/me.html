@@ -138,7 +138,7 @@
           </div>
         </div>
         <div class="cal-grid" id="myShiftCal"></div>
-        <p class="faint mt8">顯示全店班表，<span style="color:var(--accent-deep);font-weight:600">深色標籤</span>是您自己的班。</p>
+        <p class="faint mt8">顯示全店班表，<span style="color:var(--accent-deep);font-weight:600">深色標籤</span>是您自己的班。點任一天可看當天時間明細。</p>
       </div>
 
       <div class="card">
@@ -223,6 +223,15 @@
     </div>
   </div>
 
+  <!-- 當日班表明細 modal -->
+  <div class="modal-mask" id="dayShiftModal">
+    <div class="modal">
+      <h3 class="modal-h" id="dayShiftTitle">班表</h3>
+      <div id="dayShiftBody"></div>
+      <div class="row-between mt16"><span></span><button class="btn btn-primary" id="dayShiftClose">關閉</button></div>
+    </div>
+  </div>
+
   <!-- 大交班確認 modal -->
   <div class="modal-mask" id="dcConfirmModal">
     <div class="modal">
@@ -300,6 +309,8 @@
       const d = new Date(); msYear = d.getFullYear(); msMonth = d.getMonth() + 1;
       F('ms-prev').addEventListener('click', () => { msMonth--; if (msMonth < 1) { msMonth = 12; msYear--; } loadMyShifts(); });
       F('ms-next').addEventListener('click', () => { msMonth++; if (msMonth > 12) { msMonth = 1; msYear++; } loadMyShifts(); });
+      F('dayShiftClose').addEventListener('click', () => F('dayShiftModal').classList.remove('show'));
+      F('dayShiftModal').addEventListener('click', e => { if (e.target === F('dayShiftModal')) F('dayShiftModal').classList.remove('show'); });
       const { data: roster } = await sb.rpc('staff_roster');
       (roster || []).forEach(r => { rosterNames[r.id] = r.name; });
       loadMyShifts();
@@ -325,15 +336,28 @@
         const ds = `${msYear}-${String(msMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         // 自己的排前面，方便一眼看到
         const list = myShifts.filter(s => s.work_date === ds).sort((a, b) => (a.staff_id === me.id ? 0 : 1) - (b.staff_id === me.id ? 0 : 1));
-        const chips = list.map(s => {
-          const mine = s.staff_id === me.id;
-          const nm = nameOf(s.staff_id);
-          const t = `${s.start_time || ''}${s.end_time ? '~' + s.end_time : ''}`;
-          return `<div class="cal-chip${mine ? ' me' : ''}" title="${escapeHtml(nm)} ${t}${s.note ? ' ' + escapeHtml(s.note) : ''}">${escapeHtml(nm)}${s.start_time ? ' ' + s.start_time : ''}</div>`;
-        }).join('');
-        html += `<div class="cal-cell${ds === todayS ? ' today' : ''}"><div class="cal-dnum">${d}</div>${chips}</div>`;
+        // 格子只放人名，時間點進去看（手機才看得清）
+        const chips = list.map(s => `<div class="cal-chip${s.staff_id === me.id ? ' me' : ''}">${escapeHtml(nameOf(s.staff_id))}</div>`).join('');
+        const clickable = list.length ? ' clickable' : '';
+        html += `<div class="cal-cell${ds === todayS ? ' today' : ''}${clickable}"${list.length ? ` data-day="${ds}"` : ''}><div class="cal-dnum">${d}</div>${chips}</div>`;
       }
       F('myShiftCal').innerHTML = html;
+      F('myShiftCal').querySelectorAll('[data-day]').forEach(el => el.addEventListener('click', () => openDayShifts(el.dataset.day)));
+    }
+    function openDayShifts(ds) {
+      const WEEK = ['日','一','二','三','四','五','六'];
+      const nameOf = id => rosterNames[id] || (id === me.id ? me.name : '');
+      const list = myShifts.filter(s => s.work_date === ds).sort((a, b) => (a.staff_id === me.id ? 0 : 1) - (b.staff_id === me.id ? 0 : 1));
+      F('dayShiftTitle').textContent = `${ds.replace(/-/g,'/').slice(5)}（${WEEK[new Date(ds).getDay()]}）班表`;
+      F('dayShiftBody').innerHTML = list.length ? list.map(s => {
+        const mine = s.staff_id === me.id;
+        const t = `${s.start_time || ''}${s.end_time ? ' ~ ' + s.end_time : ''}` || '未填時間';
+        return `<div class="kv" style="padding:8px 0;border-bottom:1px solid var(--line-soft)">
+          <span class="k" style="font-weight:${mine ? '700' : '500'};color:${mine ? 'var(--accent-deep)' : 'var(--ink)'}">${escapeHtml(nameOf(s.staff_id))}${mine ? '（我）' : ''}</span>
+          <span style="text-align:right">${t || '未填時間'}${s.note ? `<br><span class="faint">${escapeHtml(s.note)}</span>` : ''}</span>
+        </div>`;
+      }).join('') : '<p class="muted faint">當天無排班</p>';
+      F('dayShiftModal').classList.add('show');
     }
     async function loadAttendance() {
       const d = new Date();
