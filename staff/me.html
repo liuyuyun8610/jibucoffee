@@ -129,6 +129,18 @@
       </div>
 
       <div class="card">
+        <div class="row-between" style="margin-bottom:12px">
+          <h2 class="card-h" style="margin:0">本月班表</h2>
+          <div class="month-nav">
+            <button id="ms-prev" type="button">‹</button>
+            <div style="min-width:96px;text-align:center;font-weight:600" id="ms-label">—</div>
+            <button id="ms-next" type="button">›</button>
+          </div>
+        </div>
+        <div class="cal-grid" id="myShiftCal"></div>
+      </div>
+
+      <div class="card">
         <div class="row-between" style="margin-bottom:8px"><h2 class="card-h" style="margin:0">個人資料</h2><button class="btn btn-ghost btn-sm" id="editProfileToggle">編輯</button></div>
         <div id="profileView"></div>
         <div id="profileEdit" class="hidden">
@@ -258,6 +270,7 @@
       await loadAttendance();
       await loadRequests();
       await loadShiftToday();
+      initMyShiftCal();
       loadPayslips();
       renderStoreTiles(canDaily);
       renderTodo();
@@ -278,6 +291,41 @@
       const { data } = await sb.from('shifts').select('*').eq('staff_id', me.id).eq('work_date', todayStr()).maybeSingle();
       myShiftToday = data;
       F('clk-shift').textContent = data ? `今日班別 ${data.start_time || ''}${data.end_time ? ' ~ ' + data.end_time : ''}${data.note ? '（' + data.note + '）' : ''}` : '今日無排班';
+    }
+
+    /* ===== 本月班表（員工看自己的，格子月曆）===== */
+    let msYear, msMonth, myShifts = [];
+    function initMyShiftCal() {
+      const d = new Date(); msYear = d.getFullYear(); msMonth = d.getMonth() + 1;
+      F('ms-prev').addEventListener('click', () => { msMonth--; if (msMonth < 1) { msMonth = 12; msYear--; } loadMyShifts(); });
+      F('ms-next').addEventListener('click', () => { msMonth++; if (msMonth > 12) { msMonth = 1; msYear++; } loadMyShifts(); });
+      loadMyShifts();
+    }
+    async function loadMyShifts() {
+      F('ms-label').textContent = `${msYear}年${msMonth}月`;
+      const start = `${msYear}-${String(msMonth).padStart(2,'0')}-01`;
+      const endD = new Date(msYear, msMonth, 0);
+      const endStr = `${endD.getFullYear()}-${String(endD.getMonth()+1).padStart(2,'0')}-${String(endD.getDate()).padStart(2,'0')}`;
+      const { data } = await sb.from('shifts').select('*').eq('staff_id', me.id).gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time');
+      myShifts = data || [];
+      renderMyShiftCal();
+    }
+    function renderMyShiftCal() {
+      const WEEK = ['日','一','二','三','四','五','六'];
+      const first = new Date(msYear, msMonth - 1, 1);
+      const days = new Date(msYear, msMonth, 0).getDate();
+      const todayS = todayStr();
+      let html = WEEK.map(w => `<div class="cal-dow">${w}</div>`).join('');
+      for (let i = 0; i < first.getDay(); i++) html += '<div class="cal-cell pad"></div>';
+      for (let d = 1; d <= days; d++) {
+        const ds = `${msYear}-${String(msMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const chips = myShifts.filter(s => s.work_date === ds).map(s => {
+          const t = `${s.start_time || ''}${s.end_time ? '~' + s.end_time : ''}`;
+          return `<div class="cal-chip me" title="${t}${s.note ? ' '+escapeHtml(s.note) : ''}">${t || '上班'}${s.note ? ' '+escapeHtml(s.note) : ''}</div>`;
+        }).join('');
+        html += `<div class="cal-cell${ds === todayS ? ' today' : ''}"><div class="cal-dnum">${d}</div>${chips}</div>`;
+      }
+      F('myShiftCal').innerHTML = html;
     }
     async function loadAttendance() {
       const d = new Date();

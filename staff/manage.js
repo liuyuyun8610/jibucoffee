@@ -1137,25 +1137,32 @@
     const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
     const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
     F('sm-sum').textContent = `・${shiftList.length} 個班`;
-    const tb = F('shiftTable').querySelector('tbody');
-    tb.innerHTML = shiftList.length ? shiftList.map(s => `
-      <tr data-id="${s.id}" style="cursor:pointer">
-        <td style="white-space:nowrap">${s.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(s.work_date).getDay()]})</td>
-        <td>${escapeHtml(nameOf(s.staff_id))}</td>
-        <td style="white-space:nowrap">${s.start_time || ''}${s.end_time ? ' ~ ' + s.end_time : ''}</td>
-        <td class="faint">${escapeHtml(s.note || '')}</td>
-        <td class="num faint">編輯 ›</td>
-      </tr>`).join('') : '<tr><td colspan="5" class="muted faint">本月尚未排班，點右上「排班」新增</td></tr>';
-    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openShiftModal(tr.dataset.id)));
+    const first = new Date(smYear, smMonth - 1, 1);
+    const days = new Date(smYear, smMonth, 0).getDate();
+    const now = new Date();
+    const todayS = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    let html = WEEK.map(w => `<div class="cal-dow">${w}</div>`).join('');
+    for (let i = 0; i < first.getDay(); i++) html += '<div class="cal-cell pad"></div>';
+    for (let d = 1; d <= days; d++) {
+      const ds = `${smYear}-${String(smMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const chips = shiftList.filter(s => s.work_date === ds).map(s => {
+        const t = `${s.start_time || ''}${s.end_time ? '~' + s.end_time : ''}`;
+        return `<div class="cal-chip click" data-shift="${s.id}" title="${escapeHtml(nameOf(s.staff_id))} ${t}">${escapeHtml(nameOf(s.staff_id))}${s.start_time ? ' ' + s.start_time : ''}</div>`;
+      }).join('');
+      html += `<div class="cal-cell clickable${ds === todayS ? ' today' : ''}" data-add="${ds}"><div class="cal-dnum">${d}</div>${chips}</div>`;
+    }
+    F('shiftCal').innerHTML = html;
+    F('shiftCal').querySelectorAll('[data-shift]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openShiftModal(el.dataset.shift); }));
+    F('shiftCal').querySelectorAll('[data-add]').forEach(el => el.addEventListener('click', () => openShiftModal(null, el.dataset.add)));
   }
-  function openShiftModal(id) {
+  function openShiftModal(id, presetDate) {
     editShiftId = id;
     const s = id ? shiftList.find(x => x.id === id) : null;
     F('shiftModalTitle').textContent = s ? '編輯班次' : '排班';
     F('sh_staff').innerHTML = staffList.filter(x => x.is_active !== false)
       .map(x => `<option value="${x.id}">${escapeHtml(x.name)}${x.employ_type === 'PT' ? '（PT）' : ''}</option>`).join('');
     F('sh_staff').value = s ? s.staff_id : (staffList[0] ? staffList[0].id : '');
-    F('sh_date').value = s ? s.work_date : `${smYear}-${String(smMonth).padStart(2, '0')}-01`;
+    F('sh_date').value = s ? s.work_date : (presetDate || `${smYear}-${String(smMonth).padStart(2, '0')}-01`);
     F('sh_start').value = s ? (s.start_time || '') : '';
     F('sh_end').value = s ? (s.end_time || '') : '';
     F('sh_note').value = s ? (s.note || '') : '';
