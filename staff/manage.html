@@ -47,6 +47,7 @@
         <button class="subtab" data-sub="attend">出勤</button>
         <button class="subtab" data-sub="shifts">班表</button>
         <button class="subtab" data-sub="reviews">打卡審核<span id="revBadge"></span></button>
+        <button class="subtab" data-sub="announce">公告</button>
       </div>
 
       <!-- 員工資料 -->
@@ -135,6 +136,20 @@
         <div class="card">
           <h2 class="card-h">最近已審核</h2>
           <div id="reviewDone"></div>
+        </div>
+      </div>
+
+      <!-- 公告 -->
+      <div data-subpane="announce" class="hidden">
+        <div class="card">
+          <h2 class="card-h">員工公告</h2>
+          <p class="faint" style="margin-top:-6px">顯示在員工 App 首頁最上方。重新發布後，員工需再次點「我已閱讀」確認。</p>
+          <textarea class="input" id="annText" rows="5" placeholder="輸入公告內容，留空＝不顯示公告"></textarea>
+          <div class="flex" style="justify-content:flex-end;margin-top:10px;gap:10px;align-items:center"><span class="faint" id="annMsg" style="margin-right:auto"></span><button class="btn btn-ghost btn-sm" id="annClear">清空公告</button><button class="btn btn-primary btn-sm" id="annSave">發布公告</button></div>
+        </div>
+        <div class="card">
+          <h2 class="card-h">已讀確認 <span class="faint" id="annAckSum"></span></h2>
+          <div id="annAckList"><p class="muted faint">載入中…</p></div>
         </div>
       </div>
     </section>

@@ -27,6 +27,7 @@
     if (name === 'reviews') loadReviews();
     if (name === 'attend') loadAttendanceSummary();
     if (name === 'shifts') loadShifts();
+    if (name === 'announce') loadAnnounce();
     writeHash('people', name);
   }
   function activateTab(name, sub) {
@@ -1071,6 +1072,43 @@
     if (error) { toast('操作失敗：' + error.message, 'error'); return; }
     toast('已駁回'); loadReviews(); refreshReviewBadge();
   }
+
+  /* ============================================================
+   * 5d) 員工公告（老闆發布；員工首頁確認已讀）
+   * ========================================================== */
+  let annAt = null;
+  async function loadAnnounce() {
+    const { data } = await sb.from('site_settings').select('staff_announcement,staff_announcement_at').eq('id', 1).maybeSingle();
+    F('annText').value = (data && data.staff_announcement) || '';
+    annAt = (data && data.staff_announcement_at) || null;
+    F('annMsg').textContent = '';
+    renderAckList();
+  }
+  async function renderAckList() {
+    if (!annAt) { F('annAckSum').textContent = ''; F('annAckList').innerHTML = '<p class="muted faint">尚未發布公告。</p>'; return; }
+    const { data } = await sb.from('announcement_acks').select('staff_id,ack_at').eq('announced_at', annAt);
+    const acks = data || [];
+    const active = staffList.filter(s => s.is_active !== false);
+    F('annAckSum').textContent = `・${acks.length}/${active.length} 已讀`;
+    F('annAckList').innerHTML = active.length ? active.map(s => {
+      const a = acks.find(x => x.staff_id === s.id);
+      return `<div class="list-row" style="cursor:default"><div>${escapeHtml(s.name)}</div>${a ? `<span class="badge badge-ok">已讀 ${new Date(a.ack_at).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>` : '<span class="badge badge-wait">未讀</span>'}</div>`;
+    }).join('') : '<p class="muted faint">尚無員工</p>';
+  }
+  async function saveAnnounce(clear) {
+    const txt = clear ? '' : F('annText').value.trim();
+    const btn = F('annSave'); btn.disabled = true; btn.textContent = '發布中…';
+    const at = new Date().toISOString();
+    const { error } = await sb.from('site_settings').update({ staff_announcement: txt || null, staff_announcement_at: txt ? at : null }).eq('id', 1);
+    btn.disabled = false; btn.textContent = '發布公告';
+    if (error) { F('annMsg').textContent = '失敗：' + error.message; return; }
+    if (clear) F('annText').value = '';
+    annAt = txt ? at : null;
+    F('annMsg').textContent = txt ? '✅ 已發布，員工需重新確認' : '✅ 已清空公告';
+    toast(txt ? '✅ 公告已發布' : '已清空公告'); renderAckList();
+  }
+  F('annSave').addEventListener('click', () => saveAnnounce(false));
+  F('annClear').addEventListener('click', () => { if (confirm('確定清空公告？員工首頁將不再顯示。')) saveAnnounce(true); });
 
   /* ============================================================
    * 5b) 出勤總表（老闆看全部員工）
