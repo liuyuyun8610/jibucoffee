@@ -10,8 +10,12 @@
     .cat-title { font-family: var(--f-serif); font-size: 16px; font-weight: 600; color: var(--accent-deep); margin: 24px 0 10px; display: flex; align-items: baseline; gap: 8px; }
     .cat-title .en { font-family: var(--f-en); font-size: 12px; color: var(--ink-faint); letter-spacing: 1px; }
     .rec { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; overflow: hidden; background: #fff; }
-    .rec-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 15px; cursor: pointer; }
-    .rec-head .nm { font-weight: 500; }
+    .rec-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 13px 15px; cursor: pointer; }
+    .rec-head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .rec-head .nm { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .drag-handle { cursor: grab; color: var(--ink-faint); font-size: 16px; line-height: 1; touch-action: none; user-select: none; flex: none; }
+    .drag-handle:active { cursor: grabbing; }
+    .rec.dragging { opacity: .55; box-shadow: 0 8px 22px rgba(0,0,0,.14); }
     .rec-head .meta { font-size: 12px; color: var(--ink-faint); }
     .rec-body { padding: 0 15px 14px; border-top: 1px solid var(--line-soft); }
     .rec-body.empty .content { color: var(--ink-faint); font-style: italic; }
@@ -115,13 +119,19 @@
         if (!(key in idx)) { idx[key] = groups.length; groups.push({ key, items: [] }); }
         groups[idx[key]].items.push(r);
       });
+      // 預設全部收合；搜尋時才展開符合的品項
+      const collapsed = q ? '' : 'collapsed';
       F('list').innerHTML = groups.map(g => `
         <div class="cat-title">${escapeHtml(g.key)}</div>
+        <div class="cat-items" data-cat="${escapeHtml(g.key)}">
         ${g.items.map(r => {
           const empty = !r.content || !r.content.trim();
-          return `<div class="rec ${empty && !q ? 'collapsed' : ''}" data-id="${r.id}">
+          return `<div class="rec ${collapsed}" data-id="${r.id}">
             <div class="rec-head">
-              <span class="nm">${escapeHtml(r.name)}</span>
+              <span class="rec-head-left">
+                ${isOwner ? '<span class="drag-handle" title="拖曳排序">⠿</span>' : ''}
+                <span class="nm">${escapeHtml(r.name)}</span>
+              </span>
               <span class="flex">
                 ${empty ? '<span class="meta">尚未填寫</span>' : ''}
                 ${isOwner ? `<button class="btn btn-ghost btn-sm" data-edit="${r.id}">編輯</button>` : ''}
@@ -133,17 +143,74 @@
             </div>
           </div>`;
         }).join('')}
+        </div>
       `).join('');
 
       // 展開/收合
       F('list').querySelectorAll('.rec-head').forEach(h => h.addEventListener('click', (e) => {
-        if (e.target.closest('[data-edit]')) return;
+        if (e.target.closest('[data-edit]') || e.target.closest('.drag-handle')) return;
         h.closest('.rec').classList.toggle('collapsed');
       }));
       // 編輯
       F('list').querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', (e) => {
         e.stopPropagation(); openModal(b.dataset.edit);
       }));
+      // 拖曳排序（僅店長；搜尋時停用避免錯亂）
+      if (isOwner && !q) initDrag();
+    }
+
+    /* ===== 拖曳排序 ===== */
+    function initDrag() {
+      F('list').querySelectorAll('.drag-handle').forEach(h => {
+        h.addEventListener('pointerdown', startDrag);
+      });
+    }
+
+    function startDrag(e) {
+      e.preventDefault();
+      const rec = e.target.closest('.rec');
+      const container = rec.closest('.cat-items');
+      if (!container) return;
+      rec.classList.add('dragging');
+
+      const move = (ev) => {
+        ev.preventDefault();
+        const y = ev.clientY;
+        const sibs = [...container.querySelectorAll('.rec:not(.dragging)')];
+        let placed = false;
+        for (const s of sibs) {
+          const rect = s.getBoundingClientRect();
+          if (y < rect.top + rect.height / 2) { container.insertBefore(rec, s); placed = true; break; }
+        }
+        if (!placed) container.appendChild(rec);
+      };
+      const up = async () => {
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        document.removeEventListener('pointercancel', up);
+        rec.classList.remove('dragging');
+        await persistOrder(container);
+      };
+      document.addEventListener('pointermove', move, { passive: false });
+      document.addEventListener('pointerup', up);
+      document.addEventListener('pointercancel', up);
+    }
+
+    async function persistOrder(container) {
+      const recs = [...container.querySelectorAll('.rec')];
+      const updates = recs.map((el, i) => ({ id: el.dataset.id, sort: (i + 1) * 10 }));
+      // 沒有實際變動就不寫
+      const changed = updates.filter(u => {
+        const r = recipes.find(x => String(x.id) === String(u.id));
+        return r && r.sort_order !== u.sort;
+      });
+      if (!changed.length) return;
+      changed.forEach(u => { const r = recipes.find(x => String(x.id) === String(u.id)); if (r) r.sort_order = u.sort; });
+      const { error } = await Promise.all(
+        changed.map(u => sb.from('recipes').update({ sort_order: u.sort }).eq('id', u.id))
+      ).then(res => ({ error: res.find(r => r.error)?.error }));
+      if (error) { toast('排序儲存失敗：' + error.message, 'error'); return; }
+      toast('已更新排序');
     }
 
     F('search').addEventListener('input', render);
