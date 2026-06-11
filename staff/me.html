@@ -446,8 +446,8 @@
     function renderTodo() {
       const items = [];
       const isOwner = me.role === 'owner';
-      // 老闆/管理員不打卡，首頁不顯示打卡待辦
-      if (!isOwner) {
+      // 老闆/管理員不打卡；今天沒排班的人也不顯示打卡待辦
+      if (!isOwner && myShiftToday) {
         const inDone = !!todayRec?.clock_in, outDone = !!todayRec?.clock_out;
         items.push({ done: inDone, t: inDone ? '已上班打卡 ' + hhmm(todayRec.clock_in) : '尚未上班打卡', s: inDone ? '' : '記得到「今日」打卡' });
         if (inDone) items.push({ done: outDone, t: outDone ? '已下班打卡 ' + hhmm(todayRec.clock_out) : '尚未下班打卡', s: '' });
