@@ -7,6 +7,12 @@
   <link rel="icon" href="../favicon.png" />
   <link rel="stylesheet" href="staff.css" />
   <style>
+    /* 此頁沒有 .topbar，需自行避開 iPhone 狀態列/瀏海 */
+    .wrap {
+      padding-top: calc(24px + env(safe-area-inset-top));
+      padding-left: calc(clamp(20px, 5vw, 56px) + env(safe-area-inset-left));
+      padding-right: calc(clamp(20px, 5vw, 56px) + env(safe-area-inset-right));
+    }
     .ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; font-size: 13px; margin-bottom: 18px; }
     .ps-two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     .ps-sub { font-size: 12px; font-weight: 600; background: var(--bg-soft); padding: 5px 9px; border-radius: 7px; margin: 0 0 8px; }
