@@ -30,6 +30,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="people">人事管理</button>
       <button class="tab" data-tab="revenue">營收預測</button>
+      <button class="tab" data-tab="pnl">損益預測</button>
       <button class="tab" data-tab="finance">財務</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
       <button class="tab" data-tab="maintenance">維運紀錄</button>
@@ -168,6 +169,49 @@
         <div style="overflow-x:auto">
           <table class="tbl" id="revTable">
             <thead><tr><th>月份</th><th class="num">營收</th><th class="num">人事成本</th><th class="num">其他成本</th><th class="num">淨利</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 損益預測 ===== -->
+    <section data-pane="pnl" class="hidden">
+      <div class="row-between" style="margin-bottom:14px; flex-wrap:wrap; gap:10px">
+        <div class="month-nav">
+          <button id="pnlPrevYear">‹</button>
+          <strong id="pnlYearLabel" style="min-width:64px; text-align:center">2026</strong>
+          <button id="pnlNextYear">›</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+          <label class="muted faint" style="display:flex; align-items:center; gap:6px; margin:0">
+            預測成長率
+            <input type="number" id="pnlGrowth" value="0" step="1" style="width:62px; text-align:right" />%
+          </label>
+          <button class="btn btn-sm" id="pnlSeed" title="用截圖讀到的 1–5 月數字一鍵帶入，之後請逐格核對">帶入截圖數字</button>
+        </div>
+      </div>
+
+      <!-- 年度摘要卡 -->
+      <div id="pnlSummary" class="pnl-cards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px"></div>
+
+      <div class="card">
+        <h2 class="card-h">每月損益（淡灰欄＝尚未填、系統預測；可直接在格子裡改）</h2>
+        <div style="overflow-x:auto">
+          <table class="tbl pnl-tbl" id="pnlGrid"></table>
+        </div>
+        <p class="muted faint" style="margin-top:10px; font-size:12px">
+          小計（淨額／毛利／可控／不可控／營業淨利）系統自動算。固定成本（租金・車位・攤提・系統）會沿用上一個有填的月份。
+          灰底欄是「還沒填、用前面月份平均×成長率」推估的；你一旦填了該月，就變實際值。
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 class="card-h">預測 vs 實際 差異</h2>
+        <p class="muted faint" style="margin:0 0 10px; font-size:12px">每月「營業淨利」實際與預測基準（前面已填月份平均）的落差。紅＝比預估差、綠＝比預估好。</p>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="pnlVariance">
+            <thead><tr><th>月份</th><th class="num">預測基準淨利</th><th class="num">實際淨利</th><th class="num">差異</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>

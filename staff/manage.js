@@ -49,6 +49,7 @@
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
     if (name === 'revenue') loadRevenue();
+    if (name === 'pnl') loadPnl();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
     if (name === 'insights') loadInsights();
@@ -695,6 +696,201 @@
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
     F('revModal').classList.remove('show'); toast('已刪除'); loadRevenue();
   });
+
+  /* ============================================================
+   * 3.5) 損益預測（每月損益 + 年度預測 + 預測vs實際差異）
+   * ========================================================== */
+  const PNL_INPUTS = ['revenue_gross','discount','tax','cost_beans','cost_food','cost_packaging','cost_other_cogs','salary','misc_purchase','water_gas','electric','other_ctrl','equip_repair','equip_maintain','rent','parking','amort_decor','amort_equip','system_fee'];
+  const PNL_FIXED = ['rent','parking','amort_decor','amort_equip','system_fee'];
+  const PNL_LINES = [
+    { group: '收入' },
+    { key: 'revenue_gross', label: '內用 / 外帶收入' },
+    { key: 'discount', label: '折扣' },
+    { key: 'tax', label: '稅額' },
+    { calc: 'net_sales', label: '銷貨收入淨額（扣稅）', strong: true },
+    { group: '銷貨成本' },
+    { key: 'cost_beans', label: '咖啡豆成本' },
+    { key: 'cost_food', label: '食材成本' },
+    { key: 'cost_packaging', label: '包裝 / 杯子成本' },
+    { key: 'cost_other_cogs', label: '其他（糖、餐巾紙等）' },
+    { calc: 'cogs', label: '銷貨成本合計' },
+    { calc: 'gross', label: '毛利', strong: true },
+    { group: '可控費用' },
+    { key: 'salary', label: '薪資津貼（含勞健保）' },
+    { key: 'misc_purchase', label: '雜項購置' },
+    { key: 'water_gas', label: '水費、瓦斯' },
+    { key: 'electric', label: '電費' },
+    { key: 'other_ctrl', label: '其他' },
+    { key: 'equip_repair', label: '設備維修費' },
+    { key: 'equip_maintain', label: '設備保養費' },
+    { calc: 'ctrl', label: '可控費用合計' },
+    { group: '不可控費用（多為固定）' },
+    { key: 'rent', label: '租金' },
+    { key: 'parking', label: '車位' },
+    { key: 'amort_decor', label: '裝修攤提（7年）' },
+    { key: 'amort_equip', label: '設備折舊攤提（5年）' },
+    { key: 'system_fee', label: '系統費用' },
+    { calc: 'unctrl', label: '不可控費用合計' },
+    { calc: 'opnet', label: '營業淨利', strong: true },
+  ];
+  const PNL_FIXED_SEED = { rent: 28444, parking: 2500, amort_decor: 13773, amort_equip: 8333, system_fee: 4183 };
+  // 從用戶截圖讀到的 1–5 月（需逐格核對，尤其 1 月薪資與空白格）
+  const PNL_SEED = {
+    1: { revenue_gross: 219704, discount: 1559, tax: 10462, cost_beans: 24230, cost_food: 10476, cost_other_cogs: 2962, salary: 12333, other_ctrl: 12570 },
+    2: { revenue_gross: 203472, discount: 2156, tax: 9689, cost_beans: 4280, cost_food: 15716, cost_other_cogs: 1328, salary: 52971, other_ctrl: 511 },
+    3: { revenue_gross: 212682, discount: 1255, tax: 10128, cost_beans: 28322, cost_food: 20828, cost_other_cogs: 1276, salary: 55582, misc_purchase: 6990, electric: 2648, other_ctrl: 1175, equip_repair: 1500, equip_maintain: 9500 },
+    4: { revenue_gross: 215910, discount: 1253, tax: 10281, cost_beans: 15691, cost_food: 13880, salary: 52370 },
+    5: { revenue_gross: 196898, discount: 1225, tax: 9376, cost_beans: 12758, cost_food: 12256, cost_packaging: 9215, salary: 47934, electric: 6951 },
+  };
+
+  let pnlYear = new Date().getFullYear();
+  let pnlData = {};       // month -> DB row（已填＝實際）
+  let pnlGrowth = 0;
+  let pnlInited = false;
+
+  function pnlCalc(v) {
+    const net = (v.revenue_gross || 0) - (v.discount || 0) - (v.tax || 0);
+    const cogs = (v.cost_beans || 0) + (v.cost_food || 0) + (v.cost_packaging || 0) + (v.cost_other_cogs || 0);
+    const gross = net - cogs;
+    const ctrl = (v.salary || 0) + (v.misc_purchase || 0) + (v.water_gas || 0) + (v.electric || 0) + (v.other_ctrl || 0) + (v.equip_repair || 0) + (v.equip_maintain || 0);
+    const unctrl = (v.rent || 0) + (v.parking || 0) + (v.amort_decor || 0) + (v.amort_equip || 0) + (v.system_fee || 0);
+    return { net_sales: net, cogs, gross, ctrl, unctrl, opnet: gross - ctrl - unctrl };
+  }
+  function pnlFilledMonths() { return Object.keys(pnlData).map(Number).sort((a, b) => a - b); }
+  function pnlForecastValue(key) {
+    const months = pnlFilledMonths();
+    if (!months.length) return 0;
+    if (PNL_FIXED.includes(key)) return Number(pnlData[months[months.length - 1]][key] || 0); // 固定成本沿用最近月份
+    const sum = months.reduce((s, m) => s + Number(pnlData[m][key] || 0), 0);
+    return Math.round(sum / months.length * (1 + pnlGrowth / 100)); // 變動成本＝平均×成長率
+  }
+  function pnlMonthValues(m) {
+    const o = {};
+    if (pnlData[m]) { PNL_INPUTS.forEach(k => o[k] = Number(pnlData[m][k] || 0)); o.__actual = true; }
+    else { PNL_INPUTS.forEach(k => o[k] = pnlForecastValue(k)); o.__actual = false; }
+    return o;
+  }
+
+  async function loadPnl() {
+    if (!pnlInited) {
+      F('pnlPrevYear').addEventListener('click', () => { pnlYear--; loadPnl(); });
+      F('pnlNextYear').addEventListener('click', () => { pnlYear++; loadPnl(); });
+      F('pnlGrowth').addEventListener('input', () => { pnlGrowth = Number(F('pnlGrowth').value) || 0; renderPnlGrid(); });
+      F('pnlSeed').addEventListener('click', pnlSeedData);
+      pnlInited = true;
+    }
+    const { data, error } = await sb.from('pnl_monthly').select('*').eq('year', pnlYear);
+    if (error) { toast('載入失敗：' + error.message, 'error'); return; }
+    pnlData = {};
+    (data || []).forEach(r => pnlData[r.month] = r);
+    F('pnlYearLabel').textContent = pnlYear;
+    renderPnlGrid();
+  }
+
+  const PNL_MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
+  function renderPnlGrid() {
+    const tbl = F('pnlGrid');
+    const mv = {}, mc = {};
+    PNL_MONTHS.forEach(m => { mv[m] = pnlMonthValues(m); mc[m] = pnlCalc(mv[m]); });
+    let html = '<thead><tr><th style="min-width:150px; text-align:left">科目</th>';
+    PNL_MONTHS.forEach(m => { const a = !!pnlData[m]; html += `<th class="num" style="${a ? '' : 'opacity:.5'}">${m}月${a ? '' : '<br><span style="font-size:10px">預測</span>'}</th>`; });
+    html += '<th class="num" style="min-width:88px">全年</th></tr></thead><tbody>';
+    PNL_LINES.forEach(line => {
+      if (line.group) { html += `<tr><td colspan="14" style="background:#f1ebe0; font-weight:600; font-size:12px; text-align:left">${line.group}</td></tr>`; return; }
+      html += `<tr><td style="text-align:left; ${line.strong ? 'font-weight:700' : ''}">${line.label}</td>`;
+      if (line.key) {
+        PNL_MONTHS.forEach(m => {
+          const a = !!pnlData[m];
+          const val = mv[m][line.key];
+          html += `<td class="num"><input type="number" data-m="${m}" data-k="${line.key}" value="${val || ''}" style="width:74px; text-align:right; font-size:12px; padding:2px 4px; ${a ? '' : 'background:#f4f1ea; color:#9a9a9a; font-style:italic'}" /></td>`;
+        });
+        html += `<td class="num" data-annk="${line.key}">${formatCurrency(PNL_MONTHS.reduce((s, m) => s + (mv[m][line.key] || 0), 0))}</td>`;
+      } else {
+        PNL_MONTHS.forEach(m => { html += `<td class="num" data-m="${m}" data-c="${line.calc}" style="${line.strong ? 'font-weight:700' : ''}">${formatCurrency(mc[m][line.calc])}</td>`; });
+        html += `<td class="num" data-annc="${line.calc}" style="${line.strong ? 'font-weight:700' : ''}">${formatCurrency(PNL_MONTHS.reduce((s, m) => s + mc[m][line.calc], 0))}</td>`;
+      }
+      html += '</tr>';
+    });
+    tbl.innerHTML = html + '</tbody>';
+    tbl.querySelectorAll('input[data-k]').forEach(inp => {
+      inp.addEventListener('input', onPnlInput);
+      inp.addEventListener('change', onPnlBlur);
+    });
+    pnlRenderSummary(); pnlRenderVariance();
+  }
+
+  function onPnlInput(e) {
+    const m = Number(e.target.dataset.m), k = e.target.dataset.k;
+    const val = e.target.value === '' ? 0 : Number(e.target.value);
+    if (!pnlData[m]) {
+      pnlData[m] = { year: pnlYear, month: m };
+      PNL_INPUTS.forEach(kk => pnlData[m][kk] = pnlForecastValue(kk)); // 用預測值墊底，整欄一致
+      F('pnlGrid').querySelectorAll(`input[data-m="${m}"]`).forEach(x => { x.style.background = ''; x.style.color = ''; x.style.fontStyle = ''; });
+    }
+    pnlData[m][k] = val;
+    // 即時更新該欄小計 + 全年 + 摘要（不重建，保留游標）
+    const v = {}; PNL_INPUTS.forEach(kk => v[kk] = Number(pnlData[m][kk] || 0));
+    const c = pnlCalc(v);
+    ['net_sales','cogs','gross','ctrl','unctrl','opnet'].forEach(ck => {
+      const cell = F('pnlGrid').querySelector(`td[data-m="${m}"][data-c="${ck}"]`);
+      if (cell) cell.textContent = formatCurrency(c[ck]);
+    });
+    pnlRefreshTotals();
+  }
+  function pnlRefreshTotals() {
+    const mv = {}, mc = {};
+    PNL_MONTHS.forEach(m => { mv[m] = pnlMonthValues(m); mc[m] = pnlCalc(mv[m]); });
+    PNL_INPUTS.forEach(k => { const c = F('pnlGrid').querySelector(`td[data-annk="${k}"]`); if (c) c.textContent = formatCurrency(PNL_MONTHS.reduce((s, m) => s + (mv[m][k] || 0), 0)); });
+    ['net_sales','cogs','gross','ctrl','unctrl','opnet'].forEach(ck => { const c = F('pnlGrid').querySelector(`td[data-annc="${ck}"]`); if (c) c.textContent = formatCurrency(PNL_MONTHS.reduce((s, m) => s + mc[m][ck], 0)); });
+    pnlRenderSummary(); pnlRenderVariance();
+  }
+  async function onPnlBlur(e) {
+    const m = Number(e.target.dataset.m);
+    if (!pnlData[m]) return;
+    const payload = { year: pnlYear, month: m };
+    PNL_INPUTS.forEach(k => payload[k] = Number(pnlData[m][k] || 0));
+    const { error } = await sb.from('pnl_monthly').upsert(payload, { onConflict: 'year,month' });
+    if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+    renderPnlGrid(); // 重整，刷新其他月份的預測值
+  }
+
+  function pnlRenderSummary() {
+    const mc = {}; PNL_MONTHS.forEach(m => mc[m] = pnlCalc(pnlMonthValues(m)));
+    const filled = pnlFilledMonths();
+    const annRev = PNL_MONTHS.reduce((s, m) => s + mc[m].net_sales, 0);
+    const annNet = PNL_MONTHS.reduce((s, m) => s + mc[m].opnet, 0);
+    const loss = PNL_MONTHS.filter(m => mc[m].opnet < 0).length;
+    const cards = [
+      ['全年營收（淨額）', formatCurrency(annRev), `已填 ${filled.length} 月＋預測 ${12 - filled.length} 月`, ''],
+      ['全年營業淨利', formatCurrency(annNet), annNet >= 0 ? '預估獲利' : '預估虧損', annNet >= 0 ? '#2e7d32' : '#c0392b'],
+      ['平均每月淨利', formatCurrency(Math.round(annNet / 12)), '', ''],
+      ['可能虧損月數', loss + ' 個月', loss ? '注意現金流' : '全年皆獲利', loss ? '#c0392b' : '#2e7d32'],
+    ];
+    F('pnlSummary').innerHTML = cards.map(c => `<div class="card" style="margin:0; padding:12px"><div class="muted faint" style="font-size:12px">${c[0]}</div><div style="font-size:20px; font-weight:700; color:${c[3] || 'inherit'}">${c[1]}</div><div class="muted faint" style="font-size:11px">${c[2]}</div></div>`).join('');
+  }
+  function pnlRenderVariance() {
+    const filled = pnlFilledMonths();
+    const tb = F('pnlVariance').querySelector('tbody');
+    if (filled.length < 2) { tb.innerHTML = '<tr><td colspan="4" class="muted faint">至少填 2 個月後，這裡會顯示每月淨利與平均的落差。</td></tr>'; return; }
+    const mc = {}; filled.forEach(m => mc[m] = pnlCalc(pnlMonthValues(m)));
+    const baseline = Math.round(filled.reduce((s, m) => s + mc[m].opnet, 0) / filled.length);
+    tb.innerHTML = filled.map(m => {
+      const act = mc[m].opnet, diff = act - baseline, col = diff >= 0 ? '#2e7d32' : '#c0392b';
+      return `<tr><td>${m}月</td><td class="num">${formatCurrency(baseline)}</td><td class="num">${formatCurrency(act)}</td><td class="num" style="color:${col}">${diff >= 0 ? '+' : ''}${formatCurrency(diff)}</td></tr>`;
+    }).join('');
+  }
+  async function pnlSeedData() {
+    if (!confirm('用截圖讀到的 1–5 月數字帶入 ' + pnlYear + ' 年？\n（同月若已有資料會被覆蓋。帶入後請務必逐格核對，尤其 1 月薪資與各空白格。）')) return;
+    const rows = Object.keys(PNL_SEED).map(m => {
+      const r = { year: pnlYear, month: Number(m) };
+      PNL_INPUTS.forEach(k => r[k] = 0);
+      Object.assign(r, PNL_FIXED_SEED, PNL_SEED[m]);
+      return r;
+    });
+    const { error } = await sb.from('pnl_monthly').upsert(rows, { onConflict: 'year,month' });
+    if (error) { toast('帶入失敗：' + error.message, 'error'); return; }
+    toast('✅ 已帶入 1–5 月，請逐格核對'); loadPnl();
+  }
 
   /* ============================================================
    * 4) 庫存叫貨
