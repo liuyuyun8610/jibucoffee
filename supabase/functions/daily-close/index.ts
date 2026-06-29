@@ -65,12 +65,14 @@ Deno.serve(async (req) => {
 
     // 6) 非現金收入：LINE Pay / 匯款 各自歸戶（後台 site_settings 設定的帳戶），記成收入分錄（不碰現金對帳）
     const { data: cfg } = await admin.from('site_settings').select('linepay_account_id,remit_account_id').eq('id', 1).maybeSingle();
+    // LINE Pay 抽成 2.3%，自動記成手續費（匯款無手續費）
+    const LINEPAY_FEE_RATE = 0.023;
     const nonCash = [
-      { amt: Number(b.linepay_total) || 0, acc: cfg?.linepay_account_id, cat: 'LINE Pay', desc: '大交班 LINE Pay 收入' },
-      { amt: Number(b.remit_total)   || 0, acc: cfg?.remit_account_id,   cat: '匯款',     desc: '大交班 匯款收入' },
+      { amt: Number(b.linepay_total) || 0, acc: cfg?.linepay_account_id, cat: 'LINE Pay', desc: '大交班 LINE Pay 收入', feeRate: LINEPAY_FEE_RATE },
+      { amt: Number(b.remit_total)   || 0, acc: cfg?.remit_account_id,   cat: '匯款',     desc: '大交班 匯款收入', feeRate: 0 },
     ].filter(x => x.amt > 0 && x.acc);
     if (nonCash.length) {
-      await admin.from('ledger_entries').insert(nonCash.map(x => ({ account_id: x.acc, type: '收入', category: x.cat, amount: x.amt, description: x.desc, entry_date: cd, source: 'daily' })));
+      await admin.from('ledger_entries').insert(nonCash.map(x => ({ account_id: x.acc, type: '收入', category: x.cat, amount: x.amt, fee: Math.round(x.amt * x.feeRate), description: x.desc, entry_date: cd, source: 'daily' })));
     }
 
     return json({ ok: true });
