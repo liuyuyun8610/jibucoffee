@@ -517,7 +517,10 @@
         <div class="field"><label class="label">入帳日期</label><input class="input" type="date" id="pay_date" value="${editRec.paid_at ? editRec.paid_at.slice(0,10) : todayStr()}"></div>
         <div class="field"><label class="label">備註（選填）</label><input class="input" id="pay_note" value="${escapeHtml(editRec.paid_note || '')}"></div>
       </div>
-      <div class="field"><label class="label">出款帳戶（帳本扣款）</label><select class="input" id="pay_account">${accountOptions('')}</select></div>
+      <div class="grid2">
+        <div class="field"><label class="label">出款帳戶（帳本扣款）</label><select class="input" id="pay_account">${accountOptions('')}</select></div>
+        <div class="field"><label class="label">跨行手續費（無則留空／0）</label><input class="input" type="number" id="pay_fee" value="${editRec.transfer_fee || ''}" placeholder="例：30，有優惠就 0"></div>
+      </div>
       <div class="field"><label class="label">轉帳憑證圖片（選填）</label><input type="file" accept="image/*" id="pay_file"></div>
       <button class="btn btn-primary btn-sm" id="savePay">記錄發放</button>`;
     F('savePay').addEventListener('click', savePayment);
@@ -530,7 +533,8 @@
     const btn = F('savePay'); const date = F('pay_date').value;
     if (!date) { toast('請選擇入帳日期', 'error'); return; }
     btn.disabled = true; btn.textContent = '儲存中…';
-    const patch = { paid_at: date, paid_note: F('pay_note').value.trim() || null };
+    const transferFee = Number(F('pay_fee') ? F('pay_fee').value : 0) || 0;
+    const patch = { paid_at: date, paid_note: F('pay_note').value.trim() || null, transfer_fee: transferFee };
     const file = F('pay_file').files[0];
     if (file) {
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
@@ -546,7 +550,7 @@
     // 連動帳本：選了出款帳戶就記一筆「支出・薪資」
     const accId = F('pay_account') ? F('pay_account').value : '';
     await sb.from('ledger_entries').delete().eq('source', 'payroll').eq('source_id', editRec.id);
-    if (accId) await sb.from('ledger_entries').insert({ account_id: accId, type: '支出', category: '薪資', amount: editRec.total_pay || 0, description: `薪資發放：${editEmp ? editEmp.name : ''} ${pYear}/${pMonth}`, entry_date: F('pay_date').value, source: 'payroll', source_id: editRec.id });
+    if (accId) await sb.from('ledger_entries').insert({ account_id: accId, type: '支出', category: '薪資', amount: editRec.total_pay || 0, fee: transferFee, description: `薪資發放：${editEmp ? editEmp.name : ''} ${pYear}/${pMonth}${transferFee ? `（跨行手續費 ${transferFee}）` : ''}`, entry_date: F('pay_date').value, source: 'payroll', source_id: editRec.id });
     toast('✅ 已記錄發放');
     renderPayBox();
   }
@@ -837,7 +841,7 @@
     const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
       sb.from('purchases').select('order_date,category,total_cost'),
-      sb.from('payroll_records').select('year,month,total_pay').eq('year', pnlYear),
+      sb.from('payroll_records').select('year,month,total_pay,transfer_fee').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
       sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee'),
       sb.from('maintenance_records').select('repair_date,cost'),
@@ -895,15 +899,16 @@
     // 帳本手續費 → 手續費（可控）
     pnlAutoFee = {}; pnlMonFee = new Set();
     (ledRes.data || []).forEach(e => {
+      if (e.source === 'payroll') return; // 薪資跨行費已併入薪資津貼，不重複算進手續費
       const fee = Number(e.fee || 0);
       if (!fee || !e.entry_date || Number(e.entry_date.slice(0, 4)) !== pnlYear) return;
       const mo = Number(e.entry_date.slice(5, 7));
       pnlAutoFee[mo] = (pnlAutoFee[mo] || 0) + fee;
       pnlMonFee.add(mo); pnlMonLedger.add(mo);
     });
-    // 薪資 → salary
+    // 薪資 → salary（含跨行手續費）
     pnlAutoSalary = {}; pnlMonPayroll = new Set();
-    (payRes.data || []).forEach(r => { pnlAutoSalary[r.month] = (pnlAutoSalary[r.month] || 0) + Number(r.total_pay || 0); pnlMonPayroll.add(r.month); });
+    (payRes.data || []).forEach(r => { pnlAutoSalary[r.month] = (pnlAutoSalary[r.month] || 0) + Number(r.total_pay || 0) + Number(r.transfer_fee || 0); pnlMonPayroll.add(r.month); });
     F('pnlYearLabel').textContent = pnlYear;
     // 2026 年第一次打開、且還沒任何資料 → 自動帶入截圖讀到的 1–5 月（用老闆登入身分寫入）
     if (pnlYear === 2026 && Object.keys(pnlData).length === 0 && !localStorage.getItem('pnlSeeded2026')) {
