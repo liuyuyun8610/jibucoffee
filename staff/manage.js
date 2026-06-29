@@ -784,6 +784,12 @@
     pnlData = {};
     (data || []).forEach(r => pnlData[r.month] = r);
     F('pnlYearLabel').textContent = pnlYear;
+    // 2026 年第一次打開、且還沒任何資料 → 自動帶入截圖讀到的 1–5 月（用老闆登入身分寫入）
+    if (pnlYear === 2026 && Object.keys(pnlData).length === 0 && !localStorage.getItem('pnlSeeded2026')) {
+      localStorage.setItem('pnlSeeded2026', '1');
+      const ok = await pnlApplySeed(2026, true);
+      if (ok) { return loadPnl(); } // 重新載入即帶出 1–5 月 + 即時年度預測
+    }
     renderPnlGrid();
   }
 
@@ -879,17 +885,21 @@
       return `<tr><td>${m}月</td><td class="num">${formatCurrency(baseline)}</td><td class="num">${formatCurrency(act)}</td><td class="num" style="color:${col}">${diff >= 0 ? '+' : ''}${formatCurrency(diff)}</td></tr>`;
     }).join('');
   }
-  async function pnlSeedData() {
-    if (!confirm('用截圖讀到的 1–5 月數字帶入 ' + pnlYear + ' 年？\n（同月若已有資料會被覆蓋。帶入後請務必逐格核對，尤其 1 月薪資與各空白格。）')) return;
+  async function pnlApplySeed(year, silent) {
     const rows = Object.keys(PNL_SEED).map(m => {
-      const r = { year: pnlYear, month: Number(m) };
+      const r = { year: year, month: Number(m) };
       PNL_INPUTS.forEach(k => r[k] = 0);
       Object.assign(r, PNL_FIXED_SEED, PNL_SEED[m]);
       return r;
     });
     const { error } = await sb.from('pnl_monthly').upsert(rows, { onConflict: 'year,month' });
-    if (error) { toast('帶入失敗：' + error.message, 'error'); return; }
-    toast('✅ 已帶入 1–5 月，請逐格核對'); loadPnl();
+    if (error) { toast('帶入失敗：' + error.message, 'error'); return false; }
+    if (!silent) toast('✅ 已帶入 1–5 月，請逐格核對');
+    return true;
+  }
+  async function pnlSeedData() {
+    if (!confirm('用截圖讀到的 1–5 月數字帶入 ' + pnlYear + ' 年？\n（同月若已有資料會被覆蓋。帶入後請務必逐格核對，尤其 1 月薪資與各空白格。）')) return;
+    if (await pnlApplySeed(pnlYear, false)) loadPnl();
   }
 
   /* ============================================================
