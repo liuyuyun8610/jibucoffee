@@ -755,6 +755,8 @@
   let pnlMonPayroll = new Set();              // 有薪資資料的月份
   let pnlMonLedger = new Set();               // 有帳本(非進貨/薪資)支出的月份
   let pnlOwnLines = [];                        // 自訂科目 [{cat, grp:'ctrl'|'unctrl'}]（帳本分類設「自己一行」）
+  let pnlAutoFee = {};                         // month -> 手續費總額（來自帳本 fee）
+  let pnlMonFee = new Set();
   const PNL_COGS_KEYS = ['cost_beans','cost_food','cost_packaging','cost_other_cogs'];                       // 來自庫存叫貨
   const PNL_LEDGER_KEYS = ['rent','water_gas','electric','equip_repair','equip_maintain','misc_purchase','other_ctrl']; // 來自帳本
   const PNL_PRESET = { parking: 2500, amort_decor: 13773, amort_equip: 8333, system_fee: 4183 };            // 不可控固定成本：每月預設
@@ -762,10 +764,11 @@
   // 自訂科目（own-line）當月金額
   function pnlOwnValue(m, cat) { return pnlAutoActive(m) ? ((pnlAuto[m] && pnlAuto[m]['own:' + cat]) || 0) : 0; }
   function pnlCustomSum(m, grp) { return pnlOwnLines.filter(l => l.grp === grp).reduce((s, l) => s + pnlOwnValue(m, l.cat), 0); }
-  // 整月小計（含自訂科目）
+  function pnlFeeValue(m) { return pnlAutoActive(m) ? (pnlAutoFee[m] || 0) : 0; } // 手續費（可控）
+  // 整月小計（含自訂科目 + 手續費）
   function pnlMonthCalc(m) {
     const c = pnlCalc(pnlMonthValues(m));
-    c.ctrl += pnlCustomSum(m, 'ctrl');
+    c.ctrl += pnlCustomSum(m, 'ctrl') + pnlFeeValue(m);
     c.unctrl += pnlCustomSum(m, 'unctrl');
     c.opnet = c.gross - c.ctrl - c.unctrl;
     return c;
@@ -836,7 +839,7 @@
       sb.from('purchases').select('order_date,category,total_cost'),
       sb.from('payroll_records').select('year,month,total_pay').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
-      sb.from('ledger_entries').select('entry_date,category,amount,type,source'),
+      sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee'),
       sb.from('maintenance_records').select('repair_date,cost'),
     ]);
     if (error) { toast('載入失敗：' + error.message, 'error'); return; }
@@ -889,6 +892,15 @@
       pnlAuto[mo][key] = (pnlAuto[mo][key] || 0) + Number(r.cost || 0);
       pnlMonLedger.add(mo);
     });
+    // 帳本手續費 → 手續費（可控）
+    pnlAutoFee = {}; pnlMonFee = new Set();
+    (ledRes.data || []).forEach(e => {
+      const fee = Number(e.fee || 0);
+      if (!fee || !e.entry_date || Number(e.entry_date.slice(0, 4)) !== pnlYear) return;
+      const mo = Number(e.entry_date.slice(5, 7));
+      pnlAutoFee[mo] = (pnlAutoFee[mo] || 0) + fee;
+      pnlMonFee.add(mo); pnlMonLedger.add(mo);
+    });
     // 薪資 → salary
     pnlAutoSalary = {}; pnlMonPayroll = new Set();
     (payRes.data || []).forEach(r => { pnlAutoSalary[r.month] = (pnlAutoSalary[r.month] || 0) + Number(r.total_pay || 0); pnlMonPayroll.add(r.month); });
@@ -919,8 +931,13 @@
     PNL_LINES.forEach(line => {
       if (line.group) { html += `<tr><td colspan="14" style="background:#f1ebe0; font-weight:600; font-size:12px; text-align:left">${line.group}</td></tr>`; return; }
       const lineAuto = pnlIsAutoKey(line.key);
-      // 自訂科目插在「可控合計 / 不可控合計」之前
-      if (line.calc === 'ctrl') html += ownRows('ctrl');
+      // 手續費 + 自訂科目插在「可控合計 / 不可控合計」之前
+      if (line.calc === 'ctrl') {
+        let fr = `<tr><td style="text-align:left">手續費 <span class="faint" style="font-size:10px">自動·帳本</span></td>`;
+        PNL_MONTHS.forEach(m => { fr += `<td class="num" style="background:#eaf1f6; color:#34627d; font-size:12px">${formatCurrency(pnlFeeValue(m))}</td>`; });
+        fr += `<td class="num">${formatCurrency(PNL_MONTHS.reduce((s, m) => s + pnlFeeValue(m), 0))}</td></tr>`;
+        html += fr + ownRows('ctrl');
+      }
       if (line.calc === 'unctrl') html += ownRows('unctrl');
       html += `<tr><td style="text-align:left; ${line.strong ? 'font-weight:700' : ''}">${line.label}${lineAuto ? ` <span class="faint" style="font-size:10px">自動·${srcLabel(line.key)}</span>` : ''}</td>`;
       if (line.key) {
@@ -2076,6 +2093,7 @@
     fillEntryCats(e ? e.category : '');
     applyEntryType();
     F('en_amount').value = e ? e.amount : '';
+    F('en_fee').value = e && e.fee ? e.fee : '';
     F('en_desc').value = e ? (e.description || '') : '';
     F('en_err').textContent = '';
     F('en_delete').style.visibility = e ? 'visible' : 'hidden';
@@ -2105,7 +2123,7 @@
     }
 
     const orig = editEntryId ? ledgerEntries.find(x => x.id === editEntryId) : null;
-    const payload = { account_id: acc || null, type, category: F('en_category').value || null, amount, description: F('en_desc').value.trim() || null, entry_date: date, source: orig ? orig.source : 'manual', source_id: orig ? orig.source_id : null };
+    const payload = { account_id: acc || null, type, category: F('en_category').value || null, amount, fee: Number(F('en_fee').value) || 0, description: F('en_desc').value.trim() || null, entry_date: date, source: orig ? orig.source : 'manual', source_id: orig ? orig.source_id : null };
     let error;
     if (editEntryId) ({ error } = await sb.from('ledger_entries').update(payload).eq('id', editEntryId));
     else ({ error } = await sb.from('ledger_entries').insert(payload));
