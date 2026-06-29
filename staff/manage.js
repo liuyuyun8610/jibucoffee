@@ -1549,32 +1549,41 @@
     const start = `${amYear}-${String(amMonth).padStart(2, '0')}-01`;
     const endD = new Date(amYear, amMonth, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const { data } = await sb.from('attendance').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date');
+    const [{ data }, { data: tdata }] = await Promise.all([
+      sb.from('attendance').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date'),
+      sb.from('temp_pt_shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date'),
+    ]);
     const recs = data || [];
+    const temps = (tdata || []).filter(t => t.clock_in); // 有打卡的臨時PT
     const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
     const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
     const wmin = a => (a.clock_in && a.clock_out) ? Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000) : 0;
     const fmtH = m => m ? `${Math.floor(m / 60)}h${m % 60}m` : '—';
     const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
 
-    F('am-sum').textContent = `${recs.length} 筆打卡`;
+    F('am-sum').textContent = `${recs.length + temps.length} 筆打卡`;
 
-    // 每人彙總
+    // 每人彙總（員工 + 臨時PT）
     const byEmp = {};
-    recs.forEach(a => { const k = a.staff_id; if (!byEmp[k]) byEmp[k] = { days: 0, mins: 0 }; if (a.clock_in) byEmp[k].days++; byEmp[k].mins += wmin(a); });
-    const ids = Object.keys(byEmp).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+    recs.forEach(a => { const k = a.staff_id; if (!byEmp[k]) byEmp[k] = { name: nameOf(k), days: 0, mins: 0, temp: false }; if (a.clock_in) byEmp[k].days++; byEmp[k].mins += wmin(a); });
+    temps.forEach(t => { const k = 't:' + t.name; if (!byEmp[k]) byEmp[k] = { name: t.name, days: 0, mins: 0, temp: true }; byEmp[k].days++; byEmp[k].mins += wmin(t); });
+    const ids = Object.keys(byEmp).sort((a, b) => (byEmp[a].temp - byEmp[b].temp) || byEmp[a].name.localeCompare(byEmp[b].name));
     F('attSummary').querySelector('tbody').innerHTML = ids.length
-      ? ids.map(id => `<tr><td>${escapeHtml(nameOf(id))}</td><td class="num">${byEmp[id].days}</td><td class="num">${fmtH(byEmp[id].mins)}</td></tr>`).join('')
+      ? ids.map(id => `<tr><td>${escapeHtml(byEmp[id].name)}${byEmp[id].temp ? ' <span class="faint" style="font-size:11px">臨時PT</span>' : ''}</td><td class="num">${byEmp[id].days}</td><td class="num">${fmtH(byEmp[id].mins)}</td></tr>`).join('')
       : '<tr><td colspan="3" class="muted faint">本月無出勤紀錄</td></tr>';
 
-    // 明細
-    F('attDetail').querySelector('tbody').innerHTML = recs.length
-      ? recs.map(a => `<tr>
-          <td style="white-space:nowrap">${a.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(a.work_date).getDay()]})</td>
-          <td>${escapeHtml(nameOf(a.staff_id))}</td>
-          <td>${hhmm(a.clock_in)}</td>
-          <td>${hhmm(a.clock_out)}</td>
-          <td class="num">${fmtH(wmin(a))}</td>
+    // 明細（員工 + 臨時PT，依日期）
+    const detail = [
+      ...recs.map(a => ({ date: a.work_date, name: nameOf(a.staff_id), ci: a.clock_in, co: a.clock_out, temp: false })),
+      ...temps.map(t => ({ date: t.work_date, name: t.name, ci: t.clock_in, co: t.clock_out, temp: true })),
+    ].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+    F('attDetail').querySelector('tbody').innerHTML = detail.length
+      ? detail.map(a => `<tr>
+          <td style="white-space:nowrap">${a.date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(a.date).getDay()]})</td>
+          <td>${escapeHtml(a.name)}${a.temp ? ' <span class="faint" style="font-size:11px">臨時PT</span>' : ''}</td>
+          <td>${hhmm(a.ci)}</td>
+          <td>${hhmm(a.co)}</td>
+          <td class="num">${fmtH((a.ci && a.co) ? Math.round((new Date(a.co) - new Date(a.ci)) / 60000) : 0)}</td>
         </tr>`).join('')
       : '<tr><td colspan="5" class="muted faint">本月無出勤紀錄</td></tr>';
   }
