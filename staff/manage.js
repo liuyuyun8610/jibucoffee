@@ -744,9 +744,22 @@
   };
 
   let pnlYear = new Date().getFullYear();
-  let pnlData = {};       // month -> DB row（已填＝實際）
+  let pnlData = {};       // month -> DB row（手填）
   let pnlGrowth = 0;
   let pnlInited = false;
+  // 自動連動來源
+  let pnlAuto = {};                          // month -> { 損益key: 加總金額 }（來自叫貨）
+  let pnlAutoSalary = {};                     // month -> 薪資總額（來自 payroll）
+  let pnlMonPurchase = new Set();             // 有採購資料的月份
+  let pnlMonPayroll = new Set();              // 有薪資資料的月份
+  const PNL_PURCHASE_KEYS = ['cost_beans','cost_food','cost_packaging','cost_other_cogs','misc_purchase','equip_repair','equip_maintain'];
+
+  // 該月該科目的「自動值」：有來源資料回數字，否則回 null（代表改用手填）
+  function pnlAutoValue(m, key) {
+    if (key === 'salary') return pnlMonPayroll.has(m) ? (pnlAutoSalary[m] || 0) : null;
+    if (PNL_PURCHASE_KEYS.includes(key)) return pnlMonPurchase.has(m) ? ((pnlAuto[m] && pnlAuto[m][key]) || 0) : null;
+    return null;
+  }
 
   function pnlCalc(v) {
     const net = (v.revenue_gross || 0) - (v.discount || 0) - (v.tax || 0);
@@ -756,18 +769,30 @@
     const unctrl = (v.rent || 0) + (v.parking || 0) + (v.amort_decor || 0) + (v.amort_equip || 0) + (v.system_fee || 0);
     return { net_sales: net, cogs, gross, ctrl, unctrl, opnet: gross - ctrl - unctrl };
   }
-  function pnlFilledMonths() { return Object.keys(pnlData).map(Number).sort((a, b) => a - b); }
+  function pnlIsActualMonth(m) { return !!pnlData[m] || pnlMonPurchase.has(m) || pnlMonPayroll.has(m); }
+  function pnlFilledMonths() {  // 「實際」月份＝手填過 或 有叫貨/薪資來源
+    const s = new Set();
+    Object.keys(pnlData).forEach(m => s.add(Number(m)));
+    pnlMonPurchase.forEach(m => s.add(m)); pnlMonPayroll.forEach(m => s.add(m));
+    return [...s].sort((a, b) => a - b);
+  }
+  function pnlEffective(m, key) {   // 該月該科目實際值：自動優先，否則手填，否則0
+    const auto = pnlAutoValue(m, key);
+    if (auto !== null) return auto;
+    if (pnlData[m]) return Number(pnlData[m][key] || 0);
+    return 0;
+  }
   function pnlForecastValue(key) {
     const months = pnlFilledMonths();
     if (!months.length) return 0;
-    if (PNL_FIXED.includes(key)) return Number(pnlData[months[months.length - 1]][key] || 0); // 固定成本沿用最近月份
-    const sum = months.reduce((s, m) => s + Number(pnlData[m][key] || 0), 0);
+    if (PNL_FIXED.includes(key)) return pnlEffective(months[months.length - 1], key); // 固定成本沿用最近月份
+    const sum = months.reduce((s, m) => s + pnlEffective(m, key), 0);
     return Math.round(sum / months.length * (1 + pnlGrowth / 100)); // 變動成本＝平均×成長率
   }
   function pnlMonthValues(m) {
-    const o = {};
-    if (pnlData[m]) { PNL_INPUTS.forEach(k => o[k] = Number(pnlData[m][k] || 0)); o.__actual = true; }
-    else { PNL_INPUTS.forEach(k => o[k] = pnlForecastValue(k)); o.__actual = false; }
+    const o = {}; const actual = pnlIsActualMonth(m);
+    PNL_INPUTS.forEach(k => o[k] = actual ? pnlEffective(m, k) : pnlForecastValue(k));
+    o.__actual = actual;
     return o;
   }
 
@@ -779,10 +804,32 @@
       F('pnlSeed').addEventListener('click', pnlSeedData);
       pnlInited = true;
     }
-    const { data, error } = await sb.from('pnl_monthly').select('*').eq('year', pnlYear);
+    const [{ data, error }, purRes, payRes, mapRes] = await Promise.all([
+      sb.from('pnl_monthly').select('*').eq('year', pnlYear),
+      sb.from('purchases').select('order_date,category,total_cost'),
+      sb.from('payroll_records').select('year,month,total_pay').eq('year', pnlYear),
+      sb.from('pnl_cost_map').select('*'),
+    ]);
     if (error) { toast('載入失敗：' + error.message, 'error'); return; }
     pnlData = {};
     (data || []).forEach(r => pnlData[r.month] = r);
+    // 對應表
+    costMap = {}; (mapRes.data || []).forEach(r => costMap[r.category] = r.pnl_line);
+    // 叫貨 → 各損益科目（依當年、依對應）
+    pnlAuto = {}; pnlMonPurchase = new Set();
+    (purRes.data || []).forEach(p => {
+      if (!p.order_date) return;
+      if (Number(p.order_date.slice(0, 4)) !== pnlYear) return;
+      const line = costMap[p.category];
+      if (!line || line === 'none') return;
+      const mo = Number(p.order_date.slice(5, 7));
+      if (!pnlAuto[mo]) pnlAuto[mo] = {};
+      pnlAuto[mo][line] = (pnlAuto[mo][line] || 0) + Number(p.total_cost || 0);
+      pnlMonPurchase.add(mo);
+    });
+    // 薪資 → salary
+    pnlAutoSalary = {}; pnlMonPayroll = new Set();
+    (payRes.data || []).forEach(r => { pnlAutoSalary[r.month] = (pnlAutoSalary[r.month] || 0) + Number(r.total_pay || 0); pnlMonPayroll.add(r.month); });
     F('pnlYearLabel').textContent = pnlYear;
     // 2026 年第一次打開、且還沒任何資料 → 自動帶入截圖讀到的 1–5 月（用老闆登入身分寫入）
     if (pnlYear === 2026 && Object.keys(pnlData).length === 0 && !localStorage.getItem('pnlSeeded2026')) {
@@ -798,16 +845,23 @@
     const mv = {}, mc = {};
     PNL_MONTHS.forEach(m => { mv[m] = pnlMonthValues(m); mc[m] = pnlCalc(mv[m]); });
     let html = '<thead><tr><th style="min-width:150px; text-align:left">科目</th>';
-    PNL_MONTHS.forEach(m => { const a = !!pnlData[m]; html += `<th class="num" style="${a ? '' : 'opacity:.5'}">${m}月${a ? '' : '<br><span style="font-size:10px">預測</span>'}</th>`; });
+    PNL_MONTHS.forEach(m => { const a = pnlIsActualMonth(m); html += `<th class="num" style="${a ? '' : 'opacity:.5'}">${m}月${a ? '' : '<br><span style="font-size:10px">預測</span>'}</th>`; });
     html += '<th class="num" style="min-width:88px">全年</th></tr></thead><tbody>';
+    const autoNote = { salary: '薪資' };
     PNL_LINES.forEach(line => {
       if (line.group) { html += `<tr><td colspan="14" style="background:#f1ebe0; font-weight:600; font-size:12px; text-align:left">${line.group}</td></tr>`; return; }
-      html += `<tr><td style="text-align:left; ${line.strong ? 'font-weight:700' : ''}">${line.label}</td>`;
+      const lineAuto = (line.key === 'salary' || PNL_PURCHASE_KEYS.includes(line.key));
+      html += `<tr><td style="text-align:left; ${line.strong ? 'font-weight:700' : ''}">${line.label}${lineAuto ? ' <span class="faint" style="font-size:10px">自動</span>' : ''}</td>`;
       if (line.key) {
         PNL_MONTHS.forEach(m => {
-          const a = !!pnlData[m];
-          const val = mv[m][line.key];
-          html += `<td class="num"><input type="number" data-m="${m}" data-k="${line.key}" value="${val || ''}" style="width:74px; text-align:right; font-size:12px; padding:2px 4px; ${a ? '' : 'background:#f4f1ea; color:#9a9a9a; font-style:italic'}" /></td>`;
+          const auto = pnlAutoValue(m, line.key);
+          if (auto !== null) {
+            html += `<td class="num" data-m="${m}" data-c2="${line.key}" title="自動帶自${line.key === 'salary' ? '薪資' : '叫貨'}（在${line.key === 'salary' ? '薪資' : '庫存叫貨'}修改）" style="background:#eaf1f6; color:#34627d; font-size:12px">${formatCurrency(auto)}</td>`;
+          } else {
+            const a = pnlIsActualMonth(m);
+            const val = mv[m][line.key];
+            html += `<td class="num"><input type="number" data-m="${m}" data-k="${line.key}" value="${val || ''}" style="width:74px; text-align:right; font-size:12px; padding:2px 4px; ${a ? '' : 'background:#f4f1ea; color:#9a9a9a; font-style:italic'}" /></td>`;
+          }
         });
         html += `<td class="num" data-annk="${line.key}">${formatCurrency(PNL_MONTHS.reduce((s, m) => s + (mv[m][line.key] || 0), 0))}</td>`;
       } else {
@@ -834,7 +888,7 @@
     }
     pnlData[m][k] = val;
     // 即時更新該欄小計 + 全年 + 摘要（不重建，保留游標）
-    const v = {}; PNL_INPUTS.forEach(kk => v[kk] = Number(pnlData[m][kk] || 0));
+    const v = {}; PNL_INPUTS.forEach(kk => v[kk] = pnlEffective(m, kk));
     const c = pnlCalc(v);
     ['net_sales','cogs','gross','ctrl','unctrl','opnet'].forEach(ck => {
       const cell = F('pnlGrid').querySelector(`td[data-m="${m}"][data-c="${ck}"]`);
@@ -905,22 +959,66 @@
    * 4) 庫存叫貨
    * ========================================================== */
   let purchases = [], stockItems = [], invLoaded = false, invMonthInited = false;
+  let costMap = {};  // { 分類名稱: 損益科目key }
+
+  // 損益成本對應可選的科目
+  const PNL_MAP_OPTIONS = [
+    { v: 'none', label: '— 不列入損益 —' },
+    { v: 'cost_beans', label: '咖啡豆成本' },
+    { v: 'cost_food', label: '食材成本' },
+    { v: 'cost_packaging', label: '包裝 / 杯子成本' },
+    { v: 'cost_other_cogs', label: '其他銷貨成本（糖、餐巾紙）' },
+    { v: 'misc_purchase', label: '雜項購置' },
+    { v: 'equip_repair', label: '設備維修費' },
+    { v: 'equip_maintain', label: '設備保養費' },
+  ];
 
   async function loadInventory() {
-    const [{ data: pdata, error }, { data: sdata }] = await Promise.all([
+    const [{ data: pdata, error }, { data: sdata }, { data: mdata }] = await Promise.all([
       sb.from('purchases').select('*').order('order_date', { ascending: false }).order('created_at', { ascending: false }),
       sb.from('stock_items').select('*').eq('is_active', true).order('sort_order').order('name'),
+      sb.from('pnl_cost_map').select('*'),
     ]);
     if (error) { F('invTable').querySelector('tbody').innerHTML = `<tr><td colspan="8" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
     purchases = pdata || [];
     stockItems = sdata || [];
+    costMap = {}; (mdata || []).forEach(r => costMap[r.category] = r.pnl_line);
     invLoaded = true;
     fillYearSelect(F('inv_year'), purchases.map(p => p.order_date), F('inv_year').value);
     if (!invMonthInited) { F('inv_month').value = String(new Date().getMonth() + 1); invMonthInited = true; }  // 預設當月
     renderInventory();
     renderStockList();
+    renderCostMap();
     fillItemSelect();
     refreshDatalists();
+  }
+
+  // 所有出現過的分類（庫存固定分類 + 品項分類 + 採購分類）
+  function allCategories() {
+    const set = new Set(['糖漿', '乳品', '茶包｜茶粉', '咖啡豆', '耗材']);
+    stockItems.forEach(s => { if (s.category) set.add(s.category); });
+    purchases.forEach(p => { if (p.category) set.add(p.category); });
+    Object.keys(costMap).forEach(c => set.add(c));
+    return [...set].sort();
+  }
+
+  function renderCostMap() {
+    const tb = F('costMapTable').querySelector('tbody');
+    const cats = allCategories();
+    if (!cats.length) { tb.innerHTML = '<tr><td colspan="2" class="muted faint">尚無分類，先去新增品項/叫貨並設定分類。</td></tr>'; return; }
+    tb.innerHTML = cats.map(cat => {
+      const cur = costMap[cat] || 'none';
+      const opts = PNL_MAP_OPTIONS.map(o => `<option value="${o.v}" ${o.v === cur ? 'selected' : ''}>${o.label}</option>`).join('');
+      return `<tr><td>${escapeHtml(cat)}</td><td><select class="input" data-cat="${escapeHtml(cat)}" style="width:auto; min-width:200px">${opts}</select></td></tr>`;
+    }).join('');
+    tb.querySelectorAll('select[data-cat]').forEach(sel => sel.addEventListener('change', () => saveCostMap(sel.dataset.cat, sel.value)));
+  }
+
+  async function saveCostMap(category, line) {
+    costMap[category] = line;
+    const { error } = await sb.from('pnl_cost_map').upsert({ category, pnl_line: line }, { onConflict: 'category' });
+    if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+    toast('✅ 已設定「' + category + '」');
   }
 
   // 依「大分類」過濾品項下拉；currentName 為編輯時既有值（保留可選）
