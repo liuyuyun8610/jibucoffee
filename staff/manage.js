@@ -786,9 +786,8 @@
     F('pnlYearLabel').textContent = pnlYear;
     // 2026 年第一次打開、且還沒任何資料 → 自動帶入截圖讀到的 1–5 月（用老闆登入身分寫入）
     if (pnlYear === 2026 && Object.keys(pnlData).length === 0 && !localStorage.getItem('pnlSeeded2026')) {
-      localStorage.setItem('pnlSeeded2026', '1');
       const ok = await pnlApplySeed(2026, true);
-      if (ok) { return loadPnl(); } // 重新載入即帶出 1–5 月 + 即時年度預測
+      if (ok) { localStorage.setItem('pnlSeeded2026', '1'); return loadPnl(); } // 重新載入即帶出 1–5 月 + 即時年度預測
     }
     renderPnlGrid();
   }
