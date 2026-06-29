@@ -975,9 +975,10 @@
     const annRev = PNL_MONTHS.reduce((s, m) => s + mc[m].net_sales, 0);
     const annNet = PNL_MONTHS.reduce((s, m) => s + mc[m].opnet, 0);
     const loss = PNL_MONTHS.filter(m => mc[m].net_sales > 0 && mc[m].opnet < 0).length; // 只算有收入的月份，避免未填月份假警報
+    const margin = annRev > 0 ? Math.round(annNet / annRev * 100) : 0; // 淨利率
     const cards = [
       ['全年營收（淨額）', formatCurrency(annRev), `已填 ${filled.length} 月＋預測 ${12 - filled.length} 月`, ''],
-      ['全年營業淨利', formatCurrency(annNet), annNet >= 0 ? '預估獲利' : '預估虧損', annNet >= 0 ? '#2e7d32' : '#c0392b'],
+      ['全年營業淨利', `${formatCurrency(annNet)}　約 ${(margin / 10).toFixed(1)} 成`, (annNet >= 0 ? '預估獲利' : '預估虧損') + `・淨利率 ${margin}%`, annNet >= 0 ? '#2e7d32' : '#c0392b'],
       ['平均每月淨利', formatCurrency(Math.round(annNet / 12)), '', ''],
       ['可能虧損月數', loss + ' 個月', loss ? '注意現金流' : '全年皆獲利', loss ? '#c0392b' : '#2e7d32'],
     ];
