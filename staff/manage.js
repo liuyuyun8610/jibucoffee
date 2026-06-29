@@ -700,13 +700,14 @@
   /* ============================================================
    * 3.5) 損益預測（每月損益 + 年度預測 + 預測vs實際差異）
    * ========================================================== */
-  const PNL_INPUTS = ['revenue_gross','discount','tax','cost_beans','cost_food','cost_packaging','cost_other_cogs','salary','misc_purchase','water_gas','electric','other_ctrl','equip_repair','equip_maintain','rent','parking','amort_decor','amort_equip','system_fee'];
+  const PNL_INPUTS = ['revenue_gross','discount','cost_beans','cost_food','cost_packaging','cost_other_cogs','salary','misc_purchase','water_gas','electric','other_ctrl','equip_repair','equip_maintain','rent','parking','amort_decor','amort_equip','system_fee'];
+  const PNL_TAX_RATE = 5; // 營業稅 5%（收入為含稅）
   const PNL_FIXED = ['rent','parking','amort_decor','amort_equip','system_fee'];
   const PNL_LINES = [
     { group: '收入' },
     { key: 'revenue_gross', label: '內用 / 外帶收入' },
-    { key: 'discount', label: '折扣' },
-    { key: 'tax', label: '稅額' },
+    { key: 'discount', label: '折扣（僅紀錄，不計入淨額）' },
+    { calc: 'tax', label: '稅額（自動 5%）' },
     { calc: 'net_sales', label: '銷貨收入淨額（扣稅）', strong: true },
     { group: '銷貨成本' },
     { key: 'cost_beans', label: '咖啡豆成本' },
@@ -757,8 +758,11 @@
   const PNL_LEDGER_KEYS = ['rent','water_gas','electric','equip_repair','equip_maintain','misc_purchase','other_ctrl']; // 來自帳本
   function pnlIsAutoKey(key) { return key === 'salary' || PNL_COGS_KEYS.includes(key) || PNL_LEDGER_KEYS.includes(key); }
 
+  // 自動連動的啟用月份（2026 年 6 月才正式啟用；之前是歷史資料、用手填值不自動覆蓋）
+  function pnlAutoActive(m) { return !(pnlYear === 2026 && m < 6); }
   // 該月該科目的「自動值」：只有該科目當月真的有來源資料才回數字，否則 null（沿用手填/截圖值）
   function pnlAutoValue(m, key) {
+    if (!pnlAutoActive(m)) return null;
     if (key === 'salary') return pnlMonPayroll.has(m) ? (pnlAutoSalary[m] || 0) : null;
     if (PNL_COGS_KEYS.includes(key) || PNL_LEDGER_KEYS.includes(key)) {
       return (pnlAuto[m] && pnlAuto[m][key] !== undefined) ? pnlAuto[m][key] : null;
@@ -767,12 +771,13 @@
   }
 
   function pnlCalc(v) {
-    const net = (v.revenue_gross || 0) - (v.discount || 0) - (v.tax || 0);
+    const tax = Math.round((v.revenue_gross || 0) * PNL_TAX_RATE / (100 + PNL_TAX_RATE)); // 含稅收入 → 稅額
+    const net = (v.revenue_gross || 0) - tax; // 淨額＝收入−稅（折扣不計入）
     const cogs = (v.cost_beans || 0) + (v.cost_food || 0) + (v.cost_packaging || 0) + (v.cost_other_cogs || 0);
     const gross = net - cogs;
     const ctrl = (v.salary || 0) + (v.misc_purchase || 0) + (v.water_gas || 0) + (v.electric || 0) + (v.other_ctrl || 0) + (v.equip_repair || 0) + (v.equip_maintain || 0);
     const unctrl = (v.rent || 0) + (v.parking || 0) + (v.amort_decor || 0) + (v.amort_equip || 0) + (v.system_fee || 0);
-    return { net_sales: net, cogs, gross, ctrl, unctrl, opnet: gross - ctrl - unctrl };
+    return { tax, net_sales: net, cogs, gross, ctrl, unctrl, opnet: gross - ctrl - unctrl };
   }
   function pnlIsActualMonth(m) { return !!pnlData[m] || pnlMonPurchase.has(m) || pnlMonPayroll.has(m) || pnlMonLedger.has(m); }
   function pnlFilledMonths() {  // 「實際」月份＝手填過 或 有叫貨/薪資/帳本來源
@@ -909,7 +914,7 @@
     // 即時更新該欄小計 + 全年 + 摘要（不重建，保留游標）
     const v = {}; PNL_INPUTS.forEach(kk => v[kk] = pnlEffective(m, kk));
     const c = pnlCalc(v);
-    ['net_sales','cogs','gross','ctrl','unctrl','opnet'].forEach(ck => {
+    ['tax','net_sales','cogs','gross','ctrl','unctrl','opnet'].forEach(ck => {
       const cell = F('pnlGrid').querySelector(`td[data-m="${m}"][data-c="${ck}"]`);
       if (cell) cell.textContent = formatCurrency(c[ck]);
     });
@@ -919,7 +924,7 @@
     const mv = {}, mc = {};
     PNL_MONTHS.forEach(m => { mv[m] = pnlMonthValues(m); mc[m] = pnlCalc(mv[m]); });
     PNL_INPUTS.forEach(k => { const c = F('pnlGrid').querySelector(`td[data-annk="${k}"]`); if (c) c.textContent = formatCurrency(PNL_MONTHS.reduce((s, m) => s + (mv[m][k] || 0), 0)); });
-    ['net_sales','cogs','gross','ctrl','unctrl','opnet'].forEach(ck => { const c = F('pnlGrid').querySelector(`td[data-annc="${ck}"]`); if (c) c.textContent = formatCurrency(PNL_MONTHS.reduce((s, m) => s + mc[m][ck], 0)); });
+    ['tax','net_sales','cogs','gross','ctrl','unctrl','opnet'].forEach(ck => { const c = F('pnlGrid').querySelector(`td[data-annc="${ck}"]`); if (c) c.textContent = formatCurrency(PNL_MONTHS.reduce((s, m) => s + mc[m][ck], 0)); });
     pnlRenderSummary(); pnlRenderVariance();
   }
   async function onPnlBlur(e) {
@@ -937,7 +942,7 @@
     const filled = pnlFilledMonths();
     const annRev = PNL_MONTHS.reduce((s, m) => s + mc[m].net_sales, 0);
     const annNet = PNL_MONTHS.reduce((s, m) => s + mc[m].opnet, 0);
-    const loss = PNL_MONTHS.filter(m => mc[m].opnet < 0).length;
+    const loss = PNL_MONTHS.filter(m => mc[m].net_sales > 0 && mc[m].opnet < 0).length; // 只算有收入的月份，避免未填月份假警報
     const cards = [
       ['全年營收（淨額）', formatCurrency(annRev), `已填 ${filled.length} 月＋預測 ${12 - filled.length} 月`, ''],
       ['全年營業淨利', formatCurrency(annNet), annNet >= 0 ? '預估獲利' : '預估虧損', annNet >= 0 ? '#2e7d32' : '#c0392b'],
