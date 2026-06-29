@@ -1974,7 +1974,7 @@
   function accountBalance(id) {
     const a = accounts.find(x => x.id === id); if (!a) return 0;
     let bal = Number(a.initial_balance || 0);
-    ledgerEntries.forEach(e => { if (e.account_id === id) bal += (e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0); });
+    ledgerEntries.forEach(e => { if (e.account_id === id) bal += ((e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0)) - Number(e.fee || 0); });
     return bal;
   }
   function accName(id) { const a = accounts.find(x => x.id === id); return a ? a.name : '—'; }
@@ -1995,7 +1995,8 @@
     if (acc) rows = rows.filter(e => e.account_id === acc);
     const inc = rows.filter(e => e.type === '收入' || e.type === '轉入').reduce((s, e) => s + Number(e.amount || 0), 0);
     const exp = rows.filter(e => e.type === '支出' || e.type === '轉出').reduce((s, e) => s + Number(e.amount || 0), 0);
-    F('led_sum').textContent = `收入 ${formatCurrency(inc)}・支出 ${formatCurrency(exp)}・淨 ${formatCurrency(inc - exp)}`;
+    const fees = rows.reduce((s, e) => s + Number(e.fee || 0), 0);
+    F('led_sum').textContent = `收入 ${formatCurrency(inc)}・支出 ${formatCurrency(exp)}${fees ? '・手續費 ' + formatCurrency(fees) : ''}・淨 ${formatCurrency(inc - exp - fees)}`;
     const tb = F('ledTable').querySelector('tbody');
     tb.innerHTML = rows.length ? rows.map(e => {
       const isIn = e.type === '收入' || e.type === '轉入';
@@ -2005,7 +2006,7 @@
         <td>${escapeHtml(accName(e.account_id))}</td>
         <td style="white-space:nowrap"><span class="badge ${isIn ? 'badge-ok' : 'badge-ded'}">${e.type}</span></td>
         <td>${escapeHtml(e.category || '')}${srcLabel ? ` <span class="faint">·${srcLabel}</span>` : ''}</td>
-        <td class="num" style="white-space:nowrap;color:${isIn ? 'var(--ok)' : 'var(--danger)'}">${isIn ? '+' : '-'}${formatCurrency(e.amount)}</td>
+        <td class="num" style="white-space:nowrap;color:${isIn ? 'var(--ok)' : 'var(--danger)'}">${isIn ? '+' : '-'}${formatCurrency(e.amount)}${Number(e.fee || 0) ? `<br><span class="faint" style="font-size:10px;color:var(--danger)">手續費 -${formatCurrency(e.fee)}</span>` : ''}</td>
         <td class="faint">${escapeHtml(e.description || '')}</td>
         <td class="num faint">${e.source === 'manual' ? '編輯 ›' : ''}</td>
       </tr>`;
@@ -2261,7 +2262,7 @@
     F('rep_hint').textContent = `期間 ${pStart.replace(/-/g,'/')} ~ ${pEnd.replace(/-/g,'/')}`;
 
     const period = repEntries.filter(e => e.entry_date >= pStart && e.entry_date <= pEnd);
-    const sign = e => (e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0);
+    const sign = e => ((e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0)) - Number(e.fee || 0);
     const initSum = repAccounts.reduce((s, a) => s + Number(a.initial_balance || 0), 0);
     const hr = `<div class="divider"></div>`;
     const sub = t => `<p style="font-weight:600;margin:12px 0 6px">${t}</p>`;
@@ -2271,6 +2272,8 @@
 
     // 損益表
     const inc = grp('收入'), exp = grp('支出');
+    const feesT = period.reduce((s, e) => s + Number(e.fee || 0), 0); // 手續費
+    if (feesT) exp['手續費'] = (exp['手續費'] || 0) + feesT;
     const incT = Object.values(inc).reduce((s, v) => s + v, 0), expT = Object.values(exp).reduce((s, v) => s + v, 0);
     const net = incT - expT;
     F('rep_pl').innerHTML = sub('營業收入') + rows(inc) + kv('收入合計', `<b>${formatCurrency(incT)}</b>`) + hr
@@ -2280,7 +2283,7 @@
     // 現金流量表
     const opening = initSum + repEntries.filter(e => e.entry_date < pStart).reduce((s, e) => s + sign(e), 0);
     const inflow = period.filter(e => e.type === '收入').reduce((s, e) => s + Number(e.amount || 0), 0);
-    const outflow = period.filter(e => e.type === '支出').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const outflow = period.filter(e => e.type === '支出').reduce((s, e) => s + Number(e.amount || 0), 0) + feesT;
     const ending = opening + inflow - outflow;
     F('rep_cf').innerHTML = kv('期初現金', formatCurrency(opening))
       + kv('本期現金流入（收入）', '+' + formatCurrency(inflow), 'var(--ok)')
