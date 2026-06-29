@@ -748,16 +748,21 @@
   let pnlGrowth = 0;
   let pnlInited = false;
   // 自動連動來源
-  let pnlAuto = {};                          // month -> { 損益key: 加總金額 }（來自叫貨）
+  let pnlAuto = {};                          // month -> { 損益key: 加總金額 }
   let pnlAutoSalary = {};                     // month -> 薪資總額（來自 payroll）
-  let pnlMonPurchase = new Set();             // 有採購資料的月份
+  let pnlMonPurchase = new Set();             // 有叫貨資料的月份
   let pnlMonPayroll = new Set();              // 有薪資資料的月份
-  const PNL_PURCHASE_KEYS = ['cost_beans','cost_food','cost_packaging','cost_other_cogs','misc_purchase','equip_repair','equip_maintain'];
+  let pnlMonLedger = new Set();               // 有帳本(非進貨/薪資)支出的月份
+  const PNL_COGS_KEYS = ['cost_beans','cost_food','cost_packaging','cost_other_cogs'];                       // 來自庫存叫貨
+  const PNL_LEDGER_KEYS = ['rent','water_gas','electric','equip_repair','equip_maintain','misc_purchase','other_ctrl']; // 來自帳本
+  function pnlIsAutoKey(key) { return key === 'salary' || PNL_COGS_KEYS.includes(key) || PNL_LEDGER_KEYS.includes(key); }
 
-  // 該月該科目的「自動值」：有來源資料回數字，否則回 null（代表改用手填）
+  // 該月該科目的「自動值」：只有該科目當月真的有來源資料才回數字，否則 null（沿用手填/截圖值）
   function pnlAutoValue(m, key) {
     if (key === 'salary') return pnlMonPayroll.has(m) ? (pnlAutoSalary[m] || 0) : null;
-    if (PNL_PURCHASE_KEYS.includes(key)) return pnlMonPurchase.has(m) ? ((pnlAuto[m] && pnlAuto[m][key]) || 0) : null;
+    if (PNL_COGS_KEYS.includes(key) || PNL_LEDGER_KEYS.includes(key)) {
+      return (pnlAuto[m] && pnlAuto[m][key] !== undefined) ? pnlAuto[m][key] : null;
+    }
     return null;
   }
 
@@ -769,11 +774,11 @@
     const unctrl = (v.rent || 0) + (v.parking || 0) + (v.amort_decor || 0) + (v.amort_equip || 0) + (v.system_fee || 0);
     return { net_sales: net, cogs, gross, ctrl, unctrl, opnet: gross - ctrl - unctrl };
   }
-  function pnlIsActualMonth(m) { return !!pnlData[m] || pnlMonPurchase.has(m) || pnlMonPayroll.has(m); }
-  function pnlFilledMonths() {  // 「實際」月份＝手填過 或 有叫貨/薪資來源
+  function pnlIsActualMonth(m) { return !!pnlData[m] || pnlMonPurchase.has(m) || pnlMonPayroll.has(m) || pnlMonLedger.has(m); }
+  function pnlFilledMonths() {  // 「實際」月份＝手填過 或 有叫貨/薪資/帳本來源
     const s = new Set();
     Object.keys(pnlData).forEach(m => s.add(Number(m)));
-    pnlMonPurchase.forEach(m => s.add(m)); pnlMonPayroll.forEach(m => s.add(m));
+    pnlMonPurchase.forEach(m => s.add(m)); pnlMonPayroll.forEach(m => s.add(m)); pnlMonLedger.forEach(m => s.add(m));
     return [...s].sort((a, b) => a - b);
   }
   function pnlEffective(m, key) {   // 該月該科目實際值：自動優先，否則手填，否則0
@@ -804,28 +809,42 @@
       F('pnlSeed').addEventListener('click', pnlSeedData);
       pnlInited = true;
     }
-    const [{ data, error }, purRes, payRes, mapRes] = await Promise.all([
+    const [{ data, error }, purRes, payRes, mapRes, ledRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
       sb.from('purchases').select('order_date,category,total_cost'),
       sb.from('payroll_records').select('year,month,total_pay').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
+      sb.from('ledger_entries').select('entry_date,category,amount,type,source'),
     ]);
     if (error) { toast('載入失敗：' + error.message, 'error'); return; }
     pnlData = {};
     (data || []).forEach(r => pnlData[r.month] = r);
     // 對應表
     costMap = {}; (mapRes.data || []).forEach(r => costMap[r.category] = r.pnl_line);
-    // 叫貨 → 各損益科目（依當年、依對應）
-    pnlAuto = {}; pnlMonPurchase = new Set();
+    pnlAuto = {};
+    // 庫存叫貨 → 銷貨成本（只接受 COGS 科目；當年）
+    pnlMonPurchase = new Set();
     (purRes.data || []).forEach(p => {
-      if (!p.order_date) return;
-      if (Number(p.order_date.slice(0, 4)) !== pnlYear) return;
+      if (!p.order_date || Number(p.order_date.slice(0, 4)) !== pnlYear) return;
       const line = costMap[p.category];
-      if (!line || line === 'none') return;
+      if (!PNL_COGS_KEYS.includes(line)) return;
       const mo = Number(p.order_date.slice(5, 7));
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][line] = (pnlAuto[mo][line] || 0) + Number(p.total_cost || 0);
       pnlMonPurchase.add(mo);
+    });
+    // 帳本 → 其他費用（排除進貨/薪資自動分錄避免重複；只接受帳本可對應科目；當年）
+    pnlMonLedger = new Set();
+    (ledRes.data || []).forEach(e => {
+      if (e.type !== '支出') return;
+      if (e.source === 'purchase' || e.source === 'payroll') return;
+      if (!e.entry_date || Number(e.entry_date.slice(0, 4)) !== pnlYear) return;
+      const line = costMap[e.category];
+      if (!PNL_LEDGER_KEYS.includes(line)) return;
+      const mo = Number(e.entry_date.slice(5, 7));
+      if (!pnlAuto[mo]) pnlAuto[mo] = {};
+      pnlAuto[mo][line] = (pnlAuto[mo][line] || 0) + Number(e.amount || 0);
+      pnlMonLedger.add(mo);
     });
     // 薪資 → salary
     pnlAutoSalary = {}; pnlMonPayroll = new Set();
@@ -847,16 +866,16 @@
     let html = '<thead><tr><th style="min-width:150px; text-align:left">科目</th>';
     PNL_MONTHS.forEach(m => { const a = pnlIsActualMonth(m); html += `<th class="num" style="${a ? '' : 'opacity:.5'}">${m}月${a ? '' : '<br><span style="font-size:10px">預測</span>'}</th>`; });
     html += '<th class="num" style="min-width:88px">全年</th></tr></thead><tbody>';
-    const autoNote = { salary: '薪資' };
+    const srcLabel = (k) => k === 'salary' ? '薪資' : PNL_COGS_KEYS.includes(k) ? '庫存叫貨' : PNL_LEDGER_KEYS.includes(k) ? '帳本' : '';
     PNL_LINES.forEach(line => {
       if (line.group) { html += `<tr><td colspan="14" style="background:#f1ebe0; font-weight:600; font-size:12px; text-align:left">${line.group}</td></tr>`; return; }
-      const lineAuto = (line.key === 'salary' || PNL_PURCHASE_KEYS.includes(line.key));
-      html += `<tr><td style="text-align:left; ${line.strong ? 'font-weight:700' : ''}">${line.label}${lineAuto ? ' <span class="faint" style="font-size:10px">自動</span>' : ''}</td>`;
+      const lineAuto = pnlIsAutoKey(line.key);
+      html += `<tr><td style="text-align:left; ${line.strong ? 'font-weight:700' : ''}">${line.label}${lineAuto ? ` <span class="faint" style="font-size:10px">自動·${srcLabel(line.key)}</span>` : ''}</td>`;
       if (line.key) {
         PNL_MONTHS.forEach(m => {
           const auto = pnlAutoValue(m, line.key);
           if (auto !== null) {
-            html += `<td class="num" data-m="${m}" data-c2="${line.key}" title="自動帶自${line.key === 'salary' ? '薪資' : '叫貨'}（在${line.key === 'salary' ? '薪資' : '庫存叫貨'}修改）" style="background:#eaf1f6; color:#34627d; font-size:12px">${formatCurrency(auto)}</td>`;
+            html += `<td class="num" data-m="${m}" data-c2="${line.key}" title="自動帶自${srcLabel(line.key)}（去該頁修改）" style="background:#eaf1f6; color:#34627d; font-size:12px">${formatCurrency(auto)}</td>`;
           } else {
             const a = pnlIsActualMonth(m);
             const val = mv[m][line.key];
@@ -964,25 +983,33 @@
   // 損益成本對應可選的科目
   const PNL_MAP_OPTIONS = [
     { v: 'none', label: '— 不列入損益 —' },
-    { v: 'cost_beans', label: '咖啡豆成本' },
-    { v: 'cost_food', label: '食材成本' },
-    { v: 'cost_packaging', label: '包裝 / 杯子成本' },
-    { v: 'cost_other_cogs', label: '其他銷貨成本（糖、餐巾紙）' },
-    { v: 'misc_purchase', label: '雜項購置' },
-    { v: 'equip_repair', label: '設備維修費' },
-    { v: 'equip_maintain', label: '設備保養費' },
+    { v: 'cost_beans', label: '咖啡豆成本（叫貨）' },
+    { v: 'cost_food', label: '食材成本（叫貨）' },
+    { v: 'cost_packaging', label: '包裝 / 杯子成本（叫貨）' },
+    { v: 'cost_other_cogs', label: '其他銷貨成本 糖餐巾紙（叫貨）' },
+    { v: 'rent', label: '租金（帳本）' },
+    { v: 'water_gas', label: '水費、瓦斯（帳本）' },
+    { v: 'electric', label: '電費（帳本）' },
+    { v: 'equip_repair', label: '設備維修費（帳本）' },
+    { v: 'equip_maintain', label: '設備保養費（帳本）' },
+    { v: 'misc_purchase', label: '雜項購置（帳本）' },
+    { v: 'other_ctrl', label: '其他可控費用（帳本）' },
   ];
+  let pnlLedgerCats = [];  // 帳本支出分類（排除自動的進貨/薪資）
 
   async function loadInventory() {
-    const [{ data: pdata, error }, { data: sdata }, { data: mdata }] = await Promise.all([
+    const [{ data: pdata, error }, { data: sdata }, { data: mdata }, { data: lcats }] = await Promise.all([
       sb.from('purchases').select('*').order('order_date', { ascending: false }).order('created_at', { ascending: false }),
       sb.from('stock_items').select('*').eq('is_active', true).order('sort_order').order('name'),
       sb.from('pnl_cost_map').select('*'),
+      sb.from('ledger_categories').select('name,kind'),
     ]);
     if (error) { F('invTable').querySelector('tbody').innerHTML = `<tr><td colspan="8" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
     purchases = pdata || [];
     stockItems = sdata || [];
     costMap = {}; (mdata || []).forEach(r => costMap[r.category] = r.pnl_line);
+    // 帳本支出分類（進貨/薪資由叫貨/薪資自動算，不放進對應）
+    pnlLedgerCats = [...new Set((lcats || []).filter(c => c.kind === 'expense' && c.name !== '進貨' && c.name !== '薪資').map(c => c.name))];
     invLoaded = true;
     fillYearSelect(F('inv_year'), purchases.map(p => p.order_date), F('inv_year').value);
     if (!invMonthInited) { F('inv_month').value = String(new Date().getMonth() + 1); invMonthInited = true; }  // 預設當月
@@ -998,7 +1025,8 @@
     const set = new Set(['糖漿', '乳品', '茶包｜茶粉', '咖啡豆', '耗材']);
     stockItems.forEach(s => { if (s.category) set.add(s.category); });
     purchases.forEach(p => { if (p.category) set.add(p.category); });
-    Object.keys(costMap).forEach(c => set.add(c));
+    pnlLedgerCats.forEach(c => set.add(c));   // 帳本支出分類（房租/水費/電費/維修/雜支…）
+    Object.keys(costMap).forEach(c => { if (c !== '進貨' && c !== '薪資') set.add(c); });
     return [...set].sort();
   }
 
