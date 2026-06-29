@@ -423,9 +423,11 @@
     <!-- ===== 維運紀錄 ===== -->
     <section data-pane="maintenance" class="hidden">
       <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
-        <div class="flex">
+        <div class="flex" style="flex-wrap:wrap; align-items:center">
           <select class="input" id="maint_year" style="width:auto"></select>
           <span class="muted faint" id="maint_sum"></span>
+          <span class="muted faint" style="margin-left:8px; font-size:12px">損益歸類</span>
+          <select class="input" id="maint_pnl" style="width:auto" title="維運費用 6 月起自動算進損益的這個科目"></select>
         </div>
         <button class="btn btn-primary btn-sm" id="addMaint">＋ 新增紀錄</button>
       </div>

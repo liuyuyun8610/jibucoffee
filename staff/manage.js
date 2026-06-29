@@ -831,12 +831,13 @@
       F('pnlSeed').addEventListener('click', pnlSeedData);
       pnlInited = true;
     }
-    const [{ data, error }, purRes, payRes, mapRes, ledRes] = await Promise.all([
+    const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
       sb.from('purchases').select('order_date,category,total_cost'),
       sb.from('payroll_records').select('year,month,total_pay').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
       sb.from('ledger_entries').select('entry_date,category,amount,type,source'),
+      sb.from('maintenance_records').select('repair_date,cost'),
     ]);
     if (error) { toast('載入失敗：' + error.message, 'error'); return; }
     pnlData = {};
@@ -873,6 +874,19 @@
       else return;
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][key] = (pnlAuto[mo][key] || 0) + Number(e.amount || 0);
+      pnlMonLedger.add(mo);
+    });
+    // 維運紀錄 → 損益（依「損益歸類」設定，預設設備維修費；當年）
+    const maintLine = costMap['維運紀錄'] || 'equip_repair';
+    (maintRes.data || []).forEach(r => {
+      if (!r.repair_date || Number(r.repair_date.slice(0, 4)) !== pnlYear) return;
+      let key = null;
+      if (PNL_LEDGER_KEYS.includes(maintLine)) key = maintLine;
+      else if (maintLine === 'own_ctrl' || maintLine === 'own_unctrl') key = 'own:維運紀錄';
+      else return;
+      const mo = Number(r.repair_date.slice(5, 7));
+      if (!pnlAuto[mo]) pnlAuto[mo] = {};
+      pnlAuto[mo][key] = (pnlAuto[mo][key] || 0) + Number(r.cost || 0);
       pnlMonLedger.add(mo);
     });
     // 薪資 → salary
@@ -1635,12 +1649,20 @@
   const parseTags = s => [...new Set((s || '').split(/[,，、]/).map(t => t.trim()).filter(Boolean))];
 
   async function loadMaintenance() {
-    const { data, error } = await sb.from('maintenance_records').select('*').order('repair_date', { ascending: false }).order('created_at', { ascending: false });
+    const [{ data, error }, { data: mapd }] = await Promise.all([
+      sb.from('maintenance_records').select('*').order('repair_date', { ascending: false }).order('created_at', { ascending: false }),
+      sb.from('pnl_cost_map').select('*'),
+    ]);
     if (error) { F('maintTable').querySelector('tbody').innerHTML = `<tr><td colspan="6" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
     maintList = data || [];
+    costMap = {}; (mapd || []).forEach(r => costMap[r.category] = r.pnl_line);
+    // 損益歸類下拉
+    const cur = costMap['維運紀錄'] || 'equip_repair';
+    F('maint_pnl').innerHTML = PNL_MAP_OPTIONS_LEDGER.map(o => `<option value="${o.v}" ${o.v === cur ? 'selected' : ''}>${o.label}</option>`).join('');
     fillYearSelect(F('maint_year'), maintList.map(m => m.repair_date), F('maint_year').value);
     renderMaintenance();
   }
+  F('maint_pnl') && F('maint_pnl').addEventListener('change', () => saveCostMap('維運紀錄', F('maint_pnl').value));
 
   F('maint_year').addEventListener('change', renderMaintenance);
 
