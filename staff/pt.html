@@ -33,6 +33,10 @@
     <h1>臨時PT 打卡</h1>
     <div class="date" id="today">—</div>
     <div id="list"><div class="empty">載入中…</div></div>
+    <div style="text-align:center; margin-top:24px; padding-top:18px; border-top:1px dashed var(--line)">
+      <img id="qr" alt="QR" style="width:150px; height:150px" />
+      <div style="color:var(--soft); font-size:13px; margin-top:6px">想用自己手機打卡？掃這個 QR</div>
+    </div>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -48,6 +52,7 @@
 
     const now = new Date();
     $('#today').textContent = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())}（今天）`;
+    $('#qr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(location.href);
 
     async function load() {
       const { data, error } = await sb.from('temp_pt_shifts').select('*').order('start_time');
