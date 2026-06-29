@@ -764,7 +764,7 @@
   function pnlCustomSum(m, grp) { return pnlOwnLines.filter(l => l.grp === grp).reduce((s, l) => s + pnlOwnValue(m, l.cat), 0); }
   // 整月小計（含自訂科目）
   function pnlMonthCalc(m) {
-    const c = pnlMonthCalc(m);
+    const c = pnlCalc(pnlMonthValues(m));
     c.ctrl += pnlCustomSum(m, 'ctrl');
     c.unctrl += pnlCustomSum(m, 'unctrl');
     c.opnet = c.gross - c.ctrl - c.unctrl;
