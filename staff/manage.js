@@ -1816,8 +1816,53 @@
     F('led_account').innerHTML = '<option value="">全部帳戶</option>' + accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
     renderAccounts();
     renderRevenueSettings();
+    renderCatManager();
     renderLedger();
   }
+
+  function renderCatManager() {
+    ['expense', 'income'].forEach(kind => {
+      const box = F(kind === 'expense' ? 'catMgrExpense' : 'catMgrIncome');
+      if (!box) return;
+      const cats = ledgerCats.filter(c => c.kind === kind);
+      box.innerHTML = cats.map(c => `
+        <div class="item-row" data-id="${c.id}">
+          <input class="input cat-name" value="${escapeHtml(c.name)}" data-orig="${escapeHtml(c.name)}" style="flex:1">
+          <button class="btn btn-ghost btn-sm cat-del" title="刪除">🗑</button>
+        </div>`).join('') || '<div class="muted faint" style="font-size:12px">尚無分類</div>';
+      box.querySelectorAll('.cat-name').forEach(inp => inp.addEventListener('change', () => saveCatName(inp.closest('[data-id]').dataset.id, inp)));
+      box.querySelectorAll('.cat-del').forEach(btn => btn.addEventListener('click', () => deleteCat(btn.closest('[data-id]').dataset.id)));
+    });
+  }
+  async function saveCatName(id, inp) {
+    const name = inp.value.trim();
+    if (!name) { inp.value = inp.dataset.orig; return; }
+    if (name === inp.dataset.orig) return;
+    const { error } = await sb.from('ledger_categories').update({ name }).eq('id', id);
+    if (error) { toast('改名失敗：' + error.message, 'error'); inp.value = inp.dataset.orig; return; }
+    inp.dataset.orig = name; toast('✅ 已改名');
+    const c = ledgerCats.find(x => x.id === id); if (c) c.name = name;
+  }
+  async function deleteCat(id) {
+    const c = ledgerCats.find(x => x.id === id);
+    if (!c) return;
+    if (!confirm(`刪除分類「${c.name}」？\n（已記的分錄不受影響，只是新增分錄時不再出現這個選項）`)) return;
+    const { error } = await sb.from('ledger_categories').delete().eq('id', id);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    ledgerCats = ledgerCats.filter(x => x.id !== id);
+    renderCatManager(); toast('已刪除');
+  }
+  async function addCat(kind) {
+    const name = prompt(kind === 'expense' ? '新增支出分類名稱：' : '新增收入分類名稱：');
+    if (!name || !name.trim()) return;
+    const maxSort = Math.max(0, ...ledgerCats.filter(c => c.kind === kind).map(c => c.sort_order || 0));
+    const { data, error } = await sb.from('ledger_categories').insert({ name: name.trim(), kind, sort_order: maxSort + 1 }).select().single();
+    if (error) { toast(/duplicate|unique/i.test(error.message) ? '已有同名分類' : '新增失敗：' + error.message, 'error'); return; }
+    if (data) ledgerCats.push(data);
+    renderCatManager(); toast('✅ 已新增');
+  }
+  F('addCatExpense') && F('addCatExpense').addEventListener('click', () => addCat('expense'));
+  F('addCatIncome') && F('addCatIncome').addEventListener('click', () => addCat('income'));
   function renderRevenueSettings() {
     const opts = sel => '<option value="">（不記帳）</option>' + accounts.map(a => `<option value="${a.id}" ${a.id === sel ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('');
     F('rev_linepay').innerHTML = opts(revSettings.linepay_account_id);
