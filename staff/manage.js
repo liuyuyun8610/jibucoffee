@@ -986,19 +986,24 @@
   let costMap = {};  // { 分類名稱: 損益科目key }
 
   // 損益成本對應可選的科目
+  // 叫貨分類可對應的損益科目（銷貨成本）
   const PNL_MAP_OPTIONS = [
     { v: 'none', label: '— 不列入損益 —' },
-    { v: 'cost_beans', label: '咖啡豆成本（叫貨）' },
-    { v: 'cost_food', label: '食材成本（叫貨）' },
-    { v: 'cost_packaging', label: '包裝 / 杯子成本（叫貨）' },
-    { v: 'cost_other_cogs', label: '其他銷貨成本 糖餐巾紙（叫貨）' },
-    { v: 'rent', label: '租金（帳本）' },
-    { v: 'water_gas', label: '水費、瓦斯（帳本）' },
-    { v: 'electric', label: '電費（帳本）' },
-    { v: 'equip_repair', label: '設備維修費（帳本）' },
-    { v: 'equip_maintain', label: '設備保養費（帳本）' },
-    { v: 'misc_purchase', label: '雜項購置（帳本）' },
-    { v: 'other_ctrl', label: '其他可控費用（帳本）' },
+    { v: 'cost_beans', label: '咖啡豆成本' },
+    { v: 'cost_food', label: '食材成本' },
+    { v: 'cost_packaging', label: '包裝 / 杯子成本' },
+    { v: 'cost_other_cogs', label: '其他銷貨成本（糖、餐巾紙）' },
+  ];
+  // 帳本支出分類可對應的損益科目（費用）
+  const PNL_MAP_OPTIONS_LEDGER = [
+    { v: 'none', label: '— 不列入損益 —' },
+    { v: 'rent', label: '租金' },
+    { v: 'water_gas', label: '水費、瓦斯' },
+    { v: 'electric', label: '電費' },
+    { v: 'equip_repair', label: '設備維修費' },
+    { v: 'equip_maintain', label: '設備保養費' },
+    { v: 'misc_purchase', label: '雜項購置' },
+    { v: 'other_ctrl', label: '其他可控費用' },
   ];
   let pnlLedgerCats = [];  // 帳本支出分類（排除自動的進貨/薪資）
 
@@ -1027,11 +1032,10 @@
 
   // 所有出現過的分類（庫存固定分類 + 品項分類 + 採購分類）
   function allCategories() {
+    // 只列「叫貨／庫存」分類（帳本分類在財務設定→分類管理那邊對應）
     const set = new Set(['糖漿', '乳品', '茶包｜茶粉', '咖啡豆', '耗材']);
     stockItems.forEach(s => { if (s.category) set.add(s.category); });
     purchases.forEach(p => { if (p.category) set.add(p.category); });
-    pnlLedgerCats.forEach(c => set.add(c));   // 帳本支出分類（房租/水費/電費/維修/雜支…）
-    Object.keys(costMap).forEach(c => { if (c !== '進貨' && c !== '薪資') set.add(c); });
     return [...set].sort();
   }
 
@@ -1805,13 +1809,15 @@
   }
 
   async function loadLedger() {
-    const [{ data: accs }, { data: ents }, { data: cats }, { data: cfg }] = await Promise.all([
+    const [{ data: accs }, { data: ents }, { data: cats }, { data: cfg }, { data: mapd }] = await Promise.all([
       sb.from('accounts').select('*').order('sort_order').order('created_at'),
       sb.from('ledger_entries').select('*').order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
       sb.from('ledger_categories').select('*').order('kind').order('sort_order'),
       sb.from('site_settings').select('linepay_account_id,remit_account_id').eq('id', 1).maybeSingle(),
+      sb.from('pnl_cost_map').select('*'),
     ]);
     accounts = accs || []; ledgerEntries = ents || []; ledgerCats = cats || []; revSettings = cfg || {};
+    costMap = {}; (mapd || []).forEach(r => costMap[r.category] = r.pnl_line);
     fillYearSelect(F('led_year'), ledgerEntries.map(e => e.entry_date), F('led_year').value);
     F('led_account').innerHTML = '<option value="">全部帳戶</option>' + accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
     renderAccounts();
@@ -1825,13 +1831,26 @@
       const box = F(kind === 'expense' ? 'catMgrExpense' : 'catMgrIncome');
       if (!box) return;
       const cats = ledgerCats.filter(c => c.kind === kind);
-      box.innerHTML = cats.map(c => `
-        <div class="item-row" data-id="${c.id}">
+      box.innerHTML = cats.map(c => {
+        let mapHtml = '';
+        if (kind === 'expense') {
+          if (c.name === '進貨' || c.name === '薪資') {
+            mapHtml = `<span class="faint" style="font-size:11px; min-width:150px; text-align:right">自動（${c.name === '進貨' ? '叫貨' : '薪資'}）</span>`;
+          } else {
+            const cur = costMap[c.name] || 'none';
+            const opts = PNL_MAP_OPTIONS_LEDGER.map(o => `<option value="${o.v}" ${o.v === cur ? 'selected' : ''}>${o.label}</option>`).join('');
+            mapHtml = `<select class="input cat-map" data-cat="${escapeHtml(c.name)}" title="這個分類算進損益的哪個費用" style="width:auto; min-width:150px">${opts}</select>`;
+          }
+        }
+        return `<div class="item-row" data-id="${c.id}">
           <input class="input cat-name" value="${escapeHtml(c.name)}" data-orig="${escapeHtml(c.name)}" style="flex:1">
+          ${mapHtml}
           <button class="btn btn-ghost btn-sm cat-del" title="刪除">🗑</button>
-        </div>`).join('') || '<div class="muted faint" style="font-size:12px">尚無分類</div>';
+        </div>`;
+      }).join('') || '<div class="muted faint" style="font-size:12px">尚無分類</div>';
       box.querySelectorAll('.cat-name').forEach(inp => inp.addEventListener('change', () => saveCatName(inp.closest('[data-id]').dataset.id, inp)));
       box.querySelectorAll('.cat-del').forEach(btn => btn.addEventListener('click', () => deleteCat(btn.closest('[data-id]').dataset.id)));
+      box.querySelectorAll('.cat-map').forEach(sel => sel.addEventListener('change', () => saveCostMap(sel.dataset.cat, sel.value)));
     });
   }
   async function saveCatName(id, inp) {

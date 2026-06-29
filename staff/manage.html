@@ -322,8 +322,8 @@
         </div>
 
         <div class="card">
-          <h2 class="card-h">分類管理 <span class="faint" style="font-weight:400">— 新增分錄時可選的分類；改名/刪除/新增</span></h2>
-          <p class="muted faint" style="margin:0 0 12px; font-size:12px">刪除分類不會動到已記的分錄（分錄上的分類文字會保留）。「進貨」「薪資」由叫貨/薪資自動產生，建議別刪。</p>
+          <h2 class="card-h">分類管理 <span class="faint" style="font-weight:400">— 新增/改名/刪除分類，並設定它算進損益的哪個費用</span></h2>
+          <p class="muted faint" style="margin:0 0 12px; font-size:12px">支出分類右邊的「損益對應」設好後，損益表 6 月起就自動帶當月該分類的帳本金額。刪除分類不影響已記分錄。「進貨」「薪資」由叫貨/薪資自動算，建議別刪。</p>
           <div class="grid2">
             <div>
               <div class="faint" style="font-weight:600; margin-bottom:6px">支出分類</div>
@@ -408,12 +408,12 @@
           <h2 class="card-h" style="margin:0">損益成本對應 <span class="faint" style="font-weight:400">— 每個分類算進損益表的哪個科目</span></h2>
         </div>
         <p class="muted faint" style="margin:0 0 10px; font-size:12px">
-          設好後損益表就自動帶、你不用手填：<b>叫貨分類</b>（咖啡豆/乳品…）對應銷貨成本；<b>帳本分類</b>（房租/水費/電費/維修/雜支…）對應各項費用。
-          進貨、薪資不在這裡（叫貨自動算成本、薪資頁自動算薪資）。
+          這裡只設<b>叫貨分類</b>（咖啡豆/乳品/糖漿…）對應的<b>銷貨成本</b>。
+          帳本的費用分類（房租/水費/電費/維修/雜支…）請到「財務 → 財務設定 → 分類管理」設定。
         </p>
         <div style="overflow-x:auto">
           <table class="tbl" id="costMapTable">
-            <thead><tr><th>分類（叫貨／帳本）</th><th>對應損益科目</th></tr></thead>
+            <thead><tr><th>叫貨分類</th><th>對應銷貨成本</th></tr></thead>
             <tbody><tr><td colspan="2" class="muted faint">載入中…</td></tr></tbody>
           </table>
         </div>
