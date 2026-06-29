@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>臨時PT 打卡 · 一坨咖啡</title>
+  <link rel="icon" href="../favicon.png" />
+  <style>
+    :root { --ink:#3a352e; --soft:#8a8073; --line:#e7e0d5; --bg:#faf7f1; --ok:#2e7d32; --accent:#ad9a7d; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { margin:0; font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif; background:var(--bg); color:var(--ink); padding:24px 16px 60px; }
+    .wrap { max-width:460px; margin:0 auto; }
+    h1 { font-size:22px; margin:4px 0 2px; }
+    .date { color:var(--soft); font-size:14px; margin-bottom:20px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(60,50,30,.04); }
+    .name { font-size:19px; font-weight:600; }
+    .time { color:var(--soft); font-size:13px; margin-top:2px; }
+    .status { font-size:13px; margin-top:6px; }
+    .status.in { color:var(--ok); font-weight:600; }
+    .btns { display:flex; gap:10px; margin-top:12px; }
+    button { flex:1; border:none; border-radius:12px; padding:14px; font-size:16px; font-weight:600; cursor:pointer; }
+    .btn-in { background:var(--ok); color:#fff; }
+    .btn-out { background:#c0392b; color:#fff; }
+    .btn-done { background:#eee; color:#999; }
+    button:disabled { opacity:.5; }
+    .empty { text-align:center; color:var(--soft); padding:40px 10px; }
+    .toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#3a352e; color:#fff; padding:12px 20px; border-radius:30px; font-size:15px; opacity:0; transition:.25s; pointer-events:none; }
+    .toast.show { opacity:1; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>臨時PT 打卡</h1>
+    <div class="date" id="today">—</div>
+    <div id="list"><div class="empty">載入中…</div></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script>
+    const cfg = window.JIBU_CONFIG;
+    const sb = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    const $ = s => document.querySelector(s);
+    const pad = n => String(n).padStart(2, '0');
+    function hhmm(ts) { const d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+    function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
+
+    const now = new Date();
+    $('#today').textContent = `${now.getFullYear()}/${pad(now.getMonth() + 1)}/${pad(now.getDate())}（今天）`;
+
+    async function load() {
+      const { data, error } = await sb.from('temp_pt_shifts').select('*').order('start_time');
+      const box = $('#list');
+      if (error) { box.innerHTML = `<div class="empty">讀取失敗：${error.message}</div>`; return; }
+      if (!data || !data.length) { box.innerHTML = '<div class="empty">今天沒有排臨時PT 班<br>請老闆先在排班頁新增</div>'; return; }
+      box.innerHTML = data.map(s => {
+        const t = (s.start_time || '') + (s.end_time ? '~' + s.end_time : '');
+        let status = '尚未上班', cls = '';
+        if (s.clock_in && s.clock_out) { status = `上班 ${hhmm(s.clock_in)} ・ 下班 ${hhmm(s.clock_out)}`; cls = ''; }
+        else if (s.clock_in) { status = `已上班 ${hhmm(s.clock_in)}`; cls = 'in'; }
+        let btn = '';
+        if (!s.clock_in) btn = `<button class="btn-in" data-id="${s.id}" data-act="in">上班打卡</button>`;
+        else if (!s.clock_out) btn = `<button class="btn-out" data-id="${s.id}" data-act="out">下班打卡</button>`;
+        else btn = `<button class="btn-done" disabled>今日已完成 ✓</button>`;
+        return `<div class="card">
+          <div class="name">${escapeHtml(s.name)}</div>
+          ${t ? `<div class="time">班表 ${t}</div>` : ''}
+          <div class="status ${cls}">${status}</div>
+          <div class="btns">${btn}</div>
+        </div>`;
+      }).join('');
+      box.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => punch(b)));
+    }
+    function escapeHtml(s) { return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+    async function punch(btn) {
+      btn.disabled = true;
+      const { error } = await sb.rpc('pt_clock', { p_id: btn.dataset.id, p_action: btn.dataset.act });
+      if (error) { toast('打卡失敗：' + error.message); btn.disabled = false; return; }
+      toast(btn.dataset.act === 'in' ? '上班打卡成功 ✓' : '下班打卡成功 ✓');
+      load();
+    }
+    load();
+  </script>
+</body>
+</html>

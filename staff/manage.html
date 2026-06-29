@@ -121,7 +121,10 @@
             <div style="min-width:120px; text-align:center; font-weight:600" id="sm-label">—</div>
             <button id="sm-next">›</button>
           </div>
-          <button class="btn btn-primary btn-sm" id="addShift">＋ 排班</button>
+          <div class="flex">
+            <button class="btn btn-ghost btn-sm" id="ptLink">📱 臨時打卡QR</button>
+            <button class="btn btn-primary btn-sm" id="addShift">＋ 排班</button>
+          </div>
         </div>
         <div class="card">
           <h2 class="card-h">本月班表 <span class="faint" id="sm-sum"></span></h2>
@@ -690,6 +693,7 @@
         <div class="field"><label class="label">開始時間</label><input class="input" type="time" id="sh_start"></div>
         <div class="field"><label class="label">結束時間</label><input class="input" type="time" id="sh_end"></div>
       </div>
+      <div class="field" id="sh_temp_field" style="display:none"><label class="label">臨時PT 名字 ★</label><input class="input" id="sh_temp_name" placeholder="例：王小明"></div>
       <div class="field"><label class="label">備註</label><input class="input" id="sh_note" placeholder="例：外場 / 內場 / 早班"></div>
       <div id="sh_err" class="faint" style="color:var(--danger);min-height:18px"></div>
       <div class="row-between mt8">

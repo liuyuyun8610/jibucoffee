@@ -1582,7 +1582,7 @@
   /* ============================================================
    * 5c) 班表（老闆排班；員工在 me.html 看自己的）
    * ========================================================== */
-  let smYear, smMonth, shiftList = [], editShiftId = null;
+  let smYear, smMonth, shiftList = [], tempShiftList = [], editShiftId = null, editTempId = null;
   function initShiftNav() {
     const d = new Date();
     smYear = d.getFullYear(); smMonth = d.getMonth() + 1;
@@ -1592,15 +1592,26 @@
     F('sh_cancel').addEventListener('click', () => F('shiftModal').classList.remove('show'));
     F('sh_save').addEventListener('click', saveShift);
     F('sh_delete').addEventListener('click', deleteShift);
+    F('sh_staff').addEventListener('change', toggleTempField);
+    F('ptLink').addEventListener('click', () => {
+      const url = location.origin + '/staff/pt.html';
+      const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(url);
+      const w = window.open('', '_blank');
+      if (w) w.document.write(`<title>臨時打卡QR</title><div style="text-align:center;font-family:sans-serif;padding:30px"><h2>臨時PT 打卡</h2><img src="${qr}" style="width:320px;height:320px"><p style="word-break:break-all">${url}</p><p style="color:#888">印出來貼在店裡，臨時PT 掃碼點自己名字打卡</p></div>`);
+      else { prompt('臨時打卡連結（複製給臨時PT）：', url); }
+    });
   }
   async function loadShifts() {
     F('sm-label').textContent = `${smYear}年${smMonth}月`;
     const start = `${smYear}-${String(smMonth).padStart(2, '0')}-01`;
     const endD = new Date(smYear, smMonth, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const { data } = await sb.from('shifts').select('*').gte('work_date', start).lte('work_date', endStr)
-      .order('work_date').order('start_time');
+    const [{ data }, { data: tdata }] = await Promise.all([
+      sb.from('shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time'),
+      sb.from('temp_pt_shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time'),
+    ]);
     shiftList = data || [];
+    tempShiftList = tdata || [];
     renderShifts();
   }
   function renderShifts() {
@@ -1619,45 +1630,85 @@
         const t = `${s.start_time || ''}${s.end_time ? '~' + s.end_time : ''}`;
         return `<div class="cal-chip click" data-shift="${s.id}" title="${escapeHtml(nameOf(s.staff_id))} ${t}">${escapeHtml(nameOf(s.staff_id))}${s.start_time ? ' ' + s.start_time : ''}</div>`;
       }).join('');
-      html += `<div class="cal-cell clickable${ds === todayS ? ' today' : ''}" data-add="${ds}"><div class="cal-dnum">${d}</div>${chips}</div>`;
+      const tchips = tempShiftList.filter(s => s.work_date === ds).map(s => {
+        const punched = s.clock_in ? (s.clock_out ? '✓' : '●') : '';
+        return `<div class="cal-chip click" data-tempshift="${s.id}" style="background:#fbe7c9;border-color:#e3c987" title="臨時PT ${escapeHtml(s.name)} ${punched}">PT・${escapeHtml(s.name)}${s.start_time ? ' ' + s.start_time : ''} ${punched}</div>`;
+      }).join('');
+      html += `<div class="cal-cell clickable${ds === todayS ? ' today' : ''}" data-add="${ds}"><div class="cal-dnum">${d}</div>${chips}${tchips}</div>`;
     }
     F('shiftCal').innerHTML = html;
     F('shiftCal').querySelectorAll('[data-shift]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openShiftModal(el.dataset.shift); }));
+    F('shiftCal').querySelectorAll('[data-tempshift]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openTempShift(el.dataset.tempshift); }));
     F('shiftCal').querySelectorAll('[data-add]').forEach(el => el.addEventListener('click', () => openShiftModal(null, el.dataset.add)));
   }
+  function toggleTempField() { F('sh_temp_field').style.display = F('sh_staff').value === '__temp__' ? '' : 'none'; }
+  function staffShiftOptions() {
+    return staffList.filter(x => x.is_active !== false)
+      .map(x => `<option value="${x.id}">${escapeHtml(x.name)}${x.employ_type === 'PT' ? '（PT）' : ''}</option>`).join('')
+      + '<option value="__temp__">＋ 臨時PT（手填名字）</option>';
+  }
   function openShiftModal(id, presetDate) {
-    editShiftId = id;
+    editShiftId = id; editTempId = null;
     const s = id ? shiftList.find(x => x.id === id) : null;
     F('shiftModalTitle').textContent = s ? '編輯班次' : '排班';
-    F('sh_staff').innerHTML = staffList.filter(x => x.is_active !== false)
-      .map(x => `<option value="${x.id}">${escapeHtml(x.name)}${x.employ_type === 'PT' ? '（PT）' : ''}</option>`).join('');
-    F('sh_staff').value = s ? s.staff_id : (staffList[0] ? staffList[0].id : '');
+    F('sh_staff').innerHTML = staffShiftOptions();
+    F('sh_staff').value = s ? s.staff_id : (staffList[0] ? staffList[0].id : '__temp__');
+    F('sh_temp_name').value = '';
     F('sh_date').value = s ? s.work_date : (presetDate || `${smYear}-${String(smMonth).padStart(2, '0')}-01`);
     F('sh_start').value = s ? (s.start_time || '') : '';
     F('sh_end').value = s ? (s.end_time || '') : '';
     F('sh_note').value = s ? (s.note || '') : '';
     F('sh_err').textContent = '';
     F('sh_delete').style.visibility = s ? 'visible' : 'hidden';
+    toggleTempField();
     F('shiftModal').classList.add('show');
   }
+  function openTempShift(id) {
+    const s = tempShiftList.find(x => x.id === id); if (!s) return;
+    editShiftId = null; editTempId = id;
+    const punch = s.clock_in ? `　已打卡：上班 ${fmtClock(s.clock_in)}${s.clock_out ? '・下班 ' + fmtClock(s.clock_out) : '（未下班）'}` : '　尚未打卡';
+    F('shiftModalTitle').textContent = '編輯臨時PT 班' + punch;
+    F('sh_staff').innerHTML = staffShiftOptions();
+    F('sh_staff').value = '__temp__';
+    F('sh_temp_name').value = s.name || '';
+    F('sh_date').value = s.work_date;
+    F('sh_start').value = s.start_time || '';
+    F('sh_end').value = s.end_time || '';
+    F('sh_note').value = s.note || '';
+    F('sh_err').textContent = '';
+    F('sh_delete').style.visibility = 'visible';
+    toggleTempField();
+    F('shiftModal').classList.add('show');
+  }
+  function fmtClock(ts) { try { const d = new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; } catch { return ''; } }
   async function saveShift() {
     F('sh_err').textContent = '';
-    const staff_id = F('sh_staff').value, date = F('sh_date').value;
-    if (!staff_id || !date) { F('sh_err').textContent = '請選員工與日期'; return; }
+    const sel = F('sh_staff').value, date = F('sh_date').value;
+    if (!date) { F('sh_err').textContent = '請選日期'; return; }
     const btn = F('sh_save'); btn.disabled = true; btn.textContent = '儲存中…';
-    const payload = {
-      staff_id, work_date: date,
-      start_time: F('sh_start').value || null, end_time: F('sh_end').value || null,
-      note: F('sh_note').value.trim() || null,
-    };
     let error;
-    if (editShiftId) ({ error } = await sb.from('shifts').update(payload).eq('id', editShiftId));
-    else ({ error } = await sb.from('shifts').insert(payload));
+    if (sel === '__temp__' || editTempId) {
+      const name = F('sh_temp_name').value.trim();
+      if (!name) { F('sh_err').textContent = '請填臨時PT 名字'; btn.disabled = false; btn.textContent = '儲存'; return; }
+      const payload = { name, work_date: date, start_time: F('sh_start').value || null, end_time: F('sh_end').value || null, note: F('sh_note').value.trim() || null };
+      if (editTempId) ({ error } = await sb.from('temp_pt_shifts').update(payload).eq('id', editTempId));
+      else ({ error } = await sb.from('temp_pt_shifts').insert(payload));
+    } else {
+      const payload = { staff_id: sel, work_date: date, start_time: F('sh_start').value || null, end_time: F('sh_end').value || null, note: F('sh_note').value.trim() || null };
+      if (editShiftId) ({ error } = await sb.from('shifts').update(payload).eq('id', editShiftId));
+      else ({ error } = await sb.from('shifts').insert(payload));
+    }
     btn.disabled = false; btn.textContent = '儲存';
     if (error) { F('sh_err').textContent = '儲存失敗：' + error.message; return; }
     F('shiftModal').classList.remove('show'); toast('✅ 已排班'); loadShifts();
   }
   async function deleteShift() {
+    if (editTempId) {
+      if (!confirm('確定刪除這個臨時PT 班？')) return;
+      const { error } = await sb.from('temp_pt_shifts').delete().eq('id', editTempId);
+      if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+      F('shiftModal').classList.remove('show'); toast('已刪除'); loadShifts(); return;
+    }
     if (!editShiftId || !confirm('確定刪除這個班次？')) return;
     const { error } = await sb.from('shifts').delete().eq('id', editShiftId);
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
