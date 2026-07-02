@@ -1380,6 +1380,7 @@
     F('p_unit').value = p ? (p.unit || '') : '';
     F('p_cost').value = p ? p.unit_cost : '';
     F('p_supplier').value = p ? (p.supplier || '') : '';
+    F('p_fee').value = p && p.fee ? p.fee : '';
     F('p_note').value = p ? (p.note || '') : '';
     F('p_err').textContent = '';
     calcSub();
@@ -1401,19 +1402,20 @@
     const qty = Number(F('p_qty').value) || 0;
     const cost = Number(F('p_cost').value) || 0;
     const btn = F('p_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const fee = Number(F('p_fee').value) || 0;
     const payload = {
       order_date: date, item_name: item, category: (cat && !custom) ? cat : null,
       quantity: qty, unit: F('p_unit').value.trim() || null, unit_cost: cost, total_cost: qty * cost,
-      supplier: F('p_supplier').value.trim() || null, note: F('p_note').value.trim() || null,
+      supplier: F('p_supplier').value.trim() || null, note: F('p_note').value.trim() || null, fee,
     };
     let saved, error;
     if (editPurId) ({ data: saved, error } = await sb.from('purchases').update(payload).eq('id', editPurId).select().single());
     else ({ data: saved, error } = await sb.from('purchases').insert(payload).select().single());
     if (error) { btn.disabled = false; btn.textContent = '儲存'; F('p_err').textContent = '儲存失敗：' + error.message; return; }
-    // 連動帳本：選了付款帳戶就記一筆「支出・進貨」（重存先清舊的）
+    // 連動帳本：選了付款帳戶就記一筆「支出・進貨」（含手續費，重存先清舊的）
     const accId = F('p_account').value;
     await sb.from('ledger_entries').delete().eq('source', 'purchase').eq('source_id', saved.id);
-    if (accId) await sb.from('ledger_entries').insert({ account_id: accId, type: '支出', category: '進貨', amount: payload.total_cost, description: `叫貨：${payload.item_name}`, entry_date: payload.order_date, source: 'purchase', source_id: saved.id });
+    if (accId) await sb.from('ledger_entries').insert({ account_id: accId, type: '支出', category: '進貨', amount: payload.total_cost, fee, description: `叫貨：${payload.item_name}${fee ? `（手續費 ${fee}）` : ''}`, entry_date: payload.order_date, source: 'purchase', source_id: saved.id });
     btn.disabled = false; btn.textContent = '儲存';
     F('purModal').classList.remove('show'); toast('✅ 已儲存'); loadInventory();
   });
