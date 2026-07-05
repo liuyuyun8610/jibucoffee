@@ -48,7 +48,6 @@
     if (!document.querySelector(`.tab[data-tab="${name}"]`)) name = 'people';
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
     document.querySelectorAll('[data-pane]').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== name));
-    if (name === 'revenue') loadRevenue();
     if (name === 'pnl') loadPnl();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
@@ -586,137 +585,6 @@
     window.open(data.signedUrl, '_blank');
   }
 
-  /* ============================================================
-   * 3) 營收預測
-   * ========================================================== */
-  let revRecords = [], laborByMonth = {}, revChart = null;
-
-  async function loadRevenue() {
-    const [{ data: rev }, { data: pays }] = await Promise.all([
-      sb.from('revenue_records').select('*'),
-      sb.from('payroll_records').select('year,month,total_pay'),
-    ]);
-    revRecords = (rev || []).sort((a, b) => a.year - b.year || a.month - b.month);
-    laborByMonth = {};
-    (pays || []).forEach(p => { const k = `${p.year}-${p.month}`; laborByMonth[k] = (laborByMonth[k] || 0) + Number(p.total_pay || 0); });
-    renderRevTable(); renderRevChart(); renderForecast();
-  }
-  function monthKey(r) { return `${r.year}-${r.month}`; }
-  function otherSum(r) { return (r.other_costs || []).reduce((s, c) => s + Number(c.amount || 0), 0); }
-  function netOf(r) { return Number(r.revenue || 0) - (laborByMonth[monthKey(r)] || 0) - otherSum(r); }
-
-  function renderRevTable() {
-    const tb = F('revTable').querySelector('tbody');
-    if (!revRecords.length) { tb.innerHTML = '<tr><td colspan="6" class="muted faint">尚無營收紀錄</td></tr>'; return; }
-    tb.innerHTML = revRecords.map(r => {
-      const labor = laborByMonth[monthKey(r)] || 0, net = netOf(r);
-      return `<tr data-id="${r.id}" style="cursor:pointer">
-        <td>${r.year}/${String(r.month).padStart(2,'0')}</td>
-        <td class="num">${formatCurrency(r.revenue)}</td>
-        <td class="num">${formatCurrency(labor)}</td>
-        <td class="num">${formatCurrency(otherSum(r))}</td>
-        <td class="num" style="color:${net >= 0 ? 'var(--ok)' : 'var(--danger)'};font-weight:600">${net >= 0 ? '' : '-'}${formatCurrency(Math.abs(net))}</td>
-        <td class="num faint">編輯 ›</td></tr>`;
-    }).join('');
-    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openRevModal(tr.dataset.id)));
-  }
-
-  function renderRevChart() {
-    const labels = revRecords.map(r => `${r.month}月`);
-    const revenue = revRecords.map(r => Number(r.revenue || 0));
-    const net = revRecords.map(r => netOf(r));
-    if (revChart) revChart.destroy();
-    if (!revRecords.length) return;
-    revChart = new Chart(F('revChart'), {
-      type: 'line',
-      data: { labels, datasets: [
-        { label: '營收', data: revenue, borderColor: '#8b6f47', backgroundColor: 'rgba(139,111,71,.08)', tension: .3, fill: true },
-        { label: '淨利', data: net, borderColor: '#6b8e6b', backgroundColor: 'rgba(107,142,107,.08)', tension: .3, fill: true },
-      ]},
-      options: { responsive: true, plugins: { legend: { labels: { font: { family: "'Noto Sans TC'" } } } },
-        scales: { y: { ticks: { callback: v => 'NT$' + v.toLocaleString() } } } },
-    });
-  }
-
-  // 線性回歸預估後續淨利
-  function renderForecast() {
-    const box = F('forecast');
-    const nets = revRecords.map(netOf);
-    if (nets.length < 2) { box.innerHTML = '<p class="faint">累積至少 2 個月資料後，這裡會顯示下個月賺/虧預估。</p>'; return; }
-    const n = nets.length;
-    const xs = nets.map((_, i) => i);
-    const mx = xs.reduce((a, b) => a + b, 0) / n, my = nets.reduce((a, b) => a + b, 0) / n;
-    let num = 0, den = 0;
-    for (let i = 0; i < n; i++) { num += (xs[i] - mx) * (nets[i] - my); den += (xs[i] - mx) ** 2; }
-    const slope = den ? num / den : 0, intercept = my - slope * mx;
-    const last = revRecords[n - 1];
-    let cards = '';
-    for (let k = 1; k <= 2; k++) {
-      let m = last.month + k, y = last.year;
-      while (m > 12) { m -= 12; y++; }
-      const pred = Math.round(intercept + slope * (n - 1 + k));
-      cards += `<div class="stat" style="flex:1">
-        <div class="k">預估 ${y}/${String(m).padStart(2,'0')} 淨利</div>
-        <div class="v" style="color:${pred >= 0 ? 'var(--ok)' : 'var(--danger)'}">${pred >= 0 ? '' : '-'}${formatCurrency(Math.abs(pred))}</div>
-        <div class="faint">${pred >= 0 ? '預期會賺' : '⚠ 可能虧損'}</div>
-      </div>`;
-    }
-    const trend = slope > 0 ? '上升 ↗' : slope < 0 ? '下滑 ↘' : '持平 →';
-    box.innerHTML = `<div class="flex" style="gap:12px;align-items:stretch">${cards}</div>
-      <p class="faint mt8">依近 ${n} 個月趨勢（${trend}）以線性外推估算，僅供參考。</p>`;
-  }
-
-  // 營收 modal
-  let editRevId = null;
-  F('addRev').addEventListener('click', () => openRevModal(null));
-  F('rv_cancel').addEventListener('click', () => F('revModal').classList.remove('show'));
-  F('rv_addCost').addEventListener('click', () => addCostRow('', ''));
-  function addCostRow(name, amount) {
-    const div = document.createElement('div');
-    div.className = 'item-row';
-    div.innerHTML = `<input class="input" placeholder="名稱（房租/進貨…）" value="${escapeHtml(name)}" style="flex:1">
-      <input class="input" type="number" placeholder="金額" value="${amount}" style="width:110px">
-      <button class="btn btn-danger btn-sm" type="button">✕</button>`;
-    div.querySelector('button').onclick = () => div.remove();
-    F('rv_costs').appendChild(div);
-  }
-  function openRevModal(id) {
-    editRevId = id;
-    const r = id ? revRecords.find(x => x.id === id) : null;
-    const d = new Date();
-    F('rv_year').value = r ? r.year : (d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear());
-    F('rv_month').value = r ? r.month : (d.getMonth() === 0 ? 12 : d.getMonth());
-    F('rv_revenue').value = r ? r.revenue : '';
-    F('rv_note').value = r ? (r.note || '') : '';
-    F('rv_err').textContent = '';
-    F('rv_costs').innerHTML = '';
-    (r && r.other_costs || []).forEach(c => addCostRow(c.name, c.amount));
-    F('rv_delete').style.visibility = r ? 'visible' : 'hidden';
-    F('revModal').classList.add('show');
-  }
-  function collectCosts() {
-    return Array.from(F('rv_costs').children).map(div => {
-      const [n, a] = div.querySelectorAll('input');
-      return { name: n.value.trim(), amount: Number(a.value) || 0 };
-    }).filter(c => c.name || c.amount);
-  }
-  F('rv_save').addEventListener('click', async () => {
-    const btn = F('rv_save'); F('rv_err').textContent = '';
-    const year = Number(F('rv_year').value), month = Number(F('rv_month').value);
-    if (!year || !month || month < 1 || month > 12) { F('rv_err').textContent = '請填正確年月'; return; }
-    btn.disabled = true; btn.textContent = '儲存中…';
-    const payload = { year, month, revenue: Number(F('rv_revenue').value) || 0, other_costs: collectCosts(), note: F('rv_note').value.trim() || null };
-    const { error } = await sb.from('revenue_records').upsert(payload, { onConflict: 'year,month' });
-    btn.disabled = false; btn.textContent = '儲存';
-    if (error) { F('rv_err').textContent = '儲存失敗：' + error.message; return; }
-    F('revModal').classList.remove('show'); toast('✅ 已儲存'); loadRevenue();
-  });
-  F('rv_delete').addEventListener('click', async () => {
-    if (!editRevId || !confirm('確定刪除這筆營收紀錄？')) return;
-    const { error } = await sb.from('revenue_records').delete().eq('id', editRevId);
-    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
-    F('revModal').classList.remove('show'); toast('已刪除'); loadRevenue();
-  });
 
   /* ============================================================
    * 3.5) 損益預測（每月損益 + 年度預測 + 預測vs實際差異）
@@ -2116,6 +1984,47 @@
   F('led_year').addEventListener('change', renderLedger);
   F('led_month').addEventListener('change', renderLedger);
   F('led_account').addEventListener('change', renderLedger);
+  F('printLedger') && F('printLedger').addEventListener('click', printLedgerPdf);
+
+  // 依目前篩選（年/月/帳戶）產生可列印 / 另存 PDF 的帳本明細
+  function printLedgerPdf() {
+    const yr = F('led_year').value, mo = F('led_month').value, acc = F('led_account').value;
+    let rows = ledgerEntries;
+    if (yr && yr !== 'all') rows = rows.filter(e => (e.entry_date || '').slice(0, 4) === yr);
+    if (mo !== 'all') rows = rows.filter(e => Number((e.entry_date || '').slice(5, 7)) === Number(mo));
+    if (acc) rows = rows.filter(e => e.account_id === acc);
+    rows = rows.slice().sort((a, b) => (a.entry_date || '').localeCompare(b.entry_date || '') || (a.created_at || '').localeCompare(b.created_at || ''));
+    const inc = rows.filter(e => e.type === '收入' || e.type === '轉入').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const exp = rows.filter(e => e.type === '支出' || e.type === '轉出').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const fees = rows.reduce((s, e) => s + Number(e.fee || 0), 0);
+    const periodLabel = (yr && yr !== 'all') ? (mo !== 'all' ? `${yr} 年 ${mo} 月` : `${yr} 年`) : '全部期間';
+    const accLabel = acc ? accName(acc) : '全部帳戶';
+    const now = new Date();
+    const stamp = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const body = rows.length ? rows.map(e => {
+      const isIn = e.type === '收入' || e.type === '轉入';
+      const feeC = Number(e.fee || 0) ? '-' + formatCurrency(e.fee) : '';
+      return `<tr><td>${esc((e.entry_date || '').replace(/-/g, '/'))}</td><td>${esc(accName(e.account_id))}</td><td>${esc(e.type)}</td><td>${esc(e.category || '')}</td><td class="r ${isIn ? 'in' : 'out'}">${isIn ? '+' : '-'}${formatCurrency(e.amount)}</td><td class="r fee">${feeC}</td><td>${esc(e.description || '')}</td></tr>`;
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:#999">沒有分錄</td></tr>';
+    const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>帳本 ${periodLabel}</title>
+<style>*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;color:#222;margin:28px}
+h1{font-size:20px;margin:0 0 4px}.meta{color:#666;font-size:12px;margin-bottom:14px}
+.sum{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;margin:0 0 16px;padding:10px 14px;background:#f6f2ea;border-radius:8px}.sum b{font-size:15px}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{border-bottom:1px solid #e5ddcf;padding:7px 8px;text-align:left;vertical-align:top}
+th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;white-space:nowrap}.in{color:#2e7d32}.out{color:#c0392b}.fee{color:#c0392b;font-size:11px}
+@media print{body{margin:12mm}.noprint{display:none}}.noprint{margin-top:18px;text-align:center}
+.noprint button{padding:9px 22px;font-size:14px;border:1px solid #8b6f47;background:#8b6f47;color:#fff;border-radius:20px;cursor:pointer}</style></head><body>
+<h1>一坨咖啡 · 帳本明細</h1>
+<div class="meta">期間：${periodLabel}　│　帳戶：${esc(accLabel)}　│　列印時間：${stamp}　│　共 ${rows.length} 筆</div>
+<div class="sum"><span>收入 <b style="color:#2e7d32">${formatCurrency(inc)}</b></span><span>支出 <b style="color:#c0392b">${formatCurrency(exp)}</b></span>${fees ? `<span>手續費 <b style="color:#c0392b">${formatCurrency(fees)}</b></span>` : ''}<span>淨額 <b>${formatCurrency(inc - exp - fees)}</b></span></div>
+<table><thead><tr><th>日期</th><th>帳戶</th><th>類型</th><th>分類</th><th style="text-align:right">金額</th><th style="text-align:right">手續費</th><th>說明</th></tr></thead><tbody>${body}</tbody></table>
+<div class="noprint"><button onclick="window.print()">🖨 列印 / 另存 PDF</button></div></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { toast('請允許彈出視窗才能列印', 'error'); return; }
+    w.document.write(html); w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 400);
+  }
 
   // 帳戶 modal
   F('addAccount').addEventListener('click', () => openAccountModal(null));
@@ -2331,6 +2240,28 @@
    * 8) 財務三大報表（用帳本資料即時算）
    * ========================================================== */
   let repAccounts = [], repEntries = [];
+  let repExpChart = null, repIncChart = null;
+  const REP_PALETTE = ['#8b6f47', '#b0926a', '#c9a96e', '#6b8e6b', '#c58a78', '#8aa081', '#a98c78', '#d8c39a', '#7d8fa1', '#bfae93'];
+  function repDoughnut(canvasId, prev, map, emptyId) {
+    if (prev && prev.destroy) prev.destroy();
+    const labels = Object.keys(map).filter(k => map[k] > 0).sort((a, b) => map[b] - map[a]);
+    const vals = labels.map(k => map[k]);
+    const cv = F(canvasId), empty = F(emptyId);
+    if (cv) cv.parentElement.style.display = labels.length ? '' : 'none';
+    if (empty) empty.style.display = labels.length ? 'none' : '';
+    if (!cv || !labels.length) return null;
+    return new Chart(cv, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: vals, backgroundColor: REP_PALETTE, borderWidth: 2, borderColor: '#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '58%',
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: "'Noto Sans TC'", size: 11 } } },
+          tooltip: { callbacks: { label: c => { const t = vals.reduce((s, v) => s + v, 0); return ` ${c.label}：NT$${c.parsed.toLocaleString()}（${t ? Math.round(c.parsed / t * 100) : 0}%）`; } } },
+        },
+      },
+    });
+  }
   async function loadReports() {
     const [{ data: accs }, { data: ents }] = await Promise.all([
       sb.from('accounts').select('*'),
@@ -2388,5 +2319,22 @@
     F('rep_bs').innerHTML = sub('資產（現金及約當現金）') + assetRows + kv('資產合計', `<b>${formatCurrency(totalAssets)}</b>`) + hr
       + kv('負債（目前未追蹤應付）', formatCurrency(0)) + hr
       + `<div class="kv" style="font-weight:700"><span>業主權益</span><span>${formatCurrency(totalAssets)}</span></div>`;
+
+    // ── 收支分析（右側圖表）──
+    // 收入含現金：P&L 排除的「大交班現金」在這裡改標示為「現金」納入
+    const incAll = {};
+    period.filter(e => e.type === '收入').forEach(e => {
+      let c = e.category || '未分類'; if (c === '大交班現金') c = '現金';
+      incAll[c] = (incAll[c] || 0) + Number(e.amount || 0);
+    });
+    if (F('rep_an_period')) F('rep_an_period').textContent = label;
+    if (F('rep_kpi')) F('rep_kpi').innerHTML = [
+      ['叫貨支出', exp['進貨'] || 0],
+      ['薪資支出', exp['薪資'] || 0],
+      ['現金收入', incAll['現金'] || 0],
+      ['LINE Pay 收入', incAll['LINE Pay'] || 0],
+    ].map(([k, v]) => `<div class="rep-kpi-item"><div class="rk-l">${escapeHtml(k)}</div><div class="rk-v">${formatCurrency(v)}</div></div>`).join('');
+    repExpChart = repDoughnut('expChart', repExpChart, exp, 'expEmpty');
+    repIncChart = repDoughnut('incChart', repIncChart, incAll, 'incEmpty');
   }
 })();

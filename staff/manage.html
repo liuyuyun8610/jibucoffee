@@ -33,7 +33,6 @@
   <div class="wrap" id="app" style="opacity:0">
     <div class="tabs">
       <button class="tab active" data-tab="people">人事管理</button>
-      <button class="tab" data-tab="revenue">營收預測</button>
       <button class="tab" data-tab="pnl">損益預測</button>
       <button class="tab" data-tab="finance">財務</button>
       <button class="tab" data-tab="inventory">庫存叫貨</button>
@@ -160,28 +159,6 @@
       </div>
     </section>
 
-    <!-- ===== 營收預測 ===== -->
-    <section data-pane="revenue" class="hidden">
-      <div class="row-between" style="margin-bottom:14px">
-        <p class="muted faint" style="margin:0">每月營收與成本（人事成本自動帶入當月薪資總額）</p>
-        <button class="btn btn-primary btn-sm" id="addRev">＋ 記一筆營收</button>
-      </div>
-      <div class="card">
-        <h2 class="card-h">趨勢與預估</h2>
-        <canvas id="revChart" height="120"></canvas>
-        <div id="forecast" class="mt16"></div>
-      </div>
-      <div class="card">
-        <h2 class="card-h">月份明細</h2>
-        <div style="overflow-x:auto">
-          <table class="tbl" id="revTable">
-            <thead><tr><th>月份</th><th class="num">營收</th><th class="num">人事成本</th><th class="num">其他成本</th><th class="num">淨利</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
     <!-- ===== 損益預測 ===== -->
     <section data-pane="pnl" class="hidden">
       <div class="row-between" style="margin-bottom:14px; flex-wrap:wrap; gap:10px">
@@ -257,6 +234,7 @@
             <span class="faint" id="led_sum"></span>
           </div>
           <div class="flex">
+            <button class="btn btn-ghost btn-sm" id="printLedger">🖨 列印 / PDF</button>
             <button class="btn btn-ghost btn-sm" id="viewLogs">異動紀錄</button>
             <button class="btn btn-primary btn-sm" id="addEntry">＋ 新增分錄</button>
           </div>
@@ -307,9 +285,25 @@
           </select>
           <span class="faint" id="rep_hint"></span>
         </div>
-        <div class="card"><h2 class="card-h">損益表 <span class="faint" id="rep_pl_period"></span></h2><div id="rep_pl"></div></div>
-        <div class="card"><h2 class="card-h">現金流量表</h2><div id="rep_cf"></div></div>
-        <div class="card"><h2 class="card-h">資產負債表 <span class="faint">（期末）</span></h2><div id="rep_bs"></div></div>
+        <div class="rep-grid">
+          <div class="rep-left">
+            <div class="card"><h2 class="card-h">損益表 <span class="faint" id="rep_pl_period"></span></h2><div id="rep_pl"></div></div>
+            <div class="card"><h2 class="card-h">現金流量表</h2><div id="rep_cf"></div></div>
+            <div class="card"><h2 class="card-h">資產負債表 <span class="faint">（期末）</span></h2><div id="rep_bs"></div></div>
+          </div>
+          <div class="rep-right">
+            <div class="card">
+              <h2 class="card-h">收支分析 <span class="faint" id="rep_an_period"></span></h2>
+              <div class="rep-kpi" id="rep_kpi"></div>
+              <div class="rep-mini-h">支出分析</div>
+              <div style="position:relative; height:210px"><canvas id="expChart"></canvas></div>
+              <div id="expEmpty" class="muted faint" style="display:none; text-align:center; padding:16px 0">本期無支出</div>
+              <div class="rep-mini-h" style="margin-top:18px">收入分析</div>
+              <div style="position:relative; height:210px"><canvas id="incChart"></canvas></div>
+              <div id="incEmpty" class="muted faint" style="display:none; text-align:center; padding:16px 0">本期無收入</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 財務設定（歸戶）-->
@@ -703,33 +697,6 @@
         <div class="flex">
           <button class="btn btn-ghost" id="sh_cancel">取消</button>
           <button class="btn btn-primary" id="sh_save">儲存</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== Modal: 營收 ===== -->
-  <div class="modal-mask" id="revModal">
-    <div class="modal">
-      <h3 class="modal-h">記一筆營收</h3>
-      <div class="grid3">
-        <div class="field"><label class="label">年</label><input class="input" type="number" id="rv_year" /></div>
-        <div class="field"><label class="label">月</label><input class="input" type="number" id="rv_month" min="1" max="12" /></div>
-        <div class="field"><label class="label">當月營收</label><input class="input" type="number" id="rv_revenue" /></div>
-      </div>
-      <div class="field">
-        <label class="label">其他成本（進貨／房租／雜支等）</label>
-        <div id="rv_costs"></div>
-        <button class="btn btn-ghost btn-sm mt8" id="rv_addCost" type="button">＋ 新增成本項</button>
-      </div>
-      <div class="field"><label class="label">備註</label><input class="input" id="rv_note" /></div>
-      <p class="faint">人事成本不用填，系統會自動帶入該月薪資發放總額。</p>
-      <div id="rv_err" class="faint" style="color:var(--danger);min-height:18px"></div>
-      <div class="row-between mt8">
-        <button class="btn btn-danger" id="rv_delete" style="visibility:hidden">刪除這筆</button>
-        <div class="flex">
-          <button class="btn btn-ghost" id="rv_cancel">取消</button>
-          <button class="btn btn-primary" id="rv_save">儲存</button>
         </div>
       </div>
     </div>
