@@ -258,15 +258,25 @@
     if (selectedEmpId) selectEmp(selectedEmpId); else F('payDetail').innerHTML = '<div class="card center-screen muted faint">← 選擇左側員工開始計算</div>';
   }
 
-  // 加總某員工某月打卡時數（上班~下班），回傳小時（一位小數）
+  // 加總某員工某月打卡時數，依當天班表是否「雙倍薪資」分流。
+  // 規則：某天只要有任一雙倍班 → 該天打卡工時全算雙倍。回傳 {normal, double, total}（小時，一位小數）
   async function attendanceHours(staffId, year, month) {
     const start = `${year}-${String(month).padStart(2, '0')}-01`;
     const endD = new Date(year, month, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const { data } = await sb.from('attendance').select('clock_in,clock_out').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr);
-    let mins = 0;
-    (data || []).forEach(a => { if (a.clock_in && a.clock_out) mins += (new Date(a.clock_out) - new Date(a.clock_in)) / 60000; });
-    return Math.round(mins / 60 * 10) / 10;
+    const [{ data: att }, { data: sh }] = await Promise.all([
+      sb.from('attendance').select('work_date,clock_in,clock_out').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
+      sb.from('shifts').select('work_date,is_double_pay').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
+    ]);
+    const doubleDays = new Set((sh || []).filter(s => s.is_double_pay).map(s => s.work_date));
+    let nMin = 0, dMin = 0;
+    (att || []).forEach(a => {
+      if (!(a.clock_in && a.clock_out)) return;
+      const m = (new Date(a.clock_out) - new Date(a.clock_in)) / 60000;
+      if (doubleDays.has(a.work_date)) dMin += m; else nMin += m;
+    });
+    const r = x => Math.round(x / 60 * 10) / 10;
+    return { normal: r(nMin), double: r(dMin), total: r(nMin + dMin) };
   }
 
   async function selectEmp(empId) {
@@ -283,9 +293,10 @@
       if (isPT && !editRec.hourly_rate) editRec.hourly_rate = emp.hourly_rate || 0;
       editItems = items || [];
     } else if (isPT) {
-      const hrs = await attendanceHours(empId, pYear, pMonth);   // 自動帶入打卡時數
+      const h = await attendanceHours(empId, pYear, pMonth);   // 自動帶入打卡時數（一般/雙倍分流）
       editRec = {
-        staff_id: empId, year: pYear, month: pMonth, base_salary: 0, work_days: 0, work_hours: hrs,
+        staff_id: empId, year: pYear, month: pMonth, base_salary: 0, work_days: 0,
+        work_hours: h.normal, double_hours: h.double,
         hourly_rate: emp.hourly_rate || 0, ot_weekday_minutes: 0, ot_restday_minutes: 0, ot_pay: 0, total_pay: 0, note: '',
       };
       editItems = [];
@@ -306,7 +317,8 @@
     const add = editItems.filter(i => i.type === 'addition').reduce((s, i) => s + num(i.amount), 0);
     const ded = editItems.filter(i => i.type === 'deduction').reduce((s, i) => s + num(i.amount), 0);
     if (editEmp && editEmp.employ_type === 'PT') {
-      const base = Math.round((editRec.hourly_rate || 0) * (editRec.work_hours || 0));
+      const rate = editRec.hourly_rate || 0;
+      const base = Math.round(rate * (editRec.work_hours || 0) + rate * 2 * (editRec.double_hours || 0));
       editRec.base_salary = base; editRec.ot_pay = 0;
       editRec.total_pay = Math.round(base + add - ded);
     } else {
@@ -324,9 +336,10 @@
         <h2 class="card-h">${escapeHtml(emp.name)} <span class="badge badge-wait">PT 時薪制</span> — ${pYear}/${String(pMonth).padStart(2,'0')} 薪資</h2>
         <div class="grid3">
           <div class="field"><label class="label">時薪</label><input class="input" type="number" id="f_hourly" value="${r.hourly_rate || ''}"></div>
-          <div class="field"><label class="label">本月工作時數 <button type="button" id="f_pullhours" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:11px;margin-left:4px">↻ 帶入打卡</button></label><input class="input" type="number" id="f_hours" value="${r.work_hours || ''}"></div>
-          <div class="field"><label class="label">薪資小計（時薪×時數）</label><input class="input" readonly id="f_basepay" value="${formatCurrency(r.base_salary || 0)}"></div>
+          <div class="field"><label class="label">一般時數 <button type="button" id="f_pullhours" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:11px;margin-left:4px">↻ 帶入打卡</button></label><input class="input" type="number" id="f_hours" value="${r.work_hours || ''}"></div>
+          <div class="field"><label class="label">🌟 雙倍時數（×2）</label><input class="input" type="number" id="f_double" value="${r.double_hours || ''}"></div>
         </div>
+        <div class="field mt8"><label class="label">薪資小計（一般×時薪 ＋ 雙倍×時薪×2）</label><input class="input" readonly id="f_basepay" value="${formatCurrency(r.base_salary || 0)}"></div>
       </div>` : `
       <div class="card">
         <h2 class="card-h">${escapeHtml(emp.name)} — ${pYear}/${String(pMonth).padStart(2,'0')} 薪資</h2>
@@ -376,9 +389,13 @@
     if (emp.employ_type === 'PT') {
       F('f_hourly').addEventListener('input', () => updateField('hourly_rate', num(F('f_hourly').value)));
       F('f_hours').addEventListener('input', () => updateField('work_hours', num(F('f_hours').value)));
+      F('f_double').addEventListener('input', () => updateField('double_hours', num(F('f_double').value)));
       F('f_pullhours').addEventListener('click', async () => {
-        const hrs = await attendanceHours(editRec.staff_id, pYear, pMonth);
-        F('f_hours').value = hrs; updateField('work_hours', hrs); toast(`已帶入打卡時數 ${hrs} 小時`);
+        const h = await attendanceHours(editRec.staff_id, pYear, pMonth);
+        F('f_hours').value = h.normal; F('f_double').value = h.double;
+        editRec.work_hours = h.normal; editRec.double_hours = h.double;
+        refreshTotals();
+        toast(`已帶入打卡：一般 ${h.normal}h${h.double ? `、雙倍 ${h.double}h` : ''}`);
       });
     } else {
       F('f_base').addEventListener('input', () => updateField('base_salary', num(F('f_base').value)));
@@ -474,7 +491,7 @@
     const payload = {
       staff_id: editRec.staff_id, year: pYear, month: pMonth,
       base_salary: editRec.base_salary || 0, work_days: editRec.work_days || 0,
-      work_hours: editRec.work_hours || 0, hourly_rate: editRec.hourly_rate || 0,
+      work_hours: editRec.work_hours || 0, double_hours: editRec.double_hours || 0, hourly_rate: editRec.hourly_rate || 0,
       ot_weekday_minutes: editRec.ot_weekday_minutes || 0, ot_restday_minutes: editRec.ot_restday_minutes || 0,
       ot_pay: editRec.ot_pay || 0, total_pay: editRec.total_pay || 0, note: editRec.note || null,
     };
@@ -1639,7 +1656,9 @@
       const ds = `${smYear}-${String(smMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const chips = shiftList.filter(s => s.work_date === ds).map(s => {
         const t = `${s.start_time || ''}${s.end_time ? '~' + s.end_time : ''}`;
-        return `<div class="cal-chip click" data-shift="${s.id}" title="${escapeHtml(nameOf(s.staff_id))} ${t}">${escapeHtml(nameOf(s.staff_id))}${s.start_time ? ' ' + s.start_time : ''}</div>`;
+        const dbl = s.is_double_pay;
+        const dblStyle = dbl ? ' style="background:#fff4dc;border-color:#e0b567"' : '';
+        return `<div class="cal-chip click"${dblStyle} data-shift="${s.id}" title="${escapeHtml(nameOf(s.staff_id))} ${t}${dbl ? ' ・雙倍薪資' : ''}">${escapeHtml(nameOf(s.staff_id))}${s.start_time ? ' ' + s.start_time : ''}${dbl ? ' <b style="color:#b8860b">×2</b>' : ''}</div>`;
       }).join('');
       const tchips = tempShiftList.filter(s => s.work_date === ds).map(s => {
         const punched = s.clock_in ? (s.clock_out ? '✓' : '●') : '';
@@ -1652,7 +1671,11 @@
     F('shiftCal').querySelectorAll('[data-tempshift]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openTempShift(el.dataset.tempshift); }));
     F('shiftCal').querySelectorAll('[data-add]').forEach(el => el.addEventListener('click', () => openShiftModal(null, el.dataset.add)));
   }
-  function toggleTempField() { F('sh_temp_field').style.display = F('sh_staff').value === '__temp__' ? '' : 'none'; }
+  function toggleTempField() {
+    const isTemp = F('sh_staff').value === '__temp__';
+    F('sh_temp_field').style.display = isTemp ? '' : 'none';
+    F('sh_double_field').style.display = isTemp ? 'none' : '';  // 臨時PT 不進薪資系統，不顯示雙倍選項
+  }
   function staffShiftOptions() {
     return staffList.filter(x => x.is_active !== false)
       .map(x => `<option value="${x.id}">${escapeHtml(x.name)}${x.employ_type === 'PT' ? '（PT）' : ''}</option>`).join('')
@@ -1668,6 +1691,7 @@
     F('sh_date').value = s ? s.work_date : (presetDate || `${smYear}-${String(smMonth).padStart(2, '0')}-01`);
     F('sh_start').value = s ? (s.start_time || '') : '';
     F('sh_end').value = s ? (s.end_time || '') : '';
+    F('sh_double').checked = s ? !!s.is_double_pay : false;
     F('sh_note').value = s ? (s.note || '') : '';
     F('sh_err').textContent = '';
     F('sh_delete').style.visibility = s ? 'visible' : 'hidden';
@@ -1705,7 +1729,7 @@
       if (editTempId) ({ error } = await sb.from('temp_pt_shifts').update(payload).eq('id', editTempId));
       else ({ error } = await sb.from('temp_pt_shifts').insert(payload));
     } else {
-      const payload = { staff_id: sel, work_date: date, start_time: F('sh_start').value || null, end_time: F('sh_end').value || null, note: F('sh_note').value.trim() || null };
+      const payload = { staff_id: sel, work_date: date, start_time: F('sh_start').value || null, end_time: F('sh_end').value || null, is_double_pay: F('sh_double').checked, note: F('sh_note').value.trim() || null };
       if (editShiftId) ({ error } = await sb.from('shifts').update(payload).eq('id', editShiftId));
       else ({ error } = await sb.from('shifts').insert(payload));
     }

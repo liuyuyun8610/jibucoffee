@@ -95,8 +95,19 @@
     function render(rec, items, emp) {
       const additions = items.filter(i => i.type === 'addition');
       const deductions = items.filter(i => i.type === 'deduction');
+      // 時薪制（PT）：base_salary = 一般時數×時薪 + 雙倍時數×時薪×2
+      const nH = Number(rec.work_hours || 0), dH = Number(rec.double_hours || 0), hrRate = Number(rec.hourly_rate || 0);
+      const isHourly = hrRate > 0 && (nH > 0 || dH > 0);
+      const doublePay = Math.round(hrRate * 2 * dH);
+      const normalPay = (rec.base_salary || 0) - doublePay;   // 相減確保與 base_salary 完全一致
+      const baseLines = (isHourly && dH > 0)
+        ? [
+            { name: `一般時數薪資（${nH} 小時 × ${formatCurrency(hrRate)}）`, amount: normalPay },
+            { name: `🌟 雙倍時數薪資（${dH} 小時 × ${formatCurrency(hrRate)} × 2）`, amount: doublePay },
+          ]
+        : [{ name: '底薪（本薪）', amount: rec.base_salary || 0 }];
       const grossList = [
-        { name: '底薪（本薪）', amount: rec.base_salary || 0 },
+        ...baseLines,
         ...(rec.ot_pay ? [{ name: '加班費', amount: rec.ot_pay }] : []),
         ...additions.map(i => ({ name: i.name, amount: i.amount })),
       ];
@@ -116,6 +127,8 @@
         ['部門', emp.department || '—'], ['職位', emp.position || '—'],
         ['投保薪資級距', emp.insured_salary != null ? formatCurrency(emp.insured_salary) : '—'],
         ['出勤天數', (rec.work_days || 0) + ' 天'],
+        ...(isHourly ? [['一般時數', nH.toFixed(1) + ' 小時']] : []),
+        ...(dH > 0 ? [['🌟 雙倍時數', dH.toFixed(1) + ' 小時（×2 計薪）']] : []),
         ['加班時數', otH.toFixed(1) + ' 小時'],
       ];
       document.getElementById('ps-info').innerHTML = info.map(([k, v]) =>
