@@ -338,7 +338,21 @@
       F('clk-now').textContent = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
     function hhmm(iso) { return iso ? new Date(iso).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—'; }
-    function worktime(a) { if (!a.clock_in || !a.clock_out) return '—'; const m = Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000); return `${Math.floor(m/60)}h${m%60}m`; }
+    // ── 打卡工時規則：以班表排定上/下班為基準，整點/半點為單位，15 分寬限 ──
+    const _roundHalf = m => Math.round(m / 30) * 30;
+    const _clockMin = ts => { const d = new Date(ts); return d.getHours() * 60 + d.getMinutes(); };
+    const _hhmmMin = s => { if (!s) return null; const m = String(s).match(/(\d{1,2}):(\d{2})/); return m ? (+m[1] * 60 + +m[2]) : null; };
+    function workedMinutes(clockIn, clockOut, ss, se) {
+      if (!(clockIn && clockOut)) return 0;
+      const inM = _clockMin(clockIn); let outM = _clockMin(clockOut); if (outM < inM) outM += 1440;
+      if (ss != null && se != null && se < ss) se += 1440;
+      const GR = 15;
+      const effStart = (ss == null) ? _roundHalf(inM) : (inM <= ss + GR ? ss : _roundHalf(inM));
+      const effEnd = (se == null) ? _roundHalf(outM) : ((outM >= se - GR && outM <= se + GR) ? se : _roundHalf(outM));
+      let w = effEnd - effStart; if (w < 0) w += 1440;
+      return Math.max(0, w);
+    }
+    function worktime(a, sc) { const m = workedMinutes(a.clock_in, a.clock_out, sc && sc.ss, sc && sc.se); return (a.clock_in && a.clock_out) ? `${Math.floor(m/60)}h${m%60}m` : '—'; }
 
     async function loadShiftToday() {
       const { data } = await sb.from('shifts').select('*').eq('staff_id', me.id).eq('work_date', todayStr()).maybeSingle();
@@ -406,13 +420,18 @@
       const d = new Date();
       const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
       const end = todayStr();
-      const { data } = await sb.from('attendance').select('*').eq('staff_id', me.id).gte('work_date', start).lte('work_date', end).order('work_date', { ascending: false });
+      const [{ data }, { data: sh }] = await Promise.all([
+        sb.from('attendance').select('*').eq('staff_id', me.id).gte('work_date', start).lte('work_date', end).order('work_date', { ascending: false }),
+        sb.from('shifts').select('work_date,start_time,end_time').eq('staff_id', me.id).gte('work_date', start).lte('work_date', end),
+      ]);
       const recs = data || [];
+      const sch = {};
+      (sh || []).forEach(s => { const ss = _hhmmMin(s.start_time), se = _hhmmMin(s.end_time); const cur = sch[s.work_date] || { ss: null, se: null }; if (ss != null) cur.ss = cur.ss == null ? ss : Math.min(cur.ss, ss); if (se != null) cur.se = cur.se == null ? se : Math.max(cur.se, se); sch[s.work_date] = cur; });
       todayRec = recs.find(r => r.work_date === todayStr()) || null;
       renderClock();
       let totalMin = 0;
       F('attTable').querySelector('tbody').innerHTML = recs.length
-        ? recs.map(a => { if (a.clock_in && a.clock_out) totalMin += Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000); return `<tr><td>${a.work_date.replace(/-/g,'/').slice(5)} ${WEEK[new Date(a.work_date).getDay()]}</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${worktime(a)}</td></tr>`; }).join('')
+        ? recs.map(a => { const sc = sch[a.work_date]; totalMin += workedMinutes(a.clock_in, a.clock_out, sc && sc.ss, sc && sc.se); return `<tr><td>${a.work_date.replace(/-/g,'/').slice(5)} ${WEEK[new Date(a.work_date).getDay()]}</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${worktime(a, sc)}</td></tr>`; }).join('')
         : '<tr><td colspan="4" class="muted faint">本月還沒有打卡紀錄</td></tr>';
       F('my_days').textContent = recs.filter(a => a.clock_in).length + ' 天';
       F('my_hours').textContent = (Math.round(totalMin / 60 * 10) / 10) + ' 小時';

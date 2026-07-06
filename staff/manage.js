@@ -257,7 +257,36 @@
     if (selectedEmpId) selectEmp(selectedEmpId); else F('payDetail').innerHTML = '<div class="card center-screen muted faint">← 選擇左側員工開始計算</div>';
   }
 
-  // 加總某員工某月打卡時數，依當天班表是否「雙倍薪資」分流。
+  // ── 打卡工時規則：以班表排定上/下班時間為基準，整點/半點為單位，15 分寬限 ──
+  // 早到不算(從排定上班算)；晚到 ≤15 分仍從排定算，>15 分以最近半點計。
+  // 下班準時 ±15 分算到排定；早退或加班 >15 分以最近半點計。無排班時間則打卡四捨五入到最近半點。
+  const _roundHalf = m => Math.round(m / 30) * 30;
+  const _clockMin = ts => { const d = new Date(ts); return d.getHours() * 60 + d.getMinutes(); };
+  const _hhmmMin = s => { if (!s) return null; const m = String(s).match(/(\d{1,2}):(\d{2})/); return m ? (+m[1] * 60 + +m[2]) : null; };
+  function workedMinutes(clockIn, clockOut, ss, se) {
+    if (!(clockIn && clockOut)) return 0;
+    const inM = _clockMin(clockIn); let outM = _clockMin(clockOut); if (outM < inM) outM += 1440;
+    if (ss != null && se != null && se < ss) se += 1440;
+    const GR = 15;
+    const effStart = (ss == null) ? _roundHalf(inM) : (inM <= ss + GR ? ss : _roundHalf(inM));
+    const effEnd = (se == null) ? _roundHalf(outM) : ((outM >= se - GR && outM <= se + GR) ? se : _roundHalf(outM));
+    let w = effEnd - effStart; if (w < 0) w += 1440;
+    return Math.max(0, w);
+  }
+  // 把某月 shifts 整理成 { work_date: {ss, se} }（取當天最早上班、最晚下班）
+  function schByDateOf(shifts) {
+    const map = {};
+    (shifts || []).forEach(s => {
+      const ss = _hhmmMin(s.start_time), se = _hhmmMin(s.end_time);
+      const cur = map[s.work_date] || { ss: null, se: null };
+      if (ss != null) cur.ss = cur.ss == null ? ss : Math.min(cur.ss, ss);
+      if (se != null) cur.se = cur.se == null ? se : Math.max(cur.se, se);
+      map[s.work_date] = cur;
+    });
+    return map;
+  }
+
+  // 加總某員工某月打卡時數，依班表排定時間套工時規則，並依當天是否「雙倍薪資」分流。
   // 規則：某天只要有任一雙倍班 → 該天打卡工時全算雙倍。回傳 {normal, double, total}（小時，一位小數）
   async function attendanceHours(staffId, year, month) {
     const start = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -265,13 +294,14 @@
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
     const [{ data: att }, { data: sh }] = await Promise.all([
       sb.from('attendance').select('work_date,clock_in,clock_out').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
-      sb.from('shifts').select('work_date,is_double_pay').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
+      sb.from('shifts').select('work_date,is_double_pay,start_time,end_time').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
     ]);
     const doubleDays = new Set((sh || []).filter(s => s.is_double_pay).map(s => s.work_date));
+    const sch = schByDateOf(sh);
     let nMin = 0, dMin = 0;
     (att || []).forEach(a => {
-      if (!(a.clock_in && a.clock_out)) return;
-      const m = (new Date(a.clock_out) - new Date(a.clock_in)) / 60000;
+      const sc = sch[a.work_date] || { ss: null, se: null };
+      const m = workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se);
       if (doubleDays.has(a.work_date)) dMin += m; else nMin += m;
     });
     const r = x => Math.round(x / 60 * 10) / 10;
@@ -414,13 +444,17 @@
     const start = `${pYear}-${String(pMonth).padStart(2, '0')}-01`;
     const endD = new Date(pYear, pMonth, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const { data } = await sb.from('attendance').select('*').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr).order('work_date');
+    const [{ data }, { data: sh }] = await Promise.all([
+      sb.from('attendance').select('*').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr).order('work_date'),
+      sb.from('shifts').select('work_date,start_time,end_time').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
+    ]);
     if (!F('payAttTable')) return;
     const recs = data || [];
+    const sch = schByDateOf(sh);
     const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
     const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
     let totalMin = 0;
-    const wt = a => { if (!(a.clock_in && a.clock_out)) return '—'; const m = Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000); totalMin += m; return `${Math.floor(m / 60)}h${m % 60}m`; };
+    const wt = a => { if (!(a.clock_in && a.clock_out)) return '—'; const sc = sch[a.work_date] || {}; const m = workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se); totalMin += m; return `${Math.floor(m / 60)}h${m % 60}m`; };
     const body = recs.map(a => `<tr><td style="white-space:nowrap">${a.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(a.work_date).getDay()]})</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${wt(a)}</td></tr>`).join('');
     F('payAttTable').querySelector('tbody').innerHTML = recs.length ? body : '<tr><td colspan="4" class="muted faint">本月無打卡紀錄</td></tr>';
     if (F('payAttSum')) F('payAttSum').textContent = recs.length ? `— 合計 ${Math.round(totalMin / 60 * 10) / 10} 小時` : '';
@@ -1436,15 +1470,27 @@
     const start = `${amYear}-${String(amMonth).padStart(2, '0')}-01`;
     const endD = new Date(amYear, amMonth, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const [{ data }, { data: tdata }] = await Promise.all([
+    const [{ data }, { data: tdata }, { data: shdata }] = await Promise.all([
       sb.from('attendance').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date'),
       sb.from('temp_pt_shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date'),
+      sb.from('shifts').select('staff_id,work_date,start_time,end_time').gte('work_date', start).lte('work_date', endStr),
     ]);
     const recs = data || [];
     const temps = (tdata || []).filter(t => t.clock_in); // 有打卡的臨時PT
+    // 班表依 員工+日期（取當天最早上班/最晚下班）
+    const schMap = {};
+    (shdata || []).forEach(s => {
+      const key = s.staff_id + '|' + s.work_date;
+      const ss = _hhmmMin(s.start_time), se = _hhmmMin(s.end_time);
+      const cur = schMap[key] || { ss: null, se: null };
+      if (ss != null) cur.ss = cur.ss == null ? ss : Math.min(cur.ss, ss);
+      if (se != null) cur.se = cur.se == null ? se : Math.max(cur.se, se);
+      schMap[key] = cur;
+    });
     const nameOf = id => (staffList.find(s => s.id === id) || {}).name || '—';
     const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
-    const wmin = a => (a.clock_in && a.clock_out) ? Math.round((new Date(a.clock_out) - new Date(a.clock_in)) / 60000) : 0;
+    const wminStaff = a => { const sc = schMap[a.staff_id + '|' + a.work_date] || {}; return workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se); };
+    const wminTemp = t => workedMinutes(t.clock_in, t.clock_out, _hhmmMin(t.start_time), _hhmmMin(t.end_time));
     const fmtH = m => m ? `${Math.floor(m / 60)}h${m % 60}m` : '—';
     const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
 
@@ -1452,8 +1498,8 @@
 
     // 每人彙總（員工 + 臨時PT）
     const byEmp = {};
-    recs.forEach(a => { const k = a.staff_id; if (!byEmp[k]) byEmp[k] = { name: nameOf(k), days: 0, mins: 0, temp: false }; if (a.clock_in) byEmp[k].days++; byEmp[k].mins += wmin(a); });
-    temps.forEach(t => { const k = 't:' + t.name; if (!byEmp[k]) byEmp[k] = { name: t.name, days: 0, mins: 0, temp: true }; byEmp[k].days++; byEmp[k].mins += wmin(t); });
+    recs.forEach(a => { const k = a.staff_id; if (!byEmp[k]) byEmp[k] = { name: nameOf(k), days: 0, mins: 0, temp: false }; if (a.clock_in) byEmp[k].days++; byEmp[k].mins += wminStaff(a); });
+    temps.forEach(t => { const k = 't:' + t.name; if (!byEmp[k]) byEmp[k] = { name: t.name, days: 0, mins: 0, temp: true }; byEmp[k].days++; byEmp[k].mins += wminTemp(t); });
     const ids = Object.keys(byEmp).sort((a, b) => (byEmp[a].temp - byEmp[b].temp) || byEmp[a].name.localeCompare(byEmp[b].name));
     F('attSummary').querySelector('tbody').innerHTML = ids.length
       ? ids.map(id => `<tr><td>${escapeHtml(byEmp[id].name)}${byEmp[id].temp ? ' <span class="faint" style="font-size:11px">臨時PT</span>' : ''}</td><td class="num">${byEmp[id].days}</td><td class="num">${fmtH(byEmp[id].mins)}</td></tr>`).join('')
@@ -1461,8 +1507,8 @@
 
     // 明細（員工 + 臨時PT，依日期）
     const detail = [
-      ...recs.map(a => ({ date: a.work_date, name: nameOf(a.staff_id), ci: a.clock_in, co: a.clock_out, temp: false })),
-      ...temps.map(t => ({ date: t.work_date, name: t.name, ci: t.clock_in, co: t.clock_out, temp: true })),
+      ...recs.map(a => ({ date: a.work_date, name: nameOf(a.staff_id), ci: a.clock_in, co: a.clock_out, temp: false, mins: wminStaff(a) })),
+      ...temps.map(t => ({ date: t.work_date, name: t.name, ci: t.clock_in, co: t.clock_out, temp: true, mins: wminTemp(t) })),
     ].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
     F('attDetail').querySelector('tbody').innerHTML = detail.length
       ? detail.map(a => `<tr>
@@ -1470,7 +1516,7 @@
           <td>${escapeHtml(a.name)}${a.temp ? ' <span class="faint" style="font-size:11px">臨時PT</span>' : ''}</td>
           <td>${hhmm(a.ci)}</td>
           <td>${hhmm(a.co)}</td>
-          <td class="num">${fmtH((a.ci && a.co) ? Math.round((new Date(a.co) - new Date(a.ci)) / 60000) : 0)}</td>
+          <td class="num">${fmtH(a.mins)}</td>
         </tr>`).join('')
       : '<tr><td colspan="5" class="muted faint">本月無出勤紀錄</td></tr>';
   }
