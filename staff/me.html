@@ -420,18 +420,30 @@
       const d = new Date();
       const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
       const end = todayStr();
-      const [{ data }, { data: sh }] = await Promise.all([
+      const [{ data }, { data: sh }, { data: adj }] = await Promise.all([
         sb.from('attendance').select('*').eq('staff_id', me.id).gte('work_date', start).lte('work_date', end).order('work_date', { ascending: false }),
         sb.from('shifts').select('work_date,start_time,end_time').eq('staff_id', me.id).gte('work_date', start).lte('work_date', end),
+        sb.from('attendance_adjustments').select('work_date,minutes,note').eq('staff_id', me.id).gte('work_date', start).lte('work_date', end),
       ]);
       const recs = data || [];
       const sch = {};
       (sh || []).forEach(s => { const ss = _hhmmMin(s.start_time), se = _hhmmMin(s.end_time); const cur = sch[s.work_date] || { ss: null, se: null }; if (ss != null) cur.ss = cur.ss == null ? ss : Math.min(cur.ss, ss); if (se != null) cur.se = cur.se == null ? se : Math.max(cur.se, se); sch[s.work_date] = cur; });
+      const adjMap = {}; (adj || []).forEach(x => { adjMap[x.work_date] = { m: Number(x.minutes), note: x.note || '' }; });
       todayRec = recs.find(r => r.work_date === todayStr()) || null;
       renderClock();
       let totalMin = 0;
       F('attTable').querySelector('tbody').innerHTML = recs.length
-        ? recs.map(a => { const sc = sch[a.work_date]; totalMin += workedMinutes(a.clock_in, a.clock_out, sc && sc.ss, sc && sc.se); return `<tr><td>${a.work_date.replace(/-/g,'/').slice(5)} ${WEEK[new Date(a.work_date).getDay()]}</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${worktime(a, sc)}</td></tr>`; }).join('')
+        ? recs.map(a => {
+            const sc = sch[a.work_date];
+            const ov = adjMap[a.work_date];
+            const auto = workedMinutes(a.clock_in, a.clock_out, sc && sc.ss, sc && sc.se);
+            const eff = ov ? ov.m : auto;
+            totalMin += eff;
+            const wtCell = ov
+              ? `<span title="店長審核修正${ov.note ? '：' + ov.note.replace(/"/g,'') : ''}">${Math.floor(eff/60)}h${eff%60}m <span class="faint" style="font-size:10px;color:var(--accent-deep,#8b6f47)">✎審核</span></span>`
+              : worktime(a, sc);
+            return `<tr><td>${a.work_date.replace(/-/g,'/').slice(5)} ${WEEK[new Date(a.work_date).getDay()]}</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${wtCell}</td></tr>`;
+          }).join('')
         : '<tr><td colspan="4" class="muted faint">本月還沒有打卡紀錄</td></tr>';
       F('my_days').textContent = recs.filter(a => a.clock_in).length + ' 天';
       F('my_hours').textContent = (Math.round(totalMin / 60 * 10) / 10) + ' 小時';

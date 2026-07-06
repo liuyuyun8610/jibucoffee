@@ -292,16 +292,19 @@
     const start = `${year}-${String(month).padStart(2, '0')}-01`;
     const endD = new Date(year, month, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const [{ data: att }, { data: sh }] = await Promise.all([
+    const [{ data: att }, { data: sh }, { data: adj }] = await Promise.all([
       sb.from('attendance').select('work_date,clock_in,clock_out').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
       sb.from('shifts').select('work_date,is_double_pay,start_time,end_time').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
+      sb.from('attendance_adjustments').select('work_date,minutes').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
     ]);
     const doubleDays = new Set((sh || []).filter(s => s.is_double_pay).map(s => s.work_date));
     const sch = schByDateOf(sh);
+    const adjByDate = {}; (adj || []).forEach(x => { adjByDate[x.work_date] = Number(x.minutes); });
     let nMin = 0, dMin = 0;
     (att || []).forEach(a => {
       const sc = sch[a.work_date] || { ss: null, se: null };
-      const m = workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se);
+      const auto = workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se);
+      const m = (adjByDate[a.work_date] != null) ? adjByDate[a.work_date] : auto;  // 審核修正覆蓋自動計算
       if (doubleDays.has(a.work_date)) dMin += m; else nMin += m;
     });
     const r = x => Math.round(x / 60 * 10) / 10;
@@ -325,7 +328,7 @@
       const h = await attendanceHours(empId, pYear, pMonth);   // 自動帶入打卡時數（一般/雙倍分流）
       editRec = {
         staff_id: empId, year: pYear, month: pMonth, base_salary: 0, work_days: 0,
-        work_hours: h.normal, double_hours: h.double,
+        work_hours: h.normal, double_hours: h.double, makeup_hours: 0, makeup_double_hours: 0,
         hourly_rate: emp.hourly_rate || 0, ot_weekday_minutes: 0, ot_restday_minutes: 0, ot_pay: 0, total_pay: 0, note: '',
       };
       editItems = [];
@@ -347,7 +350,9 @@
     const ded = editItems.filter(i => i.type === 'deduction').reduce((s, i) => s + num(i.amount), 0);
     if (editEmp && editEmp.employ_type === 'PT') {
       const rate = editRec.hourly_rate || 0;
-      const base = Math.round(rate * (editRec.work_hours || 0) + rate * 2 * (editRec.double_hours || 0));
+      const nH = (editRec.work_hours || 0) + (editRec.makeup_hours || 0);
+      const dH = (editRec.double_hours || 0) + (editRec.makeup_double_hours || 0);
+      const base = Math.round(rate * nH + rate * 2 * dH);
       editRec.base_salary = base; editRec.ot_pay = 0;
       editRec.total_pay = Math.round(base + add - ded);
     } else {
@@ -368,7 +373,12 @@
           <div class="field"><label class="label">一般時數 <button type="button" id="f_pullhours" class="btn btn-ghost btn-sm" style="padding:1px 8px;font-size:11px;margin-left:4px">↻ 帶入打卡</button></label><input class="input" type="number" id="f_hours" value="${r.work_hours || ''}"></div>
           <div class="field"><label class="label">🌟 雙倍時數（×2）</label><input class="input" type="number" id="f_double" value="${r.double_hours || ''}"></div>
         </div>
-        <div class="field mt8"><label class="label">薪資小計（一般×時薪 ＋ 雙倍×時薪×2）</label><input class="input" readonly id="f_basepay" value="${formatCurrency(r.base_salary || 0)}"></div>
+        <div class="grid3 mt8">
+          <div class="field"><label class="label" style="color:var(--muted)">時薪</label><input class="input" readonly value="${r.hourly_rate || 0}"></div>
+          <div class="field"><label class="label">需補時數 <span class="faint" style="font-size:10px">無打卡手動補</span></label><input class="input" type="number" id="f_makeup" value="${r.makeup_hours || ''}"></div>
+          <div class="field"><label class="label">🌟 雙倍需補時數</label><input class="input" type="number" id="f_makeup_double" value="${r.makeup_double_hours || ''}"></div>
+        </div>
+        <div class="field mt8"><label class="label">薪資小計（(一般+需補)×時薪 ＋ (雙倍+雙倍需補)×時薪×2）</label><input class="input" readonly id="f_basepay" value="${formatCurrency(r.base_salary || 0)}"></div>
       </div>` : `
       <div class="card">
         <h2 class="card-h">${escapeHtml(emp.name)} — ${pYear}/${String(pMonth).padStart(2,'0')} 薪資</h2>
@@ -398,8 +408,9 @@
           <h2 class="card-h" style="margin:0">本月薪資合計</h2>
           <div style="font-family:var(--f-serif);font-size:24px;font-weight:700;color:var(--accent-deep)" id="f_total">${formatCurrency(r.total_pay || 0)}</div>
         </div>
-        <div class="field mt8"><label class="label">備註</label><textarea class="input" id="f_note" rows="2">${escapeHtml(r.note || '')}</textarea></div>
+        <div class="field mt8"><label class="label">備註 <span class="faint" style="font-size:10px">會顯示在薪資單上</span></label><textarea class="input" id="f_note" rows="2">${escapeHtml(r.note || '')}</textarea></div>
         <button class="btn btn-primary btn-block" id="saveRec">儲存薪資記錄</button>
+        <button class="btn btn-block" id="genPayslip" style="margin-top:8px">🧾 生成薪資單（檢視 / 下載 / 員工可看）</button>
       </div>
       <div class="card">
         <h2 class="card-h">薪資發放紀錄</h2>
@@ -409,7 +420,7 @@
         <h2 class="card-h">本月打卡明細 <span class="faint" id="payAttSum"></span></h2>
         <div style="overflow-x:auto">
           <table class="tbl" id="payAttTable">
-            <thead><tr><th>日期</th><th>上班</th><th>下班</th><th class="num">工時</th></tr></thead>
+            <thead><tr><th>日期</th><th>上班</th><th>下班</th><th class="num">工時(自動)</th><th class="num">審核修正（小時）</th></tr></thead>
             <tbody><tr><td colspan="4" class="muted faint">載入中…</td></tr></tbody>
           </table>
         </div>
@@ -419,6 +430,8 @@
       F('f_hourly').addEventListener('input', () => updateField('hourly_rate', num(F('f_hourly').value)));
       F('f_hours').addEventListener('input', () => updateField('work_hours', num(F('f_hours').value)));
       F('f_double').addEventListener('input', () => updateField('double_hours', num(F('f_double').value)));
+      F('f_makeup').addEventListener('input', () => updateField('makeup_hours', num(F('f_makeup').value)));
+      F('f_makeup_double').addEventListener('input', () => updateField('makeup_double_hours', num(F('f_makeup_double').value)));
       F('f_pullhours').addEventListener('click', async () => {
         const h = await attendanceHours(editRec.staff_id, pYear, pMonth);
         F('f_hours').value = h.normal; F('f_double').value = h.double;
@@ -436,6 +449,10 @@
     F('addAdd').addEventListener('click', () => { editItems.push({ name: '', amount: 0, type: 'addition' }); renderItems(); refreshTotals(); });
     F('addDed').addEventListener('click', () => { editItems.push({ name: '', amount: 0, type: 'deduction' }); renderItems(); refreshTotals(); });
     F('saveRec').addEventListener('click', saveRecord);
+    F('genPayslip').addEventListener('click', () => {
+      if (!editRec.id) { toast('請先「儲存薪資記錄」，再生成薪資單', 'error'); return; }
+      window.open('payslip.html?id=' + editRec.id, '_blank');
+    });
     renderItems(); renderOtDetail(); renderPayBox();
     loadPayAttendance(editRec.staff_id);
   }
@@ -444,20 +461,62 @@
     const start = `${pYear}-${String(pMonth).padStart(2, '0')}-01`;
     const endD = new Date(pYear, pMonth, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const [{ data }, { data: sh }] = await Promise.all([
+    const [{ data }, { data: sh }, { data: adj }] = await Promise.all([
       sb.from('attendance').select('*').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr).order('work_date'),
       sb.from('shifts').select('work_date,start_time,end_time').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
+      sb.from('attendance_adjustments').select('work_date,minutes,note').eq('staff_id', staffId).gte('work_date', start).lte('work_date', endStr),
     ]);
     if (!F('payAttTable')) return;
     const recs = data || [];
     const sch = schByDateOf(sh);
+    const adjMap = {}; (adj || []).forEach(x => { adjMap[x.work_date] = { m: Number(x.minutes), note: x.note || '' }; });
     const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
     const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const fmtHM = m => `${Math.floor(m / 60)}h${m % 60}m`;
     let totalMin = 0;
-    const wt = a => { if (!(a.clock_in && a.clock_out)) return '—'; const sc = sch[a.work_date] || {}; const m = workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se); totalMin += m; return `${Math.floor(m / 60)}h${m % 60}m`; };
-    const body = recs.map(a => `<tr><td style="white-space:nowrap">${a.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(a.work_date).getDay()]})</td><td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td><td class="num">${wt(a)}</td></tr>`).join('');
-    F('payAttTable').querySelector('tbody').innerHTML = recs.length ? body : '<tr><td colspan="4" class="muted faint">本月無打卡紀錄</td></tr>';
+    const body = recs.map(a => {
+      const hasPunch = a.clock_in && a.clock_out;
+      const sc = sch[a.work_date] || {};
+      const auto = hasPunch ? workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se) : 0;
+      const ov = adjMap[a.work_date];
+      totalMin += ov ? ov.m : auto;
+      return `<tr>
+        <td style="white-space:nowrap">${a.work_date.replace(/-/g,'/').slice(5)} (${WEEK[new Date(a.work_date).getDay()]})</td>
+        <td>${hhmm(a.clock_in)}</td><td>${hhmm(a.clock_out)}</td>
+        <td class="num"${ov ? ' style="text-decoration:line-through;color:#aaa"' : ''}>${hasPunch ? fmtHM(auto) : '—'}</td>
+        <td class="num" style="white-space:nowrap">
+          <input class="input" type="number" step="0.5" min="0" style="width:60px;display:inline-block;padding:5px 6px" data-adj="${a.work_date}" placeholder="${hasPunch ? (auto/60) : '0'}" value="${ov ? (ov.m/60) : ''}">
+          <input class="input" style="width:96px;display:inline-block;padding:5px 6px;margin-left:4px" data-adjnote="${a.work_date}" placeholder="原因" value="${escapeHtml(ov ? ov.note : '')}">
+        </td>
+      </tr>`;
+    }).join('');
+    F('payAttTable').querySelector('tbody').innerHTML = recs.length ? body : '<tr><td colspan="5" class="muted faint">本月無打卡紀錄</td></tr>';
     if (F('payAttSum')) F('payAttSum').textContent = recs.length ? `— 合計 ${Math.round(totalMin / 60 * 10) / 10} 小時` : '';
+    F('payAttTable').querySelectorAll('input[data-adj]').forEach(inp => inp.addEventListener('change', () => saveAdj(staffId, inp.dataset.adj)));
+    F('payAttTable').querySelectorAll('input[data-adjnote]').forEach(inp => inp.addEventListener('change', () => saveAdj(staffId, inp.dataset.adjnote)));
+  }
+
+  // 審核修正：老闆手動改某天工時（清空=回自動計算），存後自動重帶薪資時數
+  async function saveAdj(staffId, date) {
+    const hInp = document.querySelector(`#payAttTable input[data-adj="${date}"]`);
+    const nInp = document.querySelector(`#payAttTable input[data-adjnote="${date}"]`);
+    const hv = hInp ? hInp.value.trim() : '';
+    const note = nInp ? nInp.value.trim() : '';
+    if (hv === '') {
+      await sb.from('attendance_adjustments').delete().eq('staff_id', staffId).eq('work_date', date);
+      toast('已移除審核修正（回自動計算）');
+    } else {
+      const { error } = await sb.from('attendance_adjustments')
+        .upsert({ staff_id: staffId, work_date: date, minutes: Math.round(Number(hv) * 60), note: note || null }, { onConflict: 'staff_id,work_date' });
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      toast('已存審核修正');
+    }
+    const h = await attendanceHours(staffId, pYear, pMonth);
+    editRec.work_hours = h.normal; editRec.double_hours = h.double;
+    if (F('f_hours')) F('f_hours').value = h.normal;
+    if (F('f_double')) F('f_double').value = h.double;
+    refreshTotals();
+    loadPayAttendance(staffId);
   }
 
   const num = v => Number(v) || 0;
@@ -524,7 +583,8 @@
     const payload = {
       staff_id: editRec.staff_id, year: pYear, month: pMonth,
       base_salary: editRec.base_salary || 0, work_days: editRec.work_days || 0,
-      work_hours: editRec.work_hours || 0, double_hours: editRec.double_hours || 0, hourly_rate: editRec.hourly_rate || 0,
+      work_hours: editRec.work_hours || 0, double_hours: editRec.double_hours || 0,
+      makeup_hours: editRec.makeup_hours || 0, makeup_double_hours: editRec.makeup_double_hours || 0, hourly_rate: editRec.hourly_rate || 0,
       ot_weekday_minutes: editRec.ot_weekday_minutes || 0, ot_restday_minutes: editRec.ot_restday_minutes || 0,
       ot_pay: editRec.ot_pay || 0, total_pay: editRec.total_pay || 0, note: editRec.note || null,
     };

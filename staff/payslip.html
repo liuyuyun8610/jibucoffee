@@ -37,7 +37,7 @@
 
     <div class="card" id="payslip" style="display:none">
       <div style="text-align:center; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:16px">
-        <div style="font-family:var(--f-serif); font-size:18px; font-weight:600; color:var(--accent-deep)">一坨咖啡　薪資明細表</div>
+        <div style="font-family:var(--f-serif); font-size:18px; font-weight:600; color:var(--accent-deep)">坨與他的朋友咖啡工作室　薪資明細表</div>
         <div class="faint" id="ps-period" style="margin-top:4px"></div>
       </div>
       <div class="ps-grid" id="ps-info"></div>
@@ -54,6 +54,10 @@
       <div class="ps-net">
         <span style="font-weight:600">實發金額</span>
         <span class="v" id="ps-net"></span>
+      </div>
+      <div id="ps-note-wrap" style="display:none; margin-top:16px; background:var(--bg-soft,#f6f2ea); border-radius:10px; padding:12px 14px">
+        <div class="muted" style="font-size:12px; margin-bottom:4px">溝通事項</div>
+        <div id="ps-note" style="white-space:pre-wrap; font-size:14px"></div>
       </div>
       <p class="faint" style="text-align:center; margin-top:18px">本表為系統產生之薪資明細，如有疑問請洽店長。</p>
     </div>
@@ -95,15 +99,17 @@
     function render(rec, items, emp) {
       const additions = items.filter(i => i.type === 'addition');
       const deductions = items.filter(i => i.type === 'deduction');
-      // 時薪制（PT）：base_salary = 一般時數×時薪 + 雙倍時數×時薪×2
-      const nH = Number(rec.work_hours || 0), dH = Number(rec.double_hours || 0), hrRate = Number(rec.hourly_rate || 0);
+      // 時薪制（PT）：base_salary = 一般時數×時薪 + 雙倍時數×時薪×2（時數含手動需補）
+      const nH = Number(rec.work_hours || 0) + Number(rec.makeup_hours || 0);
+      const dH = Number(rec.double_hours || 0) + Number(rec.makeup_double_hours || 0);
+      const hrRate = Number(rec.hourly_rate || 0);
       const isHourly = hrRate > 0 && (nH > 0 || dH > 0);
       const doublePay = Math.round(hrRate * 2 * dH);
       const normalPay = (rec.base_salary || 0) - doublePay;   // 相減確保與 base_salary 完全一致
       const baseLines = (isHourly && dH > 0)
         ? [
             { name: `一般時數薪資（${nH} 小時 × ${formatCurrency(hrRate)}）`, amount: normalPay },
-            { name: `🌟 雙倍時數薪資（${dH} 小時 × ${formatCurrency(hrRate)} × 2）`, amount: doublePay },
+            { name: `國定時數薪資（${dH} 小時 × ${formatCurrency(hrRate)} × 2）`, amount: doublePay },
           ]
         : [{ name: '底薪（本薪）', amount: rec.base_salary || 0 }];
       const grossList = [
@@ -123,13 +129,13 @@
         `薪資所屬：${rec.year} 年 ${rec.month} 月　│　發放日期：${payDate}`;
 
       const info = [
-        ['姓名', emp.name || '—'], ['員工編號', emp.employee_no || '—'],
-        ['部門', emp.department || '—'], ['職位', emp.position || '—'],
-        ['投保薪資級距', emp.insured_salary != null ? formatCurrency(emp.insured_salary) : '—'],
+        ['員工姓名', emp.name || '—'], ['職稱', emp.position || (isHourly ? 'PT' : '正職')],
+        ['發薪年月', `${rec.year} / ${String(rec.month).padStart(2, '0')}`],
+        ['轉帳日', rec.paid_at ? fmtDate(rec.paid_at) : payDate],
         ['出勤天數', (rec.work_days || 0) + ' 天'],
-        ...(isHourly ? [['一般時數', nH.toFixed(1) + ' 小時']] : []),
-        ...(dH > 0 ? [['🌟 雙倍時數', dH.toFixed(1) + ' 小時（×2 計薪）']] : []),
-        ['加班時數', otH.toFixed(1) + ' 小時'],
+        ...(isHourly ? [['一般時數', nH.toFixed(1) + ' 小時'], ['時薪', formatCurrency(hrRate)]] : []),
+        ...(dH > 0 ? [['國定時數', dH.toFixed(1) + ' 小時'], ['國定時薪（×2）', formatCurrency(hrRate * 2)]] : []),
+        ...(otH > 0 ? [['加班時數', otH.toFixed(1) + ' 小時']] : []),
       ];
       document.getElementById('ps-info').innerHTML = info.map(([k, v]) =>
         `<div class="ps-line"><span class="muted">${k}</span><span>${escapeHtml(v)}</span></div>`).join('');
@@ -144,6 +150,11 @@
         `<div class="ps-line total"><span>應扣合計</span><span>${deductTotal > 0 ? '-' + formatCurrency(deductTotal) : formatCurrency(0)}</span></div>`;
 
       document.getElementById('ps-net').textContent = formatCurrency(net);
+
+      if (rec.note && rec.note.trim()) {
+        document.getElementById('ps-note').textContent = rec.note;
+        document.getElementById('ps-note-wrap').style.display = 'block';
+      }
 
       document.getElementById('msg').style.display = 'none';
       document.getElementById('payslip').style.display = 'block';
