@@ -985,7 +985,8 @@
     const val = e.target.value === '' ? 0 : Number(e.target.value);
     if (!pnlData[m]) {
       pnlData[m] = { year: pnlYear, month: m };
-      PNL_INPUTS.forEach(kk => pnlData[m][kk] = pnlForecastValue(kk)); // 用預測值墊底，整欄一致
+      // 非自動科目(收入/折扣/固定成本)用預測值墊底；自動科目(叫貨/薪資/帳本)留 0——沒真實帳就不假裝成本
+      PNL_INPUTS.forEach(kk => pnlData[m][kk] = pnlIsAutoKey(kk) ? 0 : pnlForecastValue(kk));
       F('pnlGrid').querySelectorAll(`input[data-m="${m}"]`).forEach(x => { x.style.background = ''; x.style.color = ''; x.style.fontStyle = ''; });
     }
     pnlData[m][k] = val;
