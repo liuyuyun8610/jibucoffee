@@ -229,3 +229,6 @@ textarea.input { resize: vertical; }
   .cal-cell { min-height: 56px; padding: 3px; border-radius: 7px; }
   .cal-chip { font-size: 9px; padding: 1px 3px; }
 }
+
+/* 損益自動格可點看明細 */
+.pnl-src:hover { text-decoration: underline; filter: brightness(0.96); }

@@ -733,6 +733,7 @@
   let pnlInited = false;
   // 自動連動來源
   let pnlAuto = {};                          // month -> { 損益key: 加總金額 }
+  let pnlAutoSrc = {};                        // month -> { 損益key: [{date,desc,amount}] } 明細來源
   let pnlAutoSalary = {};                     // month -> 薪資總額（來自 payroll）
   let pnlMonPurchase = new Set();             // 有叫貨資料的月份
   let pnlMonPayroll = new Set();              // 有薪資資料的月份
@@ -820,7 +821,7 @@
     const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
       sb.from('purchases').select('order_date,category,total_cost'),
-      sb.from('payroll_records').select('year,month,total_pay,transfer_fee').eq('year', pnlYear),
+      sb.from('payroll_records').select('year,month,total_pay,transfer_fee,staff_id').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
       sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee'),
       sb.from('maintenance_records').select('repair_date,cost'),
@@ -834,7 +835,11 @@
     pnlOwnLines = Object.keys(costMap)
       .filter(cat => costMap[cat] === 'own_ctrl' || costMap[cat] === 'own_unctrl')
       .map(cat => ({ cat, grp: costMap[cat] === 'own_ctrl' ? 'ctrl' : 'unctrl' }));
-    pnlAuto = {};
+    pnlAuto = {}; pnlAutoSrc = {};
+    const pushSrc = (mo, key, date, desc, amount) => {
+      if (!pnlAutoSrc[mo]) pnlAutoSrc[mo] = {};
+      (pnlAutoSrc[mo][key] || (pnlAutoSrc[mo][key] = [])).push({ date: date || '', desc: desc || '', amount: Number(amount || 0) });
+    };
     // 庫存叫貨 → 銷貨成本（只接受 COGS 科目；當年）
     pnlMonPurchase = new Set();
     (purRes.data || []).forEach(p => {
@@ -844,6 +849,7 @@
       const mo = Number(p.order_date.slice(5, 7));
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][line] = (pnlAuto[mo][line] || 0) + Number(p.total_cost || 0);
+      pushSrc(mo, line, p.order_date, '叫貨：' + (p.item_name || p.category || ''), p.total_cost);
       pnlMonPurchase.add(mo);
     });
     // 帳本 → 其他費用（排除進貨/薪資自動分錄避免重複；只接受帳本可對應科目；當年）
@@ -860,6 +866,7 @@
       else return;
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][key] = (pnlAuto[mo][key] || 0) + Number(e.amount || 0);
+      pushSrc(mo, key, e.entry_date, '帳本：' + (e.category || '未分類') + (e.description ? '／' + e.description : ''), e.amount);
       pnlMonLedger.add(mo);
     });
     // 維運紀錄 → 損益（依「損益歸類」設定，預設設備維修費；當年）
@@ -873,6 +880,7 @@
       const mo = Number(r.repair_date.slice(5, 7));
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][key] = (pnlAuto[mo][key] || 0) + Number(r.cost || 0);
+      pushSrc(mo, key, r.repair_date, '維運：' + (r.equipment || r.content || r.item_name || '維修'), r.cost);
       pnlMonLedger.add(mo);
     });
     // 帳本手續費 → 手續費（可控）
@@ -883,11 +891,18 @@
       if (!fee || !e.entry_date || Number(e.entry_date.slice(0, 4)) !== pnlYear) return;
       const mo = Number(e.entry_date.slice(5, 7));
       pnlAutoFee[mo] = (pnlAutoFee[mo] || 0) + fee;
+      pushSrc(mo, 'fee', e.entry_date, '手續費：' + (e.category || '') + (e.description ? '／' + e.description : ''), fee);
       pnlMonFee.add(mo); pnlMonLedger.add(mo);
     });
     // 薪資 → salary（含跨行手續費）
     pnlAutoSalary = {}; pnlMonPayroll = new Set();
-    (payRes.data || []).forEach(r => { pnlAutoSalary[r.month] = (pnlAutoSalary[r.month] || 0) + Number(r.total_pay || 0) + Number(r.transfer_fee || 0); pnlMonPayroll.add(r.month); });
+    (payRes.data || []).forEach(r => {
+      const amt = Number(r.total_pay || 0) + Number(r.transfer_fee || 0);
+      pnlAutoSalary[r.month] = (pnlAutoSalary[r.month] || 0) + amt;
+      const nm = (staffList.find(s => s.id === r.staff_id) || {}).name || '員工';
+      pushSrc(r.month, 'salary', `${r.year}-${String(r.month).padStart(2, '0')}`, '薪資：' + nm + (r.transfer_fee ? '（含跨行費 ' + r.transfer_fee + '）' : ''), amt);
+      pnlMonPayroll.add(r.month);
+    });
     F('pnlYearLabel').textContent = pnlYear;
     // 2026 年第一次打開、且還沒任何資料 → 自動帶入截圖讀到的 1–5 月（用老闆登入身分寫入）
     if (pnlYear === 2026 && Object.keys(pnlData).length === 0 && !localStorage.getItem('pnlSeeded2026')) {
@@ -898,6 +913,20 @@
   }
 
   const PNL_MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
+  // 點損益自動格 → 顯示這格由哪幾筆組成
+  function showPnlSrc(m, bk, label) {
+    const list = (pnlAutoSrc[m] && pnlAutoSrc[m][bk]) ? pnlAutoSrc[m][bk] : [];
+    const total = list.reduce((s, x) => s + x.amount, 0);
+    F('pnlSrcTitle').textContent = `${m}月 · ${label}　明細`;
+    if (!list.length) {
+      F('pnlSrcBody').innerHTML = '<p class="muted faint" style="padding:10px 0">這格是手填值或固定成本預設，沒有可追的自動明細來源。</p>';
+    } else {
+      const rows = list.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+        .map(x => `<tr><td style="white-space:nowrap">${(x.date || '').replace(/-/g, '/').slice(5)}</td><td>${escapeHtml(x.desc)}</td><td class="num">${formatCurrency(x.amount)}</td></tr>`).join('');
+      F('pnlSrcBody').innerHTML = `<table class="tbl"><thead><tr><th>日期</th><th>項目</th><th class="num">金額</th></tr></thead><tbody>${rows}<tr style="border-top:2px solid var(--line)"><td colspan="2" style="font-weight:700">合計 ${list.length} 筆</td><td class="num" style="font-weight:700">${formatCurrency(total)}</td></tr></tbody></table>`;
+    }
+    F('pnlSrcModal').classList.add('show');
+  }
   function renderPnlGrid() {
     const tbl = F('pnlGrid');
     const mv = {}, mc = {};
@@ -908,7 +937,7 @@
     const srcLabel = (k) => k === 'salary' ? '薪資' : PNL_COGS_KEYS.includes(k) ? '庫存叫貨' : PNL_LEDGER_KEYS.includes(k) ? '帳本' : '';
     const ownRows = (grp) => pnlOwnLines.filter(l => l.grp === grp).map(l => {
       let r = `<tr><td style="text-align:left; padding-left:14px">${escapeHtml(l.cat)} <span class="faint" style="font-size:10px">自訂·帳本</span></td>`;
-      PNL_MONTHS.forEach(m => { r += `<td class="num" style="background:#eaf1f6; color:#34627d; font-size:12px">${formatCurrency(pnlOwnValue(m, l.cat))}</td>`; });
+      PNL_MONTHS.forEach(m => { r += `<td class="num pnl-src" data-m="${m}" data-bk="own:${escapeHtml(l.cat)}" data-lbl="${escapeHtml(l.cat)}" style="background:#eaf1f6; color:#34627d; font-size:12px; cursor:pointer">${formatCurrency(pnlOwnValue(m, l.cat))}</td>`; });
       r += `<td class="num">${formatCurrency(PNL_MONTHS.reduce((s, m) => s + pnlOwnValue(m, l.cat), 0))}</td></tr>`;
       return r;
     }).join('');
@@ -918,7 +947,7 @@
       // 手續費 + 自訂科目插在「可控合計 / 不可控合計」之前
       if (line.calc === 'ctrl') {
         let fr = `<tr><td style="text-align:left">手續費 <span class="faint" style="font-size:10px">自動·帳本</span></td>`;
-        PNL_MONTHS.forEach(m => { fr += `<td class="num" style="background:#eaf1f6; color:#34627d; font-size:12px">${formatCurrency(pnlFeeValue(m))}</td>`; });
+        PNL_MONTHS.forEach(m => { fr += `<td class="num pnl-src" data-m="${m}" data-bk="fee" data-lbl="手續費" style="background:#eaf1f6; color:#34627d; font-size:12px; cursor:pointer">${formatCurrency(pnlFeeValue(m))}</td>`; });
         fr += `<td class="num">${formatCurrency(PNL_MONTHS.reduce((s, m) => s + pnlFeeValue(m), 0))}</td></tr>`;
         html += fr + ownRows('ctrl');
       }
@@ -928,7 +957,7 @@
         PNL_MONTHS.forEach(m => {
           const auto = pnlAutoValue(m, line.key);
           if (auto !== null) {
-            html += `<td class="num" data-m="${m}" data-c2="${line.key}" title="自動帶自${srcLabel(line.key)}（去該頁修改）" style="background:#eaf1f6; color:#34627d; font-size:12px">${formatCurrency(auto)}</td>`;
+            html += `<td class="num pnl-src" data-m="${m}" data-bk="${line.key}" data-lbl="${escapeHtml(line.label)}" title="點看明細（自動帶自${srcLabel(line.key)}）" style="background:#eaf1f6; color:#34627d; font-size:12px; cursor:pointer">${formatCurrency(auto)}</td>`;
           } else {
             const a = pnlIsActualMonth(m) || PNL_PRESET[line.key] !== undefined; // 固定成本每月都當已填(白底)
             const val = mv[m][line.key];
@@ -947,6 +976,7 @@
       inp.addEventListener('input', onPnlInput);
       inp.addEventListener('change', onPnlBlur);
     });
+    tbl.querySelectorAll('td.pnl-src[data-bk]').forEach(td => td.addEventListener('click', () => showPnlSrc(+td.dataset.m, td.dataset.bk, td.dataset.lbl)));
     pnlRenderSummary(); pnlRenderVariance();
   }
 

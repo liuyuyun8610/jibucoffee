@@ -703,6 +703,15 @@
     </div>
   </div>
 
+  <!-- ===== Modal: 損益格子來源明細 ===== -->
+  <div class="modal-mask" id="pnlSrcModal">
+    <div class="modal">
+      <h3 class="modal-h" id="pnlSrcTitle">明細</h3>
+      <div id="pnlSrcBody" style="max-height:60vh; overflow:auto"></div>
+      <div class="row-between mt8"><span class="faint" style="font-size:11px">此明細為自動來源（帳本／叫貨／薪資／維運）加總</span><button class="btn btn-ghost" onclick="document.getElementById('pnlSrcModal').classList.remove('show')">關閉</button></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="../config.js"></script>
