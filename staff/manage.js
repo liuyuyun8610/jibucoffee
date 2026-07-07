@@ -1959,6 +1959,9 @@
     costMap = {}; (mapd || []).forEach(r => costMap[r.category] = r.pnl_line);
     fillYearSelect(F('led_year'), ledgerEntries.map(e => e.entry_date), F('led_year').value);
     F('led_account').innerHTML = '<option value="">全部帳戶</option>' + accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    const catSet = [...new Set(ledgerEntries.map(e => e.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const curCat = F('led_category').value;
+    F('led_category').innerHTML = '<option value="">全部分類</option>' + catSet.map(c => `<option value="${escapeHtml(c)}"${c === curCat ? ' selected' : ''}>${escapeHtml(c)}</option>`).join('');
     renderAccounts();
     renderRevenueSettings();
     renderCatManager();
@@ -2053,15 +2056,17 @@
     F('accountCards').querySelectorAll('[data-acc]').forEach(el => el.addEventListener('click', () => openAccountModal(el.dataset.acc)));
   }
   function renderLedger() {
-    const yr = F('led_year').value, mo = F('led_month').value, acc = F('led_account').value;
+    const yr = F('led_year').value, mo = F('led_month').value, acc = F('led_account').value, cat = F('led_category').value;
     let rows = ledgerEntries;
     if (yr && yr !== 'all') rows = rows.filter(e => (e.entry_date || '').slice(0, 4) === yr);
     if (mo !== 'all') rows = rows.filter(e => Number((e.entry_date || '').slice(5, 7)) === Number(mo));
     if (acc) rows = rows.filter(e => e.account_id === acc);
+    if (cat) rows = rows.filter(e => (e.category || '') === cat);
     const inc = rows.filter(e => e.type === '收入' || e.type === '轉入').reduce((s, e) => s + Number(e.amount || 0), 0);
     const exp = rows.filter(e => e.type === '支出' || e.type === '轉出').reduce((s, e) => s + Number(e.amount || 0), 0);
     const fees = rows.reduce((s, e) => s + Number(e.fee || 0), 0);
-    F('led_sum').textContent = `收入 ${formatCurrency(inc)}・支出 ${formatCurrency(exp)}${fees ? '・手續費 ' + formatCurrency(fees) : ''}・淨 ${formatCurrency(inc - exp - fees)}`;
+    const cntTxt = `${rows.length} 筆`;
+    F('led_sum').textContent = `${cat ? '【' + cat + '】' : ''}${cntTxt}・收入 ${formatCurrency(inc)}・支出 ${formatCurrency(exp)}${fees ? '・手續費 ' + formatCurrency(fees) : ''}・淨 ${formatCurrency(inc - exp - fees)}`;
     const tb = F('ledTable').querySelector('tbody');
     tb.innerHTML = rows.length ? rows.map(e => {
       const isIn = e.type === '收入' || e.type === '轉入';
@@ -2090,15 +2095,17 @@
   F('led_year').addEventListener('change', renderLedger);
   F('led_month').addEventListener('change', renderLedger);
   F('led_account').addEventListener('change', renderLedger);
+  F('led_category').addEventListener('change', renderLedger);
   F('printLedger') && F('printLedger').addEventListener('click', printLedgerPdf);
 
   // 依目前篩選（年/月/帳戶）產生可列印 / 另存 PDF 的帳本明細
   function printLedgerPdf() {
-    const yr = F('led_year').value, mo = F('led_month').value, acc = F('led_account').value;
+    const yr = F('led_year').value, mo = F('led_month').value, acc = F('led_account').value, cat = F('led_category').value;
     let rows = ledgerEntries;
     if (yr && yr !== 'all') rows = rows.filter(e => (e.entry_date || '').slice(0, 4) === yr);
     if (mo !== 'all') rows = rows.filter(e => Number((e.entry_date || '').slice(5, 7)) === Number(mo));
     if (acc) rows = rows.filter(e => e.account_id === acc);
+    if (cat) rows = rows.filter(e => (e.category || '') === cat);
     rows = rows.slice().sort((a, b) => (a.entry_date || '').localeCompare(b.entry_date || '') || (a.created_at || '').localeCompare(b.created_at || ''));
     const inc = rows.filter(e => e.type === '收入' || e.type === '轉入').reduce((s, e) => s + Number(e.amount || 0), 0);
     const exp = rows.filter(e => e.type === '支出' || e.type === '轉出').reduce((s, e) => s + Number(e.amount || 0), 0);
@@ -2122,7 +2129,7 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
 @media print{body{margin:12mm}.noprint{display:none}}.noprint{margin-top:18px;text-align:center}
 .noprint button{padding:9px 22px;font-size:14px;border:1px solid #8b6f47;background:#8b6f47;color:#fff;border-radius:20px;cursor:pointer}</style></head><body>
 <h1>一坨咖啡 · 帳本明細</h1>
-<div class="meta">期間：${periodLabel}　│　帳戶：${esc(accLabel)}　│　列印時間：${stamp}　│　共 ${rows.length} 筆</div>
+<div class="meta">期間：${periodLabel}　│　帳戶：${esc(accLabel)}${cat ? '　│　分類：' + esc(cat) : ''}　│　列印時間：${stamp}　│　共 ${rows.length} 筆</div>
 <div class="sum"><span>收入 <b style="color:#2e7d32">${formatCurrency(inc)}</b></span><span>支出 <b style="color:#c0392b">${formatCurrency(exp)}</b></span>${fees ? `<span>手續費 <b style="color:#c0392b">${formatCurrency(fees)}</b></span>` : ''}<span>淨額 <b>${formatCurrency(inc - exp - fees)}</b></span></div>
 <table><thead><tr><th>日期</th><th>帳戶</th><th>類型</th><th>分類</th><th style="text-align:right">金額</th><th style="text-align:right">手續費</th><th>說明</th></tr></thead><tbody>${body}</tbody></table>
 <div class="noprint"><button onclick="window.print()">🖨 列印 / 另存 PDF</button></div></body></html>`;
