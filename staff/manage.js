@@ -820,11 +820,11 @@
     }
     const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
-      sb.from('purchases').select('order_date,category,total_cost'),
+      sb.from('purchases').select('order_date,category,total_cost,item_name'),
       sb.from('payroll_records').select('year,month,total_pay,transfer_fee,staff_id').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
-      sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee'),
-      sb.from('maintenance_records').select('repair_date,cost'),
+      sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee,description'),
+      sb.from('maintenance_records').select('repair_date,cost,equipment,content'),
     ]);
     if (error) { toast('載入失敗：' + error.message, 'error'); return; }
     pnlData = {};
@@ -849,7 +849,7 @@
       const mo = Number(p.order_date.slice(5, 7));
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][line] = (pnlAuto[mo][line] || 0) + Number(p.total_cost || 0);
-      pushSrc(mo, line, p.order_date, '叫貨：' + (p.item_name || p.category || ''), p.total_cost);
+      pushSrc(mo, line, p.order_date, '叫貨：' + (p.category || '') + (p.item_name && p.item_name !== p.category ? '（' + p.item_name + '）' : (!p.category && p.item_name ? p.item_name : '')), p.total_cost);
       pnlMonPurchase.add(mo);
     });
     // 帳本 → 其他費用（排除進貨/薪資自動分錄避免重複；只接受帳本可對應科目；當年）
@@ -866,7 +866,7 @@
       else return;
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][key] = (pnlAuto[mo][key] || 0) + Number(e.amount || 0);
-      pushSrc(mo, key, e.entry_date, '帳本：' + (e.category || '未分類') + (e.description ? '／' + e.description : ''), e.amount);
+      pushSrc(mo, key, e.entry_date, '帳本：' + (e.category || '未分類') + (e.description ? '（' + e.description + '）' : ''), e.amount);
       pnlMonLedger.add(mo);
     });
     // 維運紀錄 → 損益（依「損益歸類」設定，預設設備維修費；當年）
@@ -880,7 +880,7 @@
       const mo = Number(r.repair_date.slice(5, 7));
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][key] = (pnlAuto[mo][key] || 0) + Number(r.cost || 0);
-      pushSrc(mo, key, r.repair_date, '維運：' + (r.equipment || r.content || r.item_name || '維修'), r.cost);
+      pushSrc(mo, key, r.repair_date, '維運：' + (r.equipment || '維修') + (r.content ? '（' + r.content + '）' : ''), r.cost);
       pnlMonLedger.add(mo);
     });
     // 帳本手續費 → 手續費（可控）
