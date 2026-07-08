@@ -820,7 +820,7 @@
     }
     const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
-      sb.from('purchases').select('order_date,category,total_cost,item_name'),
+      sb.from('purchases').select('order_date,category,total_cost,item_name,note'),
       sb.from('payroll_records').select('year,month,total_pay,transfer_fee,staff_id').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
       sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee,description'),
@@ -849,7 +849,7 @@
       const mo = Number(p.order_date.slice(5, 7));
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][line] = (pnlAuto[mo][line] || 0) + Number(p.total_cost || 0);
-      pushSrc(mo, line, p.order_date, '叫貨：' + (p.category || '') + (p.item_name && p.item_name !== p.category ? '（' + p.item_name + '）' : (!p.category && p.item_name ? p.item_name : '')), p.total_cost);
+      pushSrc(mo, line, p.order_date, '叫貨：' + (p.category || '') + (p.item_name && p.item_name !== p.category ? '（' + p.item_name + '）' : (!p.category && p.item_name ? p.item_name : '')) + (p.note ? ' · ' + p.note : ''), p.total_cost);
       pnlMonPurchase.add(mo);
     });
     // 帳本 → 其他費用（排除進貨/薪資自動分錄避免重複；只接受帳本可對應科目；當年）
