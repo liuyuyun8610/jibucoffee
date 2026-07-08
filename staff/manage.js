@@ -2078,11 +2078,40 @@
   }
   function accName(id) { const a = accounts.find(x => x.id === id); return a ? a.name : '—'; }
 
+  // 調整帳戶餘額：輸入實際金額 → 自動補一筆差額分錄（轉入/轉出，不進損益）
+  window.adjustBalance = async function (e, id) {
+    e.stopPropagation();
+    const a = accounts.find(x => x.id === id); if (!a) return;
+    const cur = accountBalance(id);
+    const inp = prompt(`「${a.name}」目前系統餘額：${formatCurrency(cur)}\n\n請輸入實際餘額（系統會自動補一筆「餘額調整」差額，不影響損益）：`, Math.round(cur));
+    if (inp === null || inp.trim() === '') return;
+    const target = Number(inp);
+    if (isNaN(target)) { toast('請輸入數字', 'error'); return; }
+    const diff = Math.round(target - cur);
+    if (Math.abs(diff) < 1) { toast('餘額已相符，無需調整'); return; }
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await sb.from('ledger_entries').insert({
+      account_id: id,
+      type: diff >= 0 ? '轉入' : '轉出',
+      category: '餘額調整',
+      amount: Math.abs(diff),
+      description: `餘額調整（${formatCurrency(cur)} → ${formatCurrency(target)}）`,
+      entry_date: today,
+      source: 'adjust',
+    });
+    if (error) { toast('調整失敗：' + error.message, 'error'); return; }
+    toast(`已將「${a.name}」餘額調整為 ${formatCurrency(target)}`);
+    loadLedger();
+  };
+
   function renderAccounts() {
     F('accountCards').innerHTML = accounts.length ? accounts.map(a => `
-      <div class="stat" data-acc="${a.id}" style="cursor:pointer">
-        <div class="k">${escapeHtml(a.name)} <span class="faint">${escapeHtml(a.type)}</span></div>
-        <div class="v">${formatCurrency(accountBalance(a.id))}</div>
+      <div class="stat" style="position:relative">
+        <div data-acc="${a.id}" style="cursor:pointer">
+          <div class="k">${escapeHtml(a.name)} <span class="faint">${escapeHtml(a.type)}</span></div>
+          <div class="v">${formatCurrency(accountBalance(a.id))}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="adjustBalance(event,'${a.id}')" style="margin-top:8px;font-size:11px;padding:4px 10px">⚖ 調整餘額</button>
       </div>`).join('') : '<p class="muted faint">尚無帳戶，點右上「新增帳戶」</p>';
     F('accountCards').querySelectorAll('[data-acc]').forEach(el => el.addEventListener('click', () => openAccountModal(el.dataset.acc)));
   }
