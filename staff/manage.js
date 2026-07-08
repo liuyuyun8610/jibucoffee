@@ -695,8 +695,8 @@
     { group: '銷貨成本' },
     { key: 'cost_beans', label: '咖啡豆成本' },
     { key: 'cost_food', label: '食材成本' },
-    { key: 'cost_packaging', label: '包裝 / 杯子成本' },
-    { key: 'cost_other_cogs', label: '其他（糖、餐巾紙等）' },
+    { key: 'cost_packaging', label: '耗材（杯子包裝紙巾等）' },
+    { key: 'cost_other_cogs', label: '其他' },
     { calc: 'cogs', label: '銷貨成本合計' },
     { calc: 'gross', label: '毛利', strong: true },
     { group: '可控費用' },
@@ -1070,8 +1070,8 @@
     { v: 'none', label: '— 不列入損益 —' },
     { v: 'cost_beans', label: '咖啡豆成本' },
     { v: 'cost_food', label: '食材成本' },
-    { v: 'cost_packaging', label: '包裝 / 杯子成本' },
-    { v: 'cost_other_cogs', label: '其他銷貨成本（糖、餐巾紙）' },
+    { v: 'cost_packaging', label: '耗材（杯子包裝紙巾等）' },
+    { v: 'cost_other_cogs', label: '其他銷貨成本' },
   ];
   // 帳本支出分類可對應的損益科目（費用）
   const PNL_MAP_OPTIONS_LEDGER = [
