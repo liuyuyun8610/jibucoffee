@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 財務分析報告 · 一坨咖啡</title>
+<link rel="icon" href="../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1a1a1a; --ink-soft:#6b665e; --accent:#8b6f47; --accent-deep:#5c4830;
+  --line:#e8e3d8; --line-soft:#f0ebe0; --bg:#eceae4;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:'Noto Sans TC',sans-serif;
+  padding:32px 16px 64px; display:flex; flex-direction:column; align-items:center;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+/* 工具列（不列印） */
+.toolbar{
+  width:100%; max-width:794px; display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:14px; gap:8px;
+}
+.toolbar a,.toolbar button{
+  font:inherit; font-size:13px; padding:8px 16px; border:1px solid var(--line);
+  background:#fff; border-radius:6px; cursor:pointer; color:var(--ink); text-decoration:none;
+}
+.toolbar .print{background:var(--accent-deep); border-color:var(--accent-deep); color:#fff; letter-spacing:.08em}
+
+/* A4 紙 */
+.paper{
+  width:100%; max-width:794px; min-height:1123px; background:#fff;
+  box-shadow:0 2px 24px rgba(60,50,35,.12); padding:64px 68px;
+}
+/* 報告表頭 */
+.rpt-head{border-bottom:2.5px solid var(--ink); padding-bottom:18px; margin-bottom:8px}
+.rpt-brand{display:flex; align-items:center; gap:14px}
+.rpt-brand img{width:46px; height:46px; border-radius:8px}
+.rpt-brand .t1{font-family:'Noto Serif TC',serif; font-size:22px; font-weight:700; letter-spacing:.12em}
+.rpt-brand .t2{font-size:10.5px; letter-spacing:.28em; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; margin-top:3px}
+.rpt-title{
+  font-family:'Noto Serif TC',serif; font-size:16px; font-weight:700; letter-spacing:.3em;
+  margin-top:18px; color:var(--accent-deep);
+}
+.rpt-meta{
+  display:flex; gap:22px; flex-wrap:wrap; margin-top:10px;
+  font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono','Noto Sans TC',monospace; letter-spacing:.04em;
+}
+.rpt-meta b{color:var(--ink); font-weight:600}
+
+/* 內文 */
+.rpt-body{line-height:1.9; font-size:13.5px; padding-top:6px}
+.rpt-body h4{
+  font-family:'Noto Serif TC',serif; font-size:15.5px; font-weight:700; letter-spacing:.14em;
+  color:var(--accent-deep); margin:26px 0 10px; padding-bottom:6px;
+  border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:10px;
+  break-after:avoid;
+}
+.rpt-body h4 .no{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--accent); letter-spacing:.1em}
+.rpt-body p{margin:8px 0}
+.rpt-body ul{padding-left:22px; margin:8px 0}
+.rpt-body ol{padding-left:24px; margin:8px 0}
+.rpt-body li{margin:6px 0; padding-left:2px}
+.rpt-body li::marker{color:var(--accent); font-weight:600}
+.rpt-body b{color:var(--accent-deep)}
+/* 頁尾 */
+.rpt-foot{
+  margin-top:44px; padding-top:12px; border-top:1px solid var(--line);
+  font-size:10px; color:var(--ink-soft); display:flex; justify-content:space-between;
+  font-family:'IBM Plex Mono','Noto Sans TC',monospace; letter-spacing:.06em;
+}
+.loading{padding:120px 0; text-align:center; color:var(--ink-soft); font-size:13px}
+
+@media print{
+  /* 列印時取消 flex 置中（WebKit 印 flex 容器會整頁空白），全部退回一般文流 */
+  body{background:#fff; padding:0; display:block}
+  .toolbar{display:none}
+  .paper{
+    box-shadow:none; max-width:none; width:100%; min-height:auto;
+    padding:0; margin:0; display:block;
+  }
+  .rpt-body h4{break-after:avoid; page-break-after:avoid}
+  .rpt-body li, .rpt-body p{break-inside:avoid; page-break-inside:avoid}
+  @page{size:A4; margin:16mm 15mm}
+}
+@media(max-width:840px){ .paper{padding:36px 26px; min-height:auto} }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <a href="manage.html#pnl">← 回後台</a>
+  <button class="print" onclick="window.print()">🖨 列印 / 存成 PDF</button>
+</div>
+<div class="paper">
+  <div class="rpt-head">
+    <div class="rpt-brand">
+      <img src="../logo.png" alt="logo" onerror="this.style.display='none'">
+      <div>
+        <div class="t1">一坨咖啡</div>
+        <div class="t2">JIBU COFFEE · FINANCIAL REVIEW</div>
+      </div>
+    </div>
+    <div class="rpt-title">AI 財 務 分 析 報 告</div>
+    <div class="rpt-meta" id="meta"></div>
+  </div>
+  <div class="rpt-body" id="body"><div class="loading">載入中…</div></div>
+  <div class="rpt-foot">
+    <span>由 Claude Opus 5 分析產出 · 僅供內部參考，數字以帳本為準</span>
+    <span id="footDate"></span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../config.js"></script>
+<script src="staff.js"></script>
+<script>
+(async function(){
+  const { sb, requireAuth, escapeHtml } = JB;
+  const auth = await requireAuth({ role: 'owner' });
+  if (!auth) return;
+
+  const id = new URLSearchParams(location.search).get('id');
+  const bodyEl = document.getElementById('body');
+  if (!id) { bodyEl.innerHTML = '<div class="loading">網址缺少報告 id</div>'; return; }
+
+  const { data: row, error } = await sb.from('ai_analyses').select('*').eq('id', id).maybeSingle();
+  if (error || !row) { bodyEl.innerHTML = '<div class="loading">找不到這筆分析紀錄</div>'; return; }
+
+  const dt = new Date(row.created_at);
+  const dstr = dt.toLocaleString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  document.getElementById('meta').innerHTML =
+    `<span>分析年度 <b>${row.year || '—'}</b></span>` +
+    `<span>產出時間 <b>${escapeHtml(dstr)}</b></span>` +
+    (row.tokens_in ? `<span>tokens ${row.tokens_in.toLocaleString()} + ${(row.tokens_out||0).toLocaleString()}</span>` : '');
+  document.getElementById('footDate').textContent = dstr;
+  document.title = `AI 財務分析 ${row.year || ''} · ${dstr} · 一坨咖啡`;
+
+  /* Markdown → HTML（章節自動編號）*/
+  let secNo = 0;
+  const inline = s => escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  let html = '', inList = false, listType = '';
+  const closeList = () => { if (inList) { html += `</${listType}>`; inList = false; } };
+  String(row.content).split('\n').forEach(line => {
+    const t = line.trim();
+    if (/^##\s/.test(t)) { closeList(); secNo++; html += `<h4><span class="no">${String(secNo).padStart(2,'0')}</span>${inline(t.replace(/^##\s+/, ''))}</h4>`; }
+    else if (/^#\s/.test(t)) { closeList(); html += `<h4>${inline(t.replace(/^#\s+/, ''))}</h4>`; }
+    else if (/^[-*]\s/.test(t)) {
+      if (!inList || listType !== 'ul') { closeList(); html += '<ul>'; inList = true; listType = 'ul'; }
+      html += `<li>${inline(t.replace(/^[-*]\s+/, ''))}</li>`;
+    } else if (/^\d+[.、]\s?/.test(t)) {
+      if (!inList || listType !== 'ol') { closeList(); html += '<ol>'; inList = true; listType = 'ol'; }
+      html += `<li>${inline(t.replace(/^\d+[.、]\s?/, ''))}</li>`;
+    } else if (t === '') { closeList(); }
+    else { closeList(); html += `<p>${inline(t)}</p>`; }
+  });
+  closeList();
+  bodyEl.innerHTML = html;
+})();
+</script>
+</body>
+</html>
