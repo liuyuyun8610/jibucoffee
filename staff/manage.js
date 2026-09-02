@@ -1,7 +1,7 @@
 /* 一坨咖啡 後台 manage.html 邏輯（人事 / 薪資 / 營收）*/
 (function () {
   'use strict';
-  const { sb, requireAuth, signOut, formatCurrency, fmtDate, todayStr, calcOtPay, recalcTotal, toast, escapeHtml } = JB;
+  const { sb, requireAuth, signOut, formatCurrency, fmtDate, todayStr, calcOtPay, recalcTotal, toast, escapeHtml, icons, eventIcons } = JB;
   const F = id => document.getElementById(id);
 
   let ME = null;
@@ -221,6 +221,11 @@
    * 2) 薪資計算
    * ========================================================== */
   let pYear, pMonth, monthRecords = [], selectedEmpId = null, editRec = null, editItems = [], editEmp = null;
+  let tempMonthRows = [], tempLedgerMap = {};   // 臨時PT：本月班次 + 已記帳的發放（source_id -> ledger entry）
+  function ymRange(y, m) {
+    const endD = new Date(y, m, 0);
+    return [`${y}-${String(m).padStart(2, '0')}-01`, `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`];
+  }
 
   function initPayrollNav() {
     const d = new Date();
@@ -237,13 +242,17 @@
     loadPayrollMonth();
   }
   function renderPayEmpList() {
+    const tCount = tempMonthRows.length, tTotal = tempMonthRows.reduce((sum, r) => sum + tempPtPay(r), 0);
     F('payEmpList').innerHTML = staffList.filter(s => s.is_active !== false).map(s => {
       const rec = monthRecords.find(r => r.staff_id === s.id);
       return `<div class="list-row ${selectedEmpId === s.id ? 'active' : ''}" data-id="${s.id}">
         <div><div style="font-weight:500">${escapeHtml(s.name)}</div><div class="faint">${escapeHtml(s.position || '')}</div></div>
         ${rec ? `<span class="badge badge-ok">${formatCurrency(rec.total_pay)}</span>` : '<span class="badge badge-wait">未計算</span>'}
       </div>`;
-    }).join('');
+    }).join('') + `<div class="list-row ${selectedEmpId === '__temp__' ? 'active' : ''}" data-id="__temp__" style="border-top:2px solid var(--line)">
+        <div><div style="font-weight:500">臨時PT</div><div class="faint">${tCount ? tCount + ' 班次・打卡自動計薪' : '本月沒排臨時PT'}</div></div>
+        ${tCount ? `<span class="badge badge-ok">${formatCurrency(tTotal)}</span>` : '<span class="badge badge-wait">—</span>'}
+      </div>`;
     F('payEmpList').querySelectorAll('.list-row[data-id]').forEach(row =>
       row.addEventListener('click', () => selectEmp(row.dataset.id)));
   }
@@ -251,8 +260,12 @@
   async function loadPayrollMonth() {
     F('pm-label').textContent = `薪資所屬 ${pYear}年${pMonth}月`;
     F('pm-paylabel').textContent = `${pMonth === 12 ? pYear + 1 : pYear}年${pMonth === 12 ? 1 : pMonth + 1}月發放`;
-    const { data } = await sb.from('payroll_records').select('*').eq('year', pYear).eq('month', pMonth);
-    monthRecords = data || [];
+    const [start, endStr] = ymRange(pYear, pMonth);
+    const [{ data }, { data: tp }] = await Promise.all([
+      sb.from('payroll_records').select('*').eq('year', pYear).eq('month', pMonth),
+      sb.from('temp_pt_shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time'),
+    ]);
+    monthRecords = data || []; tempMonthRows = tp || [];
     renderPayEmpList();
     if (selectedEmpId) selectEmp(selectedEmpId); else F('payDetail').innerHTML = '<div class="card center-screen muted faint">← 選擇左側員工開始計算</div>';
   }
@@ -311,9 +324,17 @@
     return { normal: r(nMin), double: r(dMin), total: r(nMin + dMin) };
   }
 
+  // ── 臨時PT：工時 = 審核修正優先，否則依打卡＋該班排定時間套同一套工時規則；薪資 = 時薪 × 小時 ──
+  function tempPtMinutes(s) {
+    if (s.adj_minutes != null && s.adj_minutes !== '') return Number(s.adj_minutes) || 0;
+    return workedMinutes(s.clock_in, s.clock_out, _hhmmMin(s.start_time), _hhmmMin(s.end_time));
+  }
+  function tempPtPay(s) { return Math.round(Number(s.hourly_rate || 0) * tempPtMinutes(s) / 60); }
+
   async function selectEmp(empId) {
     selectedEmpId = empId;
     renderPayEmpList();
+    if (empId === '__temp__') { editEmp = null; editRec = null; editItems = []; await ensureAccounts(); await renderTempPayDetail(); return; }
     const emp = staffList.find(s => s.id === empId);
     editEmp = emp;
     await ensureAccounts();
@@ -603,6 +624,120 @@
     renderPayEmpList(); renderPayBox();
   }
 
+  /* ── 臨時PT 薪資明細：每班一列，可改審核工時/原因/時薪，選帳戶＝記發放 ── */
+  async function renderTempPayDetail() {
+    const [start, endStr] = ymRange(pYear, pMonth);
+    const { data: tp, error } = await sb.from('temp_pt_shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time');
+    if (error) { toast('讀取臨時PT 失敗：' + error.message, 'error'); return; }
+    tempMonthRows = tp || [];
+    tempLedgerMap = {};
+    if (tempMonthRows.length) {
+      const { data: le } = await sb.from('ledger_entries').select('source_id,account_id,entry_date').eq('source', 'temp_pt').in('source_id', tempMonthRows.map(r => r.id));
+      (le || []).forEach(e => { tempLedgerMap[e.source_id] = e; });
+    }
+    if (selectedEmpId !== '__temp__') return;
+    const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+    const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const fmtHM = m => `${Math.floor(m / 60)}h${m % 60}m`;
+    const rows = tempMonthRows.map(s => {
+      const hasPunch = s.clock_in && s.clock_out;
+      const auto = hasPunch ? workedMinutes(s.clock_in, s.clock_out, _hhmmMin(s.start_time), _hhmmMin(s.end_time)) : 0;
+      const ov = s.adj_minutes != null;
+      const le = tempLedgerMap[s.id];
+      return `<tr>
+        <td style="white-space:nowrap">${s.work_date.replace(/-/g, '/').slice(5)} (${WEEK[new Date(s.work_date).getDay()]})</td>
+        <td style="font-weight:500;white-space:nowrap">${escapeHtml(s.name)}${s.note ? `<div class="faint" style="font-size:10px">${escapeHtml(s.note)}</div>` : ''}</td>
+        <td class="faint" style="white-space:nowrap">${s.start_time || ''}${s.end_time ? '~' + s.end_time : ''}</td>
+        <td>${hhmm(s.clock_in)}</td><td>${hhmm(s.clock_out)}</td>
+        <td class="num" data-tauto="${s.id}"${ov ? ' style="text-decoration:line-through;color:#aaa"' : ''}>${hasPunch ? fmtHM(auto) : '—'}</td>
+        <td class="num" style="white-space:nowrap">
+          <input class="input" type="number" step="0.5" min="0" style="width:60px;display:inline-block;padding:5px 6px" data-tadj="${s.id}" placeholder="${hasPunch ? (auto / 60) : '0'}" value="${ov ? (Number(s.adj_minutes) / 60) : ''}">
+          <input class="input" style="width:96px;display:inline-block;padding:5px 6px;margin-left:4px" data-tadjnote="${s.id}" placeholder="原因" value="${escapeHtml(s.adj_note || '')}">
+        </td>
+        <td class="num"><input class="input" type="number" min="0" style="width:72px;display:inline-block;padding:5px 6px" data-trate="${s.id}" value="${s.hourly_rate || ''}" placeholder="時薪"></td>
+        <td class="num" style="font-weight:600;white-space:nowrap" data-tpay="${s.id}">${formatCurrency(tempPtPay(s))}</td>
+        <td style="white-space:nowrap">
+          <select class="input" style="width:130px;display:inline-block;padding:5px 6px" data-tacc="${s.id}">${accountOptions(le ? le.account_id : '', '未發放')}</select>
+          <div class="faint" style="font-size:10px;margin-top:2px" data-tpaid="${s.id}">${le ? fmtDate(le.entry_date) + ' 已記帳' : ''}</div>
+        </td>
+      </tr>`;
+    }).join('');
+    F('payDetail').innerHTML = `
+      <div class="card">
+        <div class="row-between">
+          <h2 class="card-h" style="margin:0">臨時PT — ${pYear}/${String(pMonth).padStart(2, '0')} 薪資</h2>
+          <div style="font-family:var(--f-serif);font-size:24px;font-weight:700;color:var(--accent-deep)" id="tempPayTotal"></div>
+        </div>
+        <p class="faint mt8" id="tempPaySub"></p>
+        <p class="faint">工時依打卡＋該班排定時間自動算（和員工同一套規則）。填「審核修正」可覆蓋並寫原因，清空＝回自動；沒打卡的班也可直接補時數。每班薪資會自動進損益的「薪資津貼」；「發放帳戶」選了帳戶就同步記一筆帳本「支出・薪資」，改回未發放則刪掉那筆。</p>
+      </div>
+      <div class="card">
+        <h2 class="card-h">本月臨時PT 明細</h2>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="tempPayTable">
+            <thead><tr><th>日期</th><th>姓名</th><th>班表</th><th>上班</th><th>下班</th><th class="num">工時(自動)</th><th class="num">審核修正（小時）</th><th class="num">時薪</th><th class="num">薪資</th><th>發放帳戶</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="10" class="muted faint">本月沒有臨時PT 班次（到「班表」頁新增，員工選「臨時PT」）</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>`;
+    renderTempSummary();
+    const tbl = F('tempPayTable');
+    tbl.querySelectorAll('input[data-tadj]').forEach(inp => inp.addEventListener('change', () => saveTempAdj(inp.dataset.tadj)));
+    tbl.querySelectorAll('input[data-tadjnote]').forEach(inp => inp.addEventListener('change', () => saveTempAdj(inp.dataset.tadjnote)));
+    tbl.querySelectorAll('input[data-trate]').forEach(inp => inp.addEventListener('change', () => saveTempField(inp.dataset.trate, { hourly_rate: Number(inp.value) || 0 }, '已更新時薪')));
+    tbl.querySelectorAll('select[data-tacc]').forEach(sel => sel.addEventListener('change', () => saveTempPay(sel.dataset.tacc)));
+  }
+  function renderTempSummary() {
+    if (!F('tempPayTotal')) return;
+    const total = tempMonthRows.reduce((sum, r) => sum + tempPtPay(r), 0);
+    const mins = tempMonthRows.reduce((sum, r) => sum + tempPtMinutes(r), 0);
+    const paid = tempMonthRows.filter(r => tempLedgerMap[r.id]).reduce((sum, r) => sum + tempPtPay(r), 0);
+    F('tempPayTotal').textContent = formatCurrency(total);
+    F('tempPaySub').textContent = tempMonthRows.length
+      ? `共 ${tempMonthRows.length} 班次・合計 ${Math.round(mins / 60 * 10) / 10} 小時・已發放 ${formatCurrency(paid)}${total - paid > 0 ? `・未發放 ${formatCurrency(total - paid)}` : ''}`
+      : '';
+  }
+  async function saveTempAdj(id) {
+    const hInp = document.querySelector(`#tempPayTable input[data-tadj="${id}"]`);
+    const nInp = document.querySelector(`#tempPayTable input[data-tadjnote="${id}"]`);
+    const hv = hInp ? hInp.value.trim() : '';
+    const note = nInp ? nInp.value.trim() : '';
+    const patch = { adj_minutes: hv === '' ? null : Math.round(Number(hv) * 60), adj_note: note || null };
+    await saveTempField(id, patch, hv === '' ? '已移除審核修正（回自動計算）' : '已存審核修正');
+  }
+  // 存單一欄位並就地更新該列薪資／合計／左側徽章；若這班已記帳，帳本金額一併同步
+  async function saveTempField(id, patch, msg) {
+    const { error } = await sb.from('temp_pt_shifts').update(patch).eq('id', id);
+    if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+    const s = tempMonthRows.find(x => x.id === id); if (!s) return;
+    Object.assign(s, patch);
+    const pay = tempPtPay(s);
+    const payCell = document.querySelector(`#tempPayTable [data-tpay="${id}"]`); if (payCell) payCell.textContent = formatCurrency(pay);
+    const autoCell = document.querySelector(`#tempPayTable [data-tauto="${id}"]`);
+    if (autoCell) { const ov = s.adj_minutes != null; autoCell.style.textDecoration = ov ? 'line-through' : ''; autoCell.style.color = ov ? '#aaa' : ''; }
+    if (tempLedgerMap[id]) await sb.from('ledger_entries').update({ amount: pay }).eq('source', 'temp_pt').eq('source_id', id);
+    if (msg) toast(msg);
+    renderTempSummary(); renderPayEmpList();
+  }
+  async function saveTempPay(id) {
+    const sel = document.querySelector(`#tempPayTable select[data-tacc="${id}"]`); if (!sel) return;
+    const s = tempMonthRows.find(x => x.id === id); if (!s) return;
+    const accId = sel.value, pay = tempPtPay(s);
+    if (accId && !pay) { toast('這班薪資是 0，先填時薪／工時再記發放', 'error'); sel.value = tempLedgerMap[id] ? tempLedgerMap[id].account_id : ''; return; }
+    await sb.from('ledger_entries').delete().eq('source', 'temp_pt').eq('source_id', id);
+    delete tempLedgerMap[id];
+    if (accId) {
+      const entry = { account_id: accId, type: '支出', category: '薪資', amount: pay, description: `臨時PT 薪資：${s.name} ${s.work_date.replace(/-/g, '/')}`, entry_date: todayStr(), source: 'temp_pt', source_id: id };
+      const { data, error } = await sb.from('ledger_entries').insert(entry).select('source_id,account_id,entry_date').single();
+      if (error) { toast('記帳失敗：' + error.message, 'error'); sel.value = ''; return; }
+      tempLedgerMap[id] = data;
+      toast('✅ 已記錄發放（帳本 支出・薪資）');
+    } else toast('已取消發放紀錄');
+    const info = document.querySelector(`#tempPayTable [data-tpaid="${id}"]`);
+    if (info) info.textContent = tempLedgerMap[id] ? fmtDate(tempLedgerMap[id].entry_date) + ' 已記帳' : '';
+    renderTempSummary();
+  }
+
   /* 發放紀錄 + 憑證 */
   function renderPayBox() {
     const box = F('payBox');
@@ -739,6 +874,7 @@
   let pnlMonPayroll = new Set();              // 有薪資資料的月份
   let pnlMonLedger = new Set();               // 有帳本(非進貨/薪資)支出的月份
   let pnlOwnLines = [];                        // 自訂科目 [{cat, grp:'ctrl'|'unctrl'}]（帳本分類設「自己一行」）
+  let pnlAccounts = [], pnlLedRows = [];       // 財務健康指數：帳戶＋全部分錄（算現金水位）
   let pnlAutoFee = {};                         // month -> 手續費總額（來自帳本 fee）
   let pnlMonFee = new Set();
   const PNL_COGS_KEYS = ['cost_beans','cost_food','cost_packaging','cost_other_cogs'];                       // 來自庫存叫貨
@@ -816,19 +952,43 @@
       F('pnlNextYear').addEventListener('click', () => { pnlYear++; loadPnl(); });
       F('pnlGrowth').addEventListener('input', () => { pnlGrowth = Number(F('pnlGrowth').value) || 0; renderPnlGrid(); });
       F('pnlSeed').addEventListener('click', pnlSeedData);
+      F('pnlAI').addEventListener('click', runPnlAI);
+      F('pnlAIHistory').addEventListener('click', async () => {
+        F('aiModal').classList.add('show');
+        F('aiBody').innerHTML = '<p class="muted faint" style="padding:14px 0">載入中…</p>';
+        const list = await loadAIHistory();
+        showAIRecord(list[0] ? list[0].id : null);
+      });
+      F('aiHistory').addEventListener('change', () => showAIRecord(F('aiHistory').value || null));
+      F('aiPrint').addEventListener('click', () => {
+        if (aiRecId) window.open('report.html?id=' + aiRecId, '_blank');
+        else toast('這筆分析還沒存檔，無法開列印版', 'error');
+      });
+      F('aiDelete').addEventListener('click', async () => {
+        if (!aiRecId || !confirm('刪除這筆分析紀錄？')) return;
+        const { error } = await sb.from('ai_analyses').delete().eq('id', aiRecId);
+        if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+        const list = await loadAIHistory();
+        showAIRecord(list[0] ? list[0].id : null);
+        toast('已刪除');
+      });
       pnlInited = true;
     }
-    const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes] = await Promise.all([
+    const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes, accRes, tempRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
       sb.from('purchases').select('order_date,category,total_cost,item_name,note'),
       sb.from('payroll_records').select('year,month,total_pay,transfer_fee,staff_id').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
-      sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee,description'),
+      sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee,description,account_id'),
       sb.from('maintenance_records').select('repair_date,cost,equipment,content'),
+      sb.from('accounts').select('id,name,initial_balance'),
+      sb.from('temp_pt_shifts').select('*').gte('work_date', `${pnlYear}-01-01`).lte('work_date', `${pnlYear}-12-31`),
     ]);
     if (error) { toast('載入失敗：' + error.message, 'error'); return; }
     pnlData = {};
     (data || []).forEach(r => pnlData[r.month] = r);
+    pnlAccounts = accRes.data || [];
+    pnlLedRows = ledRes.data || [];   // 全部分錄（不分年），算帳戶現水位用
     // 對應表
     costMap = {}; (mapRes.data || []).forEach(r => costMap[r.category] = r.pnl_line);
     // 自訂科目（帳本分類設「自己一行」）
@@ -856,7 +1016,7 @@
     pnlMonLedger = new Set();
     (ledRes.data || []).forEach(e => {
       if (e.type !== '支出') return;
-      if (e.source === 'purchase' || e.source === 'payroll') return;
+      if (e.source === 'purchase' || e.source === 'payroll' || e.source === 'temp_pt') return;
       if (!e.entry_date || Number(e.entry_date.slice(0, 4)) !== pnlYear) return;
       const line = costMap[e.category];
       const mo = Number(e.entry_date.slice(5, 7));
@@ -886,7 +1046,7 @@
     // 帳本手續費 → 手續費（可控）
     pnlAutoFee = {}; pnlMonFee = new Set();
     (ledRes.data || []).forEach(e => {
-      if (e.source === 'payroll') return; // 薪資跨行費已併入薪資津貼，不重複算進手續費
+      if (e.source === 'payroll' || e.source === 'temp_pt') return; // 薪資跨行費已併入薪資津貼，不重複算進手續費
       const fee = Number(e.fee || 0);
       if (!fee || !e.entry_date || Number(e.entry_date.slice(0, 4)) !== pnlYear) return;
       const mo = Number(e.entry_date.slice(5, 7));
@@ -902,6 +1062,14 @@
       const nm = (staffList.find(s => s.id === r.staff_id) || {}).name || '員工';
       pushSrc(r.month, 'salary', `${r.year}-${String(r.month).padStart(2, '0')}`, '薪資：' + nm + (r.transfer_fee ? '（含跨行費 ' + r.transfer_fee + '）' : ''), amt);
       pnlMonPayroll.add(r.month);
+    });
+    // 臨時PT → salary（時薪 × 打卡/審核工時；每班一筆）
+    (tempRes.data || []).forEach(s => {
+      const amt = tempPtPay(s); if (!amt) return;
+      const mo = Number(s.work_date.slice(5, 7));
+      pnlAutoSalary[mo] = (pnlAutoSalary[mo] || 0) + amt;
+      pushSrc(mo, 'salary', s.work_date, '臨時PT：' + s.name, amt);
+      pnlMonPayroll.add(mo);
     });
     F('pnlYearLabel').textContent = pnlYear;
     // 2026 年第一次打開、且還沒任何資料 → 自動帶入截圖讀到的 1–5 月（用老闆登入身分寫入）
@@ -942,7 +1110,7 @@
       return r;
     }).join('');
     PNL_LINES.forEach(line => {
-      if (line.group) { html += `<tr><td colspan="14" style="background:#f1ebe0; font-weight:600; font-size:12px; text-align:left">${line.group}</td></tr>`; return; }
+      if (line.group) { html += `<tr><td colspan="14" style="background:#f1ebe0; font-weight:600; font-size:12px; text-align:left"><span class="pnl-grp-label">${line.group}</span></td></tr>`; return; }
       const lineAuto = pnlIsAutoKey(line.key);
       // 手續費 + 自訂科目插在「可控合計 / 不可控合計」之前
       if (line.calc === 'ctrl') {
@@ -977,7 +1145,201 @@
       inp.addEventListener('change', onPnlBlur);
     });
     tbl.querySelectorAll('td.pnl-src[data-bk]').forEach(td => td.addEventListener('click', () => showPnlSrc(+td.dataset.m, td.dataset.bk, td.dataset.lbl)));
-    pnlRenderSummary(); pnlRenderVariance();
+    pnlRenderSummary(); pnlRenderVariance(); renderPnlHealth();
+  }
+
+  /* ── 財務健康指數（比照 work-system 智慧分析，改用咖啡廳指標）──
+   * 現金安全 35%（全帳戶現水位 ÷ 近3實際月平均總支出，可撐 6 個月＝滿分）
+   * 毛利健康 30%（近3實際月毛利率，50%=0 分、75%=滿分）
+   * 淨利健康 20%（近3實際月營業淨利率，0%=0 分、15%=滿分；取代 ERP 的收款效率——咖啡廳沒有應收）
+   * 現金流展望 15%（用近3月平均營業淨利推 90 天最低水位） */
+  // 全帳戶現水位（期初＋所有分錄；同帳本頁算法）→ { 帳戶id: 餘額 }
+  function pnlAccountBalances() {
+    const bal = {};
+    pnlAccounts.forEach(a => bal[a.id] = Number(a.initial_balance || 0));
+    pnlLedRows.forEach(e => {
+      if (!(e.account_id in bal)) return;
+      bal[e.account_id] += ((e.type === '收入' || e.type === '轉入') ? Number(e.amount || 0) : -Number(e.amount || 0)) - Number(e.fee || 0);
+    });
+    return bal;
+  }
+  let pnlLastHealth = null;   // AI 分析要一起帶走的健康指數快照
+  function renderPnlHealth() {
+    const box = F('pnlHealth'); if (!box) return;
+    const clamp01 = x => Math.max(0, Math.min(1, x));
+    const bal = pnlAccountBalances();
+    const totalCash = Object.values(bal).reduce((s, v) => s + v, 0);
+    // 近 3 個「有營收的實際月」
+    const months = pnlFilledMonths().filter(m => pnlMonthCalc(m).net_sales > 0).slice(-3);
+    let rev = 0, gross = 0, opnet = 0, exp = 0;
+    months.forEach(m => { const c = pnlMonthCalc(m); rev += c.net_sales; gross += c.gross; opnet += c.opnet; exp += c.cogs + c.ctrl + c.unctrl; });
+    const n = months.length;
+    const avgExp = n ? exp / n : 0, avgOpnet = n ? opnet / n : 0;
+
+    const safeMonths = avgExp > 0 ? totalCash / avgExp : null;
+    const cashSub = safeMonths == null ? 60 : Math.round(clamp01(safeMonths / 6) * 100);
+    const margin = rev > 0 ? gross / rev * 100 : null;
+    const marginSub = margin == null ? 60 : Math.round(clamp01((margin - 50) / (75 - 50)) * 100);
+    const netMargin = rev > 0 ? opnet / rev * 100 : null;
+    const netSub = netMargin == null ? 60 : Math.round(clamp01(netMargin / 15) * 100);
+    const minFuture = totalCash + (avgOpnet < 0 ? avgOpnet * 3 : avgOpnet);
+    const flowSub = !n ? 60 : (minFuture < 0 ? 10 : (avgExp > 0 ? Math.round(clamp01(minFuture / (avgExp * 3)) * 100) : 90));
+    const score = Math.round(cashSub * .35 + marginSub * .30 + netSub * .20 + flowSub * .15);
+    const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'E';
+    pnlLastHealth = {
+      財務健康分數: score, 等級: grade,
+      現金現水位: Math.round(totalCash),
+      可撐月數: safeMonths != null ? +safeMonths.toFixed(1) : null,
+      近3月毛利率pct: margin != null ? +margin.toFixed(1) : null,
+      近3月營業淨利率pct: netMargin != null ? +netMargin.toFixed(1) : null,
+      推估90天最低現金水位: Math.round(minFuture),
+    };
+
+    // 90 天現金流卡：綠黃橘紅（最低水位 ÷ 平均月支出）
+    const ratio = avgExp > 0 ? minFuture / avgExp : (minFuture >= 0 ? 99 : -1);
+    const tone = minFuture < 0 ? { c: '#8e2f1c', label: '立即處理' }
+      : ratio < 1 ? { c: 'var(--danger)', label: '危險' }
+      : ratio < 2 ? { c: '#c77415', label: '警戒' }
+      : ratio < 3 ? { c: '#b8860b', label: '注意' }
+      : { c: 'var(--ok)', label: '安全' };
+    const scoreColor = score >= 80 ? 'var(--ok)' : score >= 60 ? '#b8860b' : 'var(--danger)';
+    const C = 2 * Math.PI * 30;
+    const barColor = s => s >= 70 ? 'var(--ok)' : s >= 40 ? '#c77415' : 'var(--danger)';
+    const items = [
+      { label: '現金安全', s: cashSub, d: safeMonths != null ? `可撐 ${safeMonths.toFixed(1)} 個月` : '資料不足' },
+      { label: '毛利健康', s: marginSub, d: margin != null ? `毛利率 ${margin.toFixed(1)}%` : '資料不足' },
+      { label: '淨利健康', s: netSub, d: netMargin != null ? `營業淨利率 ${netMargin.toFixed(1)}%` : '資料不足' },
+      { label: '現金流展望', s: flowSub, d: !n ? '資料不足' : (minFuture < 0 ? '3 個月內恐轉負' : '未來 3 月無缺口') },
+    ];
+    box.innerHTML = `
+      <div class="card" style="padding:16px 18px; display:flex; flex-direction:column; justify-content:center; gap:4px">
+        <div style="display:flex; align-items:center; gap:8px">
+          <span style="width:10px;height:10px;border-radius:50%;background:${tone.c};flex:0 0 10px"></span>
+          <span class="faint" style="font-size:12px">未來 90 天現金流</span>
+        </div>
+        <div style="font-size:22px; font-weight:700; color:${tone.c}">${tone.label}</div>
+        <div class="faint" style="font-size:12.5px">最低水位 ${formatCurrency(minFuture)}</div>
+        <div class="faint" style="font-size:11px">現金現水位 ${formatCurrency(totalCash)}・依近 ${n || 0} 個月平均營業淨利推估</div>
+      </div>
+      <div class="card" style="padding:16px 18px">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:10px">
+          <svg width="72" height="72" viewBox="0 0 72 72" style="flex:0 0 72px">
+            <circle cx="36" cy="36" r="30" fill="none" stroke="var(--line-soft)" stroke-width="7"/>
+            <circle cx="36" cy="36" r="30" fill="none" stroke="${scoreColor}" stroke-width="7" stroke-linecap="round"
+              stroke-dasharray="${(score / 100 * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 36 36)"/>
+          </svg>
+          <div>
+            <div class="faint" style="font-size:11px; letter-spacing:.08em">財務健康指數</div>
+            <div style="display:flex; align-items:baseline; gap:8px">
+              <span style="font-size:30px; font-weight:700; color:${scoreColor}">${score}</span><span class="faint">分</span>
+              <span style="font-size:12px; font-weight:700; color:${scoreColor}; border:1px solid ${scoreColor}; border-radius:10px; padding:1px 8px">${grade} 級</span>
+            </div>
+          </div>
+        </div>
+        ${items.map(it => `
+          <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-top:7px">
+            <span>${it.label}</span><span class="faint"><b style="color:var(--ink)">${it.s}</b> · ${it.d}</span>
+          </div>
+          <div style="height:5px; background:var(--line-soft); border-radius:3px; overflow:hidden; margin-top:3px">
+            <div style="height:100%; width:${it.s}%; background:${barColor(it.s)}"></div>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  /* ── AI 財務分析：把整年損益＋現金＋健康指數丟給 /api/analyze（Claude Opus 5）── */
+  function collectAIData() {
+    const months = PNL_MONTHS.filter(m => pnlIsActualMonth(m)).map(m => {
+      const v = pnlMonthValues(m), c = pnlMonthCalc(m);
+      const row = { month: m };
+      Object.keys(v).forEach(k => { if (k !== '__actual') row[k] = Math.round(Number(v[k]) || 0); });
+      row.fee = Math.round(pnlFeeValue(m));
+      row.tax = c.tax; row.net_sales = c.net_sales; row.cogs = Math.round(c.cogs);
+      row.gross = Math.round(c.gross); row.ctrl = Math.round(c.ctrl);
+      row.unctrl = Math.round(c.unctrl); row.opnet = Math.round(c.opnet);
+      return row;
+    });
+    const bal = pnlAccountBalances();
+    return {
+      店家: '一坨咖啡（獨立咖啡廳，台灣）',
+      年度: pnlYear,
+      實際月份損益: months,
+      現金帳戶: pnlAccounts.map(a => ({ 帳戶: a.name, 餘額: Math.round(bal[a.id] || 0) })),
+      健康指數快照: pnlLastHealth,
+    };
+  }
+  // 極簡 Markdown → HTML（##標題 / 清單 / **粗體**），先 escape 再轉，安全
+  function mdToHtml(md) {
+    const inline = s => escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    let html = '', inList = false, listType = '';
+    const closeList = () => { if (inList) { html += `</${listType}>`; inList = false; } };
+    String(md).split('\n').forEach(line => {
+      const t = line.trim();
+      if (/^##\s/.test(t)) { closeList(); html += `<h4 style="margin:16px 0 6px; color:var(--accent-deep); border-bottom:1px solid var(--line-soft); padding-bottom:4px">${inline(t.replace(/^##\s+/, ''))}</h4>`; }
+      else if (/^#\s/.test(t)) { closeList(); html += `<h3 style="margin:14px 0 6px">${inline(t.replace(/^#\s+/, ''))}</h3>`; }
+      else if (/^[-*]\s/.test(t)) {
+        if (!inList || listType !== 'ul') { closeList(); html += '<ul style="padding-left:20px; margin:4px 0">'; inList = true; listType = 'ul'; }
+        html += `<li style="margin:3px 0">${inline(t.replace(/^[-*]\s+/, ''))}</li>`;
+      } else if (/^\d+[.、]\s?/.test(t)) {
+        if (!inList || listType !== 'ol') { closeList(); html += '<ol style="padding-left:20px; margin:4px 0">'; inList = true; listType = 'ol'; }
+        html += `<li style="margin:4px 0">${inline(t.replace(/^\d+[.、]\s?/, ''))}</li>`;
+      } else if (t === '') { closeList(); }
+      else { closeList(); html += `<p style="margin:5px 0">${inline(t)}</p>`; }
+    });
+    closeList();
+    return html;
+  }
+  let aiRecId = null;   // 目前 modal 顯示中的紀錄 id
+  async function loadAIHistory(selectId) {
+    const { data } = await sb.from('ai_analyses').select('id,year,created_at').order('created_at', { ascending: false }).limit(100);
+    const list = data || [];
+    F('aiHistory').innerHTML = list.length
+      ? list.map(r => `<option value="${r.id}">${new Date(r.created_at).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}・${r.year || '—'}年</option>`).join('')
+      : '<option value="">（還沒有分析紀錄）</option>';
+    if (selectId) F('aiHistory').value = selectId;
+    return list;
+  }
+  async function showAIRecord(id) {
+    aiRecId = id || null;
+    if (!id) {
+      F('aiBody').innerHTML = '<p class="muted faint" style="padding:20px 0; text-align:center">還沒有分析紀錄，關掉後按「AI 分析」跑第一份。</p>';
+      F('aiMeta').textContent = '';
+      return;
+    }
+    const { data: r } = await sb.from('ai_analyses').select('*').eq('id', id).maybeSingle();
+    if (!r) return;
+    F('aiBody').innerHTML = mdToHtml(r.content);
+    F('aiMeta').textContent = `・${new Date(r.created_at).toLocaleString('zh-TW')}` +
+      (r.tokens_in ? `・tokens ${r.tokens_in.toLocaleString()}+${(r.tokens_out || 0).toLocaleString()}` : '');
+  }
+  async function runPnlAI() {
+    const btn = F('pnlAI');
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { toast('請重新登入', 'error'); return; }
+    aiRecId = null;
+    F('aiMeta').textContent = '';
+    F('aiHistory').innerHTML = '<option value="">（分析中…）</option>';
+    F('aiBody').innerHTML = '<p class="muted" style="padding:24px 0; text-align:center">Claude 正在細算你的帳（約 1 分鐘，別關這個視窗）…</p>';
+    F('aiModal').classList.add('show');
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: session.access_token, data: collectAIData() }),
+      });
+      const j = await r.json().catch(() => ({ error: '伺服器回應異常（可能逾時），稍後可到「分析紀錄」看有沒有存到' }));
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      F('aiBody').innerHTML = mdToHtml(j.text);
+      if (j.usage) F('aiMeta').textContent = `・本次用量 ${j.usage.input.toLocaleString()} + ${j.usage.output.toLocaleString()} tokens`;
+      aiRecId = j.saved_id || null;
+      if (j.saved_id) await loadAIHistory(j.saved_id);
+      else toast('分析完成，但存檔失敗——請先到 Supabase 跑 db/47_ai_analyses.sql', 'error');
+    } catch (e) {
+      F('aiBody').innerHTML = `<p style="color:var(--danger); padding:12px 0">${escapeHtml(e.message)}</p>`;
+      loadAIHistory();
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   function onPnlInput(e) {
@@ -1616,6 +1978,7 @@
    * 5c) 班表（老闆排班；員工在 me.html 看自己的）
    * ========================================================== */
   let smYear, smMonth, shiftList = [], tempShiftList = [], editShiftId = null, editTempId = null;
+  let closedList = [], ownerEvents = [], editClosedId = null, editEventId = null, shType = 'shift', shIcon = 'lock';
   function initShiftNav() {
     const d = new Date();
     smYear = d.getFullYear(); smMonth = d.getMonth() + 1;
@@ -1626,6 +1989,9 @@
     F('sh_save').addEventListener('click', saveShift);
     F('sh_delete').addEventListener('click', deleteShift);
     F('sh_staff').addEventListener('change', toggleTempField);
+    F('sh_type_row').querySelectorAll('[data-shtype]').forEach(b => b.addEventListener('click', () => setShType(b.dataset.shtype)));
+    F('sh_icon_row').innerHTML = eventIcons.map(k => `<button type="button" class="ico-pick" data-ico="${k}" title="${k}">${icons[k]}</button>`).join('');
+    F('sh_icon_row').querySelectorAll('[data-ico]').forEach(b => b.addEventListener('click', () => setShIcon(b.dataset.ico)));
     F('ptLink').addEventListener('click', () => {
       const url = location.origin + '/staff/pt.html';
       const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(url);
@@ -1639,12 +2005,16 @@
     const start = `${smYear}-${String(smMonth).padStart(2, '0')}-01`;
     const endD = new Date(smYear, smMonth, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const [{ data }, { data: tdata }] = await Promise.all([
+    const [{ data }, { data: tdata }, { data: cdata }, { data: edata }] = await Promise.all([
       sb.from('shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time'),
       sb.from('temp_pt_shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time'),
+      sb.from('closed_dates').select('*').gte('date', start).lte('date', endStr),
+      sb.from('owner_events').select('*').gte('date', start).lte('date', endStr).order('created_at'),
     ]);
     shiftList = data || [];
     tempShiftList = tdata || [];
+    closedList = cdata || [];
+    ownerEvents = edata || [];   // 員工帳號被 RLS 擋掉，只會拿到空陣列
     renderShifts();
   }
   function renderShifts() {
@@ -1669,17 +2039,55 @@
         const punched = s.clock_in ? (s.clock_out ? '✓' : '●') : '';
         return `<div class="cal-chip click" data-tempshift="${s.id}" style="background:#fbe7c9;border-color:#e3c987" title="臨時PT ${escapeHtml(s.name)} ${punched}">PT・${escapeHtml(s.name)}${s.start_time ? ' ' + s.start_time : ''} ${punched}</div>`;
       }).join('');
-      html += `<div class="cal-cell clickable${ds === todayS ? ' today' : ''}" data-add="${ds}"><div class="cal-dnum">${d}</div>${chips}${tchips}</div>`;
+      const closed = closedList.find(c => c.date === ds);
+      const closedChip = closed ? `<div class="cal-chip click closed" data-closed="${closed.id}" title="店休${closed.note ? '：' + escapeHtml(closed.note) : ''}">${icons.moon} 店休${closed.note ? '・' + escapeHtml(closed.note) : ''}</div>` : '';
+      const evChips = ownerEvents.filter(ev => ev.date === ds).map(ev =>
+        `<div class="cal-chip click private" data-event="${ev.id}" title="私人行程：${escapeHtml(ev.title)}">${icons[ev.icon] || icons.lock} ${escapeHtml(ev.title)}</div>`).join('');
+      html += `<div class="cal-cell clickable${ds === todayS ? ' today' : ''}${closed ? ' closed-day' : ''}" data-add="${ds}"><div class="cal-dnum">${d}</div>${closedChip}${chips}${tchips}${evChips}</div>`;
     }
     F('shiftCal').innerHTML = html;
     F('shiftCal').querySelectorAll('[data-shift]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openShiftModal(el.dataset.shift); }));
     F('shiftCal').querySelectorAll('[data-tempshift]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openTempShift(el.dataset.tempshift); }));
+    F('shiftCal').querySelectorAll('[data-closed]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openClosed(el.dataset.closed); }));
+    F('shiftCal').querySelectorAll('[data-event]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); openEvent(el.dataset.event); }));
     F('shiftCal').querySelectorAll('[data-add]').forEach(el => el.addEventListener('click', () => openShiftModal(null, el.dataset.add)));
   }
   function toggleTempField() {
+    if (shType !== 'shift') return;
     const isTemp = F('sh_staff').value === '__temp__';
     F('sh_temp_field').style.display = isTemp ? '' : 'none';
-    F('sh_double_field').style.display = isTemp ? 'none' : '';  // 臨時PT 不進薪資系統，不顯示雙倍選項
+    F('sh_double_field').style.display = isTemp ? 'none' : '';  // 臨時PT 用自己的時薪算薪，不顯示雙倍選項
+    if (isTemp && !editTempId && !F('sh_temp_rate').value) F('sh_temp_rate').value = lastTempRate();
+  }
+  // 最近一次填過的臨時PT 時薪（排新班時預填）
+  function lastTempRate() {
+    const r = tempShiftList.filter(s => Number(s.hourly_rate) > 0).sort((a, b) => (b.work_date || '').localeCompare(a.work_date || ''));
+    return r.length ? Number(r[0].hourly_rate) : '';
+  }
+  function setShIcon(k) {
+    shIcon = k;
+    F('sh_icon_row').querySelectorAll('[data-ico]').forEach(b => b.classList.toggle('on', b.dataset.ico === k));
+  }
+  // 切換 modal 類型：排班 / 店休 / 私人行程
+  function setShType(t) {
+    shType = t;
+    F('sh_type_row').querySelectorAll('[data-shtype]').forEach(b => {
+      b.classList.toggle('btn-primary', b.dataset.shtype === t);
+      b.classList.toggle('btn-ghost', b.dataset.shtype !== t);
+    });
+    const isShift = t === 'shift';
+    F('sh_staff_field').style.display = isShift ? '' : 'none';
+    F('sh_start_field').style.display = isShift ? '' : 'none';
+    F('sh_end_field').style.display = isShift ? '' : 'none';
+    F('sh_event_field').style.display = t === 'event' ? '' : 'none';
+    F('sh_icon_field').style.display = t === 'event' ? '' : 'none';
+    F('sh_note_field').style.display = t === 'event' ? 'none' : '';
+    F('sh_note').placeholder = t === 'closed' ? '例：員工旅遊（會顯示在官網公休資訊）' : '例：外場 / 內場 / 早班';
+    if (isShift) toggleTempField();
+    else { F('sh_temp_field').style.display = 'none'; F('sh_double_field').style.display = 'none'; }
+    F('shiftModalTitle').textContent = t === 'closed' ? (editClosedId ? '編輯店休' : '標記店休')
+      : t === 'event' ? (editEventId ? '編輯私人行程' : '私人行程（只有你看得到）')
+      : (editShiftId ? '編輯班次' : '排班');
   }
   function staffShiftOptions() {
     return staffList.filter(x => x.is_active !== false)
@@ -1687,12 +2095,14 @@
       + '<option value="__temp__">＋ 臨時PT（手填名字）</option>';
   }
   function openShiftModal(id, presetDate) {
-    editShiftId = id; editTempId = null;
+    editShiftId = id; editTempId = null; editClosedId = null; editEventId = null;
     const s = id ? shiftList.find(x => x.id === id) : null;
-    F('shiftModalTitle').textContent = s ? '編輯班次' : '排班';
+    F('sh_type_row').style.display = s ? 'none' : '';  // 編輯既有班次時不給切類型
     F('sh_staff').innerHTML = staffShiftOptions();
     F('sh_staff').value = s ? s.staff_id : (staffList[0] ? staffList[0].id : '__temp__');
     F('sh_temp_name').value = '';
+    F('sh_temp_rate').value = '';
+    F('sh_event_title').value = '';
     F('sh_date').value = s ? s.work_date : (presetDate || `${smYear}-${String(smMonth).padStart(2, '0')}-01`);
     F('sh_start').value = s ? (s.start_time || '') : '';
     F('sh_end').value = s ? (s.end_time || '') : '';
@@ -1700,24 +2110,52 @@
     F('sh_note').value = s ? (s.note || '') : '';
     F('sh_err').textContent = '';
     F('sh_delete').style.visibility = s ? 'visible' : 'hidden';
-    toggleTempField();
+    setShIcon('lock');
+    setShType('shift');
+    F('shiftModal').classList.add('show');
+  }
+  function openClosed(id) {
+    const c = closedList.find(x => x.id === id); if (!c) return;
+    editShiftId = null; editTempId = null; editEventId = null; editClosedId = id;
+    F('sh_type_row').style.display = 'none';
+    F('sh_date').value = c.date;
+    F('sh_note').value = c.note || '';
+    F('sh_event_title').value = '';
+    F('sh_err').textContent = '';
+    F('sh_delete').style.visibility = 'visible';
+    setShType('closed');
+    F('shiftModal').classList.add('show');
+  }
+  function openEvent(id) {
+    const ev = ownerEvents.find(x => x.id === id); if (!ev) return;
+    editShiftId = null; editTempId = null; editClosedId = null; editEventId = id;
+    F('sh_type_row').style.display = 'none';
+    F('sh_date').value = ev.date;
+    F('sh_event_title').value = ev.title || '';
+    F('sh_note').value = '';
+    F('sh_err').textContent = '';
+    F('sh_delete').style.visibility = 'visible';
+    setShIcon(icons[ev.icon] ? ev.icon : 'lock');
+    setShType('event');
     F('shiftModal').classList.add('show');
   }
   function openTempShift(id) {
     const s = tempShiftList.find(x => x.id === id); if (!s) return;
-    editShiftId = null; editTempId = id;
+    editShiftId = null; editTempId = id; editClosedId = null; editEventId = null;
+    F('sh_type_row').style.display = 'none';
     const punch = s.clock_in ? `　已打卡：上班 ${fmtClock(s.clock_in)}${s.clock_out ? '・下班 ' + fmtClock(s.clock_out) : '（未下班）'}` : '　尚未打卡';
-    F('shiftModalTitle').textContent = '編輯臨時PT 班' + punch;
     F('sh_staff').innerHTML = staffShiftOptions();
     F('sh_staff').value = '__temp__';
     F('sh_temp_name').value = s.name || '';
+    F('sh_temp_rate').value = Number(s.hourly_rate) > 0 ? s.hourly_rate : lastTempRate();
     F('sh_date').value = s.work_date;
     F('sh_start').value = s.start_time || '';
     F('sh_end').value = s.end_time || '';
     F('sh_note').value = s.note || '';
     F('sh_err').textContent = '';
     F('sh_delete').style.visibility = 'visible';
-    toggleTempField();
+    setShType('shift');
+    F('shiftModalTitle').textContent = '編輯臨時PT 班' + punch;
     F('shiftModal').classList.add('show');
   }
   function fmtClock(ts) { try { const d = new Date(ts); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; } catch { return ''; } }
@@ -1727,10 +2165,28 @@
     if (!date) { F('sh_err').textContent = '請選日期'; return; }
     const btn = F('sh_save'); btn.disabled = true; btn.textContent = '儲存中…';
     let error;
+    if (shType === 'closed') {
+      const payload = { date, note: F('sh_note').value.trim() || null };
+      if (editClosedId) ({ error } = await sb.from('closed_dates').update(payload).eq('id', editClosedId));
+      else ({ error } = await sb.from('closed_dates').insert(payload));
+      btn.disabled = false; btn.textContent = '儲存';
+      if (error) { F('sh_err').textContent = error.code === '23505' ? '這天已經是店休了' : '儲存失敗：' + error.message; return; }
+      F('shiftModal').classList.remove('show'); toast('✅ 已標記店休'); loadShifts(); return;
+    }
+    if (shType === 'event') {
+      const title = F('sh_event_title').value.trim();
+      if (!title) { F('sh_err').textContent = '請填行程內容'; btn.disabled = false; btn.textContent = '儲存'; return; }
+      const payload = { date, title, icon: shIcon };
+      if (editEventId) ({ error } = await sb.from('owner_events').update(payload).eq('id', editEventId));
+      else ({ error } = await sb.from('owner_events').insert(payload));
+      btn.disabled = false; btn.textContent = '儲存';
+      if (error) { F('sh_err').textContent = '儲存失敗：' + error.message; return; }
+      F('shiftModal').classList.remove('show'); toast('✅ 已存私人行程'); loadShifts(); return;
+    }
     if (sel === '__temp__' || editTempId) {
       const name = F('sh_temp_name').value.trim();
       if (!name) { F('sh_err').textContent = '請填臨時PT 名字'; btn.disabled = false; btn.textContent = '儲存'; return; }
-      const payload = { name, work_date: date, start_time: F('sh_start').value || null, end_time: F('sh_end').value || null, note: F('sh_note').value.trim() || null };
+      const payload = { name, work_date: date, start_time: F('sh_start').value || null, end_time: F('sh_end').value || null, note: F('sh_note').value.trim() || null, hourly_rate: Number(F('sh_temp_rate').value) || 0 };
       if (editTempId) ({ error } = await sb.from('temp_pt_shifts').update(payload).eq('id', editTempId));
       else ({ error } = await sb.from('temp_pt_shifts').insert(payload));
     } else {
@@ -1743,10 +2199,23 @@
     F('shiftModal').classList.remove('show'); toast('✅ 已排班'); loadShifts();
   }
   async function deleteShift() {
+    if (editClosedId) {
+      if (!confirm('取消這天的店休？')) return;
+      const { error } = await sb.from('closed_dates').delete().eq('id', editClosedId);
+      if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+      F('shiftModal').classList.remove('show'); toast('已取消店休'); loadShifts(); return;
+    }
+    if (editEventId) {
+      if (!confirm('刪除這個私人行程？')) return;
+      const { error } = await sb.from('owner_events').delete().eq('id', editEventId);
+      if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+      F('shiftModal').classList.remove('show'); toast('已刪除'); loadShifts(); return;
+    }
     if (editTempId) {
       if (!confirm('確定刪除這個臨時PT 班？')) return;
       const { error } = await sb.from('temp_pt_shifts').delete().eq('id', editTempId);
       if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+      await sb.from('ledger_entries').delete().eq('source', 'temp_pt').eq('source_id', editTempId);  // 連動刪掉已記的發放
       F('shiftModal').classList.remove('show'); toast('已刪除'); loadShifts(); return;
     }
     if (!editShiftId || !confirm('確定刪除這個班次？')) return;
@@ -2130,7 +2599,7 @@
     const tb = F('ledTable').querySelector('tbody');
     tb.innerHTML = rows.length ? rows.map(e => {
       const isIn = e.type === '收入' || e.type === '轉入';
-      const srcLabel = e.source === 'payroll' ? '薪資' : e.source === 'purchase' ? '叫貨' : e.source === 'maintenance' ? '維運' : '';
+      const srcLabel = e.source === 'payroll' ? '薪資' : e.source === 'temp_pt' ? '臨時PT' : e.source === 'purchase' ? '叫貨' : e.source === 'maintenance' ? '維運' : '';
       return `<tr data-id="${e.id}" style="cursor:pointer">
         <td style="white-space:nowrap">${(e.entry_date || '').replace(/-/g,'/').slice(5)}</td>
         <td>${escapeHtml(accName(e.account_id))}</td>

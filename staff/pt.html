@@ -55,7 +55,7 @@
     $('#qr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(location.href);
 
     async function load() {
-      const { data, error } = await sb.from('temp_pt_shifts').select('*').order('start_time');
+      const { data, error } = await sb.from('temp_pt_shifts').select('id,name,start_time,end_time,clock_in,clock_out').order('start_time');
       const box = $('#list');
       if (error) { box.innerHTML = `<div class="empty">讀取失敗：${error.message}</div>`; return; }
       if (!data || !data.length) { box.innerHTML = '<div class="empty">今天沒有排臨時PT 班<br>請老闆先在排班頁新增</div>'; return; }

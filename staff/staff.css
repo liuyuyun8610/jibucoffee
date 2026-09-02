@@ -224,6 +224,17 @@ textarea.input { resize: vertical; }
 .cal-chip { font-size: 10px; line-height: 1.25; padding: 1px 4px; border-radius: 5px; background: var(--bg-soft); color: var(--accent-deep); border: 1px solid var(--line-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cal-chip.click { cursor: pointer; }
 .cal-chip.me { background: linear-gradient(#fdf6db, #f6ebc4); border: 1px solid #c9a24c; color: #6b5320; font-weight: 700; box-shadow: 0 1px 2px rgba(201,162,76,.2); }
+.cal-chip.closed { background: #f3ece7; border-color: #d9c9bc; color: #8a6f5c; font-weight: 700; text-align: center; }
+.ico { display: inline-block; width: 12px; height: 12px; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cal-chip .ico { width: 10px; height: 10px; vertical-align: -1.5px; }
+/* 私人行程圖示挑選器 */
+.ico-pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ico-pick { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 9px; background: #fff; cursor: pointer; color: var(--ink-faint); padding: 0; }
+.ico-pick .ico { width: 16px; height: 16px; vertical-align: 0; }
+.ico-pick:hover { background: var(--bg-soft); color: var(--accent-deep); }
+.ico-pick.on { border-color: var(--accent); background: var(--bg-soft); color: var(--accent-deep); box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-cell.closed-day { background: #faf6f2; }
+.cal-chip.private { background: #eef0f7; border-color: #c5cbe0; color: #4a5578; }
 @media (max-width: 640px) {
   .cal-grid { gap: 3px; }
   .cal-cell { min-height: 56px; padding: 3px; border-radius: 7px; }

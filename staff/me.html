@@ -144,7 +144,7 @@
           </div>
         </div>
         <div class="cal-grid" id="myShiftCal"></div>
-        <p class="faint mt8">顯示全店班表，<span style="background:linear-gradient(#fdf6db,#f6ebc4);border:1px solid #c9a24c;color:#6b5320;font-weight:700;padding:1px 7px;border-radius:5px">金色</span>是您自己的班。點任一天可看當天時間明細。</p>
+        <p class="faint mt8">顯示全店班表，<span style="background:linear-gradient(#fdf6db,#f6ebc4);border:1px solid #c9a24c;color:#6b5320;font-weight:700;padding:1px 7px;border-radius:5px">金色</span>是您自己的班。點任一天可看當天時間明細；標「店休」的日子店裡公休。</p>
       </div>
 
       <div class="card">
@@ -256,7 +256,7 @@
   <script src="../config.js"></script>
   <script src="staff.js"></script>
   <script>
-    const { sb, requireAuth, signOut, formatCurrency, fmtDate, todayStr, toast, escapeHtml } = JB;
+    const { sb, requireAuth, signOut, formatCurrency, fmtDate, todayStr, toast, escapeHtml, icons } = JB;
     let me = null, todayRec = null;
     const F = id => document.getElementById(id);
     const WEEK = ['週日','週一','週二','週三','週四','週五','週六'];
@@ -361,7 +361,7 @@
     }
 
     /* ===== 本月班表（全體班次，自己的醒目；格子月曆）===== */
-    let msYear, msMonth, myShifts = [], rosterNames = {};
+    let msYear, msMonth, myShifts = [], myClosed = [], rosterNames = {};
     async function initMyShiftCal() {
       const d = new Date(); msYear = d.getFullYear(); msMonth = d.getMonth() + 1;
       F('ms-prev').addEventListener('click', () => { msMonth--; if (msMonth < 1) { msMonth = 12; msYear--; } loadMyShifts(); });
@@ -377,8 +377,12 @@
       const start = `${msYear}-${String(msMonth).padStart(2,'0')}-01`;
       const endD = new Date(msYear, msMonth, 0);
       const endStr = `${endD.getFullYear()}-${String(endD.getMonth()+1).padStart(2,'0')}-${String(endD.getDate()).padStart(2,'0')}`;
-      const { data } = await sb.from('shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time');
+      const [{ data }, { data: cdata }] = await Promise.all([
+        sb.from('shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date').order('start_time'),
+        sb.from('closed_dates').select('date').gte('date', start).lte('date', endStr),
+      ]);
       myShifts = data || [];
+      myClosed = (cdata || []).map(c => c.date);
       renderMyShiftCal();
     }
     function renderMyShiftCal() {
@@ -395,8 +399,10 @@
         const list = myShifts.filter(s => s.work_date === ds).sort((a, b) => (a.staff_id === me.id ? 0 : 1) - (b.staff_id === me.id ? 0 : 1));
         // 格子只放人名，時間點進去看（手機才看得清）
         const chips = list.map(s => `<div class="cal-chip${s.staff_id === me.id ? ' me' : ''}">${escapeHtml(nameOf(s.staff_id))}</div>`).join('');
+        const closed = myClosed.includes(ds);
+        const closedChip = closed ? `<div class="cal-chip closed">${icons.moon} 店休</div>` : '';
         const clickable = list.length ? ' clickable' : '';
-        html += `<div class="cal-cell${ds === todayS ? ' today' : ''}${clickable}"${list.length ? ` data-day="${ds}"` : ''}><div class="cal-dnum">${d}</div>${chips}</div>`;
+        html += `<div class="cal-cell${ds === todayS ? ' today' : ''}${closed ? ' closed-day' : ''}${clickable}"${list.length ? ` data-day="${ds}"` : ''}><div class="cal-dnum">${d}</div>${closedChip}${chips}</div>`;
       }
       F('myShiftCal').innerHTML = html;
       F('myShiftCal').querySelectorAll('[data-day]').forEach(el => el.addEventListener('click', () => openDayShifts(el.dataset.day)));

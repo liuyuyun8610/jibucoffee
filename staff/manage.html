@@ -18,6 +18,21 @@
     .pnl-tbl input[type=number]::-webkit-outer-spin-button,
     .pnl-tbl input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .pnl-tbl input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    /* 損益表凍結窗格：月份列(上)與科目欄(左)固定，兩軸捲動都能對照 */
+    .pnl-scroll { overflow: auto; max-height: 74vh; }
+    .pnl-tbl thead th {
+      position: sticky; top: 0; z-index: 3;
+      background: var(--bg-soft);
+      box-shadow: inset 0 -1px 0 var(--line);
+    }
+    .pnl-tbl th:first-child, .pnl-tbl tbody td:first-child {
+      position: sticky; left: 0; z-index: 2;
+      background: var(--bg-card);
+      box-shadow: inset -1px 0 0 var(--line);
+    }
+    .pnl-tbl thead th:first-child { z-index: 4; background: var(--bg-soft); }
+    /* 群組列(colspan 整列)：底色照舊，標題文字用 sticky 跟著左緣 */
+    .pnl-tbl .pnl-grp-label { display: inline-block; position: sticky; left: 10px; }
   </style>
 </head>
 <body>
@@ -121,14 +136,14 @@
             <button id="sm-next">›</button>
           </div>
           <div class="flex">
-            <button class="btn btn-ghost btn-sm" id="ptLink">📱 臨時打卡QR</button>
+            <button class="btn btn-ghost btn-sm" id="ptLink"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="6.5" height="6.5" rx="1.8"/><rect x="13" y="4.5" width="6.5" height="6.5" rx="1.8"/><rect x="4.5" y="13" width="6.5" height="6.5" rx="1.8"/><path d="M13.5 13.5h2.8v2.8h-2.8zM19.5 13.5v2M16.5 19.5h3"/></svg> 臨時打卡QR</button>
             <button class="btn btn-primary btn-sm" id="addShift">＋ 排班</button>
           </div>
         </div>
         <div class="card">
           <h2 class="card-h">本月班表 <span class="faint" id="sm-sum"></span></h2>
           <div class="cal-grid" id="shiftCal"></div>
-          <p class="faint mt8">點日期空白處可新增當天的班；點班次可編輯。</p>
+          <p class="faint mt8">點日期空白處可新增當天的班、標店休或加私人行程；點班次／標記可編輯。<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="3"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/><circle cx="12" cy="15.2" r="1.1" fill="currentColor" stroke="none"/></svg> 私人行程只有老闆看得到；店休會顯示給員工與官網。</p>
         </div>
       </div>
 
@@ -173,15 +188,20 @@
             <input type="number" id="pnlGrowth" value="0" step="1" style="width:62px; text-align:right" />%
           </label>
           <button class="btn btn-sm" id="pnlSeed" title="用截圖讀到的 1–5 月數字一鍵帶入，之後請逐格核對">帶入截圖數字</button>
+          <button class="btn btn-sm" id="pnlAIHistory" title="看過去的 AI 分析紀錄">分析紀錄</button>
+          <button class="btn btn-primary btn-sm" id="pnlAI" title="把整年損益＋現金水位丟給 Claude 做深度財務分析"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8-1.8 5.2-1.8-5.2-5.2-1.8 5.2-1.8z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg> AI 分析</button>
         </div>
       </div>
+
+      <!-- 財務健康指數（現金＋近 3 個實際月損益） -->
+      <div id="pnlHealth" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; margin-bottom:14px"></div>
 
       <!-- 年度摘要卡 -->
       <div id="pnlSummary" class="pnl-cards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px"></div>
 
       <div class="card">
         <h2 class="card-h">每月損益（淡灰欄＝尚未填、系統預測；可直接在格子裡改）</h2>
-        <div style="overflow-x:auto">
+        <div class="pnl-scroll">
           <table class="tbl pnl-tbl" id="pnlGrid"></table>
         </div>
         <p class="muted faint" style="margin-top:10px; font-size:12px">
@@ -683,15 +703,25 @@
   <div class="modal-mask" id="shiftModal">
     <div class="modal">
       <h3 class="modal-h" id="shiftModalTitle">排班</h3>
-      <div class="grid2">
-        <div class="field"><label class="label">員工 ★</label><select class="input" id="sh_staff"></select></div>
-        <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="sh_date"></div>
-        <div class="field"><label class="label">開始時間</label><input class="input" type="time" id="sh_start"></div>
-        <div class="field"><label class="label">結束時間</label><input class="input" type="time" id="sh_end"></div>
+      <div class="flex" id="sh_type_row" style="margin-bottom:14px">
+        <button class="btn btn-sm btn-primary" type="button" data-shtype="shift"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="14" rx="3"/><path d="M4 10.5h16M8.5 4v3.5M15.5 4v3.5"/><path d="M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01" stroke-width="2.4"/></svg> 排班</button>
+        <button class="btn btn-sm btn-ghost" type="button" data-shtype="closed"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 13.8A7.8 7.8 0 1 1 10.2 4.5a6.3 6.3 0 0 0 9.3 9.3z"/><path d="M17.4 4.4v2.6M16.1 5.7h2.6"/></svg> 店休</button>
+        <button class="btn btn-sm btn-ghost" type="button" data-shtype="event"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="3"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/><circle cx="12" cy="15.2" r="1.1" fill="currentColor" stroke="none"/></svg> 私人行程</button>
       </div>
-      <div class="field" id="sh_temp_field" style="display:none"><label class="label">臨時PT 名字 ★</label><input class="input" id="sh_temp_name" placeholder="例：王小明"></div>
-      <div class="field" id="sh_double_field"><label class="label" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none"><input type="checkbox" id="sh_double" style="width:auto;margin:0"> 🌟 雙倍薪資（這天打卡工時 ×2 計薪）</label></div>
-      <div class="field"><label class="label">備註</label><input class="input" id="sh_note" placeholder="例：外場 / 內場 / 早班"></div>
+      <div class="grid2">
+        <div class="field" id="sh_staff_field"><label class="label">員工 ★</label><select class="input" id="sh_staff"></select></div>
+        <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="sh_date"></div>
+        <div class="field" id="sh_start_field"><label class="label">開始時間</label><input class="input" type="time" id="sh_start"></div>
+        <div class="field" id="sh_end_field"><label class="label">結束時間</label><input class="input" type="time" id="sh_end"></div>
+      </div>
+      <div class="field" id="sh_event_field" style="display:none"><label class="label">行程內容 ★（只有你看得到）</label><input class="input" id="sh_event_title" placeholder="例：牙醫 14:00 / 廠商來訪"></div>
+      <div class="field" id="sh_icon_field" style="display:none"><label class="label">挑個小圖示</label><div class="ico-pick-row" id="sh_icon_row"></div></div>
+      <div class="grid2" id="sh_temp_field" style="display:none">
+        <div class="field"><label class="label">臨時PT 名字 ★</label><input class="input" id="sh_temp_name" placeholder="例：王小明"></div>
+        <div class="field"><label class="label">時薪 <span class="faint" style="font-size:10px">薪資頁算薪用，之後可改</span></label><input class="input" type="number" min="0" id="sh_temp_rate" placeholder="例：200"></div>
+      </div>
+      <div class="field" id="sh_double_field"><label class="label" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none"><input type="checkbox" id="sh_double" style="width:auto;margin:0"> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M12 4.5l2.2 4.4 4.8.7-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8-3.5-3.4 4.8-.7z"/></svg> 雙倍薪資（這天打卡工時 ×2 計薪）</label></div>
+      <div class="field" id="sh_note_field"><label class="label">備註</label><input class="input" id="sh_note" placeholder="例：外場 / 內場 / 早班"></div>
       <div id="sh_err" class="faint" style="color:var(--danger);min-height:18px"></div>
       <div class="row-between mt8">
         <button class="btn btn-danger" id="sh_delete" style="visibility:hidden">刪除</button>
@@ -699,6 +729,23 @@
           <button class="btn btn-ghost" id="sh_cancel">取消</button>
           <button class="btn btn-primary" id="sh_save">儲存</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: AI 財務分析 ===== -->
+  <div class="modal-mask" id="aiModal">
+    <div class="modal" style="max-width:720px">
+      <h3 class="modal-h">AI 財務分析 <span class="faint" id="aiMeta" style="font-size:11px;font-weight:400"></span></h3>
+      <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center">
+        <select class="input" id="aiHistory" style="flex:1; min-width:0"></select>
+        <button class="btn btn-ghost btn-sm" id="aiPrint" title="開啟 A4 列印版報告">列印版</button>
+        <button class="btn btn-ghost btn-sm" id="aiDelete" style="color:var(--danger)">刪除</button>
+      </div>
+      <div id="aiBody" style="max-height:62vh; overflow:auto; line-height:1.85; font-size:13.5px; padding:2px 4px"></div>
+      <div class="row-between mt8">
+        <span class="faint" style="font-size:11px">由 Claude Opus 5 分析・僅供參考，數字以帳本為準</span>
+        <button class="btn btn-ghost" onclick="document.getElementById('aiModal').classList.remove('show')">關閉</button>
       </div>
     </div>
   </div>
