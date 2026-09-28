@@ -54,6 +54,7 @@
       <button class="tab" data-tab="maintenance">維運紀錄</button>
       <button class="tab" data-tab="insights">智慧分析</button>
       <a class="tab" href="recipes.html">菜單</a>
+      <button class="tab" data-tab="journal">工作日誌</button>
     </div>
 
     <!-- ===== 人事管理（含子分頁：員工資料 / 薪資 / 打卡審核）===== -->
@@ -461,6 +462,27 @@
       </div>
     </section>
 
+    <!-- ===== 工作日誌 ===== -->
+    <section data-pane="journal" class="hidden">
+      <div class="row-between" style="margin-bottom:14px; gap:12px; flex-wrap:wrap">
+        <div class="flex" style="flex-wrap:wrap; align-items:center">
+          <select class="input" id="jr_year" style="width:auto"></select>
+          <span class="muted faint" id="jr_sum"></span>
+        </div>
+        <button class="btn btn-primary btn-sm" id="addJournal">＋ 寫日誌</button>
+      </div>
+      <input class="input" id="jr_search" placeholder="搜尋標題 / 內容 / 標籤…" style="max-width:320px; margin-bottom:10px">
+      <div id="jr_tagbar" style="margin-bottom:12px"></div>
+      <div class="card">
+        <div style="overflow-x:auto">
+          <table class="tbl" id="journalTable">
+            <thead><tr><th>日期</th><th>內容</th><th>標籤</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== 智慧分析 ===== -->
     <section data-pane="insights" class="hidden">
       <div class="flex" style="margin-bottom:16px; gap:8px; flex-wrap:wrap">
@@ -497,6 +519,46 @@
         <div class="flex">
           <button class="btn btn-ghost" id="s_cancel">取消</button>
           <button class="btn btn-primary" id="s_save">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: 工作日誌 ===== -->
+  <div class="modal-mask" id="journalModal">
+    <div class="modal">
+      <h3 class="modal-h" id="journalModalTitle">工作日誌</h3>
+
+      <!-- 閱讀檢視 -->
+      <div id="journalRead">
+        <div class="kv"><span class="k">日期</span><span id="jv_date"></span></div>
+        <div class="kv"><span class="k">標題</span><span id="jv_title"></span></div>
+        <div id="jv_tags" style="margin:12px 0"></div>
+        <div style="margin:12px 0"><div class="label">內容</div><div id="jv_content" style="white-space:pre-wrap; color:var(--ink)"></div></div>
+        <div class="row-between mt8">
+          <button class="btn btn-danger" id="jv_delete">刪除</button>
+          <div class="flex">
+            <button class="btn btn-ghost" id="jv_close">關閉</button>
+            <button class="btn btn-primary" id="jv_edit">編輯</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 編輯表單 -->
+      <div id="journalEdit" class="hidden">
+        <div class="grid2">
+          <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="j_date"></div>
+          <div class="field"><label class="label">標題</label><input class="input" id="j_title" placeholder="例：週末市集、新品試做"></div>
+        </div>
+        <div class="field"><label class="label">內容</label><textarea class="input" id="j_content" rows="8" placeholder="今天做了什麼、發生什麼事、明天要記得…"></textarea></div>
+        <div class="field"><label class="label">標籤（用逗號分隔）</label><input class="input" id="j_tags" list="jtagList" placeholder="例：進貨, 客訴, 新品"><datalist id="jtagList"></datalist></div>
+        <div id="j_err" class="faint" style="color:var(--danger);min-height:18px"></div>
+        <div class="row-between mt8">
+          <button class="btn btn-danger" id="j_delete" style="visibility:hidden">刪除這筆</button>
+          <div class="flex">
+            <button class="btn btn-ghost" id="j_cancel">取消</button>
+            <button class="btn btn-primary" id="j_save">儲存</button>
+          </div>
         </div>
       </div>
     </div>

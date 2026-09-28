@@ -51,6 +51,7 @@
     if (name === 'pnl') loadPnl();
     if (name === 'inventory') loadInventory();
     if (name === 'maintenance') loadMaintenance();
+    if (name === 'journal') loadJournal();
     if (name === 'insights') loadInsights();
     if (name === 'people') activateSub(sub || currentSub());
     else if (name === 'finance') activateFsub(sub || curFsub);
@@ -2390,6 +2391,114 @@
   });
 
   F('m_delete').addEventListener('click', deleteMaint);
+
+  /* ============================================================
+   * 6a) 工作日誌
+   * ========================================================== */
+  let journalList = [], editJournalId = null, journalTagFilter = null, journalQuery = '';
+
+  async function loadJournal() {
+    const { data, error } = await sb.from('work_journal').select('*').order('log_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) { F('journalTable').querySelector('tbody').innerHTML = `<tr><td colspan="4" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
+    journalList = data || [];
+    fillYearSelect(F('jr_year'), journalList.map(j => j.log_date), F('jr_year').value);
+    renderJournal();
+  }
+
+  F('jr_year').addEventListener('change', renderJournal);
+  F('jr_search').addEventListener('input', () => { journalQuery = F('jr_search').value; renderJournal(); });
+
+  function renderJournal() {
+    const allTags = [...new Set(journalList.flatMap(j => j.tags || []))].sort();
+    F('jr_tagbar').innerHTML = allTags.length
+      ? `<span class="mtag ${!journalTagFilter ? 'on' : ''}" data-tag="">全部</span>` +
+        allTags.map(t => `<span class="mtag ${journalTagFilter === t ? 'on' : ''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join('')
+      : '';
+    F('jr_tagbar').querySelectorAll('[data-tag]').forEach(el => el.addEventListener('click', () => {
+      journalTagFilter = el.dataset.tag || null; renderJournal();
+    }));
+
+    const q = journalQuery.trim().toLowerCase();
+    const yr = F('jr_year').value;
+    let rows = journalList;                                // 已依日期新→舊排序
+    if (yr && yr !== 'all') rows = rows.filter(j => (j.log_date || '').slice(0, 4) === yr);
+    if (journalTagFilter) rows = rows.filter(j => (j.tags || []).includes(journalTagFilter));
+    if (q) rows = rows.filter(j => `${j.title || ''} ${j.content || ''} ${(j.tags || []).join(' ')}`.toLowerCase().includes(q));
+    F('jr_sum').textContent = `・${rows.length} 篇`;
+
+    const tb = F('journalTable').querySelector('tbody');
+    tb.innerHTML = rows.length ? rows.map(j => `
+      <tr data-id="${j.id}" style="cursor:pointer">
+        <td style="white-space:nowrap">${(j.log_date || '').replace(/-/g,'/')}</td>
+        <td><div style="max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.title ? `<b>${escapeHtml(j.title)}</b>　` : ''}<span class="muted">${escapeHtml(j.content || '')}</span></div></td>
+        <td style="white-space:nowrap">${(j.tags || []).map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('')}</td>
+        <td class="num faint">查看 ›</td>
+      </tr>`).join('') : '<tr><td colspan="4" class="muted faint">還沒有日誌，按右上「寫日誌」開始</td></tr>';
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openJournalModal(tr.dataset.id)));
+  }
+
+  F('addJournal').addEventListener('click', () => openJournalModal(null));
+  F('j_cancel').addEventListener('click', () => F('journalModal').classList.remove('show'));
+
+  function showJournalMode(mode) {
+    F('journalRead').classList.toggle('hidden', mode !== 'read');
+    F('journalEdit').classList.toggle('hidden', mode !== 'edit');
+    F('journalModalTitle').textContent = mode === 'read' ? '工作日誌' : (editJournalId ? '編輯日誌' : '寫日誌');
+  }
+
+  function openJournalModal(id) {
+    editJournalId = id;
+    const j = id ? journalList.find(x => x.id === id) : null;
+    if (j) { renderJournalRead(j); showJournalMode('read'); }
+    else { fillJournalEdit(null); showJournalMode('edit'); }
+    F('journalModal').classList.add('show');
+  }
+
+  function renderJournalRead(j) {
+    F('jv_date').textContent = (j.log_date || '').replace(/-/g, '/');
+    F('jv_title').textContent = j.title || '—';
+    F('jv_tags').innerHTML = (j.tags && j.tags.length) ? j.tags.map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('') : '';
+    F('jv_content').textContent = j.content || '（無）';
+  }
+
+  function fillJournalEdit(j) {
+    F('j_date').value = j ? j.log_date : todayStr();
+    F('j_title').value = j ? (j.title || '') : '';
+    F('j_content').value = j ? (j.content || '') : '';
+    F('j_tags').value = j && j.tags ? j.tags.join(', ') : '';
+    F('jtagList').innerHTML = [...new Set(journalList.flatMap(x => x.tags || []))].map(t => `<option value="${escapeHtml(t)}">`).join('');
+    F('j_err').textContent = '';
+    F('j_delete').style.visibility = j ? 'visible' : 'hidden';
+  }
+
+  async function deleteJournal() {
+    if (!editJournalId || !confirm('確定刪除這篇日誌？')) return;
+    const { error } = await sb.from('work_journal').delete().eq('id', editJournalId);
+    if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
+    F('journalModal').classList.remove('show'); toast('已刪除'); loadJournal();
+  }
+
+  F('jv_edit').addEventListener('click', () => { fillJournalEdit(journalList.find(x => x.id === editJournalId)); showJournalMode('edit'); });
+  F('jv_close').addEventListener('click', () => F('journalModal').classList.remove('show'));
+  F('jv_delete').addEventListener('click', deleteJournal);
+  F('j_delete').addEventListener('click', deleteJournal);
+
+  F('j_save').addEventListener('click', async () => {
+    F('j_err').textContent = '';
+    const date = F('j_date').value;
+    const content = F('j_content').value.trim();
+    const title = F('j_title').value.trim();
+    if (!date) { F('j_err').textContent = '請填日期'; return; }
+    if (!content && !title) { F('j_err').textContent = '請寫點內容'; return; }
+    const btn = F('j_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const payload = { log_date: date, title: title || null, content: content || null, tags: parseTags(F('j_tags').value) };
+    const { error } = editJournalId
+      ? await sb.from('work_journal').update(payload).eq('id', editJournalId)
+      : await sb.from('work_journal').insert(payload);
+    btn.disabled = false; btn.textContent = '儲存';
+    if (error) { F('j_err').textContent = '儲存失敗：' + error.message; return; }
+    F('journalModal').classList.remove('show'); toast('✅ 已儲存'); loadJournal();
+  });
 
   /* ============================================================
    * 6b) 智慧分析（維運/叫貨年度統計）
