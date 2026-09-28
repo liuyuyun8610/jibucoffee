@@ -476,7 +476,7 @@
       <div class="card">
         <div style="overflow-x:auto">
           <table class="tbl" id="journalTable">
-            <thead><tr><th>日期</th><th>內容</th><th>標籤</th><th></th></tr></thead>
+            <thead><tr><th>日期</th><th>節慶／連假</th><th class="num">營業額</th><th>尖峰時間</th><th>內容</th><th>標籤</th><th></th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -533,6 +533,10 @@
       <div id="journalRead">
         <div class="kv"><span class="k">日期</span><span id="jv_date"></span></div>
         <div class="kv"><span class="k">標題</span><span id="jv_title"></span></div>
+        <div class="kv"><span class="k">每日營業額</span><span id="jv_sales"></span></div>
+        <div class="kv"><span class="k">尖峰時間</span><span id="jv_peak"></span></div>
+        <div class="kv"><span class="k">節慶／連假</span><span id="jv_holiday"></span></div>
+        <div class="kv"><span class="k">雙倍薪資</span><span id="jv_double"></span></div>
         <div id="jv_tags" style="margin:12px 0"></div>
         <div style="margin:12px 0"><div class="label">內容</div><div id="jv_content" style="white-space:pre-wrap; color:var(--ink)"></div></div>
         <div class="row-between mt8">
@@ -549,6 +553,10 @@
         <div class="grid2">
           <div class="field"><label class="label">日期 ★</label><input class="input" type="date" id="j_date"></div>
           <div class="field"><label class="label">標題</label><input class="input" id="j_title" placeholder="例：週末市集、新品試做"></div>
+          <div class="field"><label class="label">每日營業額</label><input class="input" type="number" id="j_sales" inputmode="numeric" placeholder="當天 POS 結帳金額"></div>
+          <div class="field"><label class="label">尖峰時間</label><input class="input" id="j_peak" placeholder="例：12:00–14:00、17:30–18:30"></div>
+          <div class="field"><label class="label">特殊節慶／連假</label><input class="input" id="j_holiday" list="jholidayList" placeholder="例：中秋連假、聖誕節"><datalist id="jholidayList"></datalist></div>
+          <div class="field"><label class="label" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding-top:26px"><input type="checkbox" id="j_double" style="width:auto;margin:0"> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M12 4.5l2.2 4.4 4.8.7-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8-3.5-3.4 4.8-.7z"/></svg> 當天雙倍薪資</label></div>
         </div>
         <div class="field"><label class="label">內容</label><textarea class="input" id="j_content" rows="8" placeholder="今天做了什麼、發生什麼事、明天要記得…"></textarea></div>
         <div class="field"><label class="label">標籤（用逗號分隔）</label><input class="input" id="j_tags" list="jtagList" placeholder="例：進貨, 客訴, 新品"><datalist id="jtagList"></datalist></div>

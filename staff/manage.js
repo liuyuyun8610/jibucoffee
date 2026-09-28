@@ -2399,7 +2399,7 @@
 
   async function loadJournal() {
     const { data, error } = await sb.from('work_journal').select('*').order('log_date', { ascending: false }).order('created_at', { ascending: false });
-    if (error) { F('journalTable').querySelector('tbody').innerHTML = `<tr><td colspan="4" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
+    if (error) { F('journalTable').querySelector('tbody').innerHTML = `<tr><td colspan="7" class="muted faint">讀取失敗：${escapeHtml(error.message)}</td></tr>`; return; }
     journalList = data || [];
     fillYearSelect(F('jr_year'), journalList.map(j => j.log_date), F('jr_year').value);
     renderJournal();
@@ -2423,17 +2423,21 @@
     let rows = journalList;                                // 已依日期新→舊排序
     if (yr && yr !== 'all') rows = rows.filter(j => (j.log_date || '').slice(0, 4) === yr);
     if (journalTagFilter) rows = rows.filter(j => (j.tags || []).includes(journalTagFilter));
-    if (q) rows = rows.filter(j => `${j.title || ''} ${j.content || ''} ${(j.tags || []).join(' ')}`.toLowerCase().includes(q));
-    F('jr_sum').textContent = `・${rows.length} 篇`;
+    if (q) rows = rows.filter(j => `${j.title || ''} ${j.content || ''} ${j.holiday || ''} ${j.peak_time || ''} ${(j.tags || []).join(' ')}`.toLowerCase().includes(q));
+    const sales = rows.reduce((s, j) => s + Number(j.pos_sales || 0), 0);
+    F('jr_sum').textContent = `・${rows.length} 篇・營業額合計 ${formatCurrency(sales)}`;
 
     const tb = F('journalTable').querySelector('tbody');
     tb.innerHTML = rows.length ? rows.map(j => `
       <tr data-id="${j.id}" style="cursor:pointer">
         <td style="white-space:nowrap">${(j.log_date || '').replace(/-/g,'/')}</td>
-        <td><div style="max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.title ? `<b>${escapeHtml(j.title)}</b>　` : ''}<span class="muted">${escapeHtml(j.content || '')}</span></div></td>
+        <td style="white-space:nowrap">${j.holiday ? `<span class="badge badge-add">${escapeHtml(j.holiday)}</span>` : ''}${j.double_pay ? ` <span class="badge badge-ded" title="當天雙倍薪資">雙倍</span>` : ''}</td>
+        <td class="num" style="white-space:nowrap">${j.pos_sales != null ? formatCurrency(j.pos_sales) : '<span class="faint">—</span>'}</td>
+        <td style="white-space:nowrap">${escapeHtml(j.peak_time || '')}</td>
+        <td><div style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.title ? `<b>${escapeHtml(j.title)}</b>　` : ''}<span class="muted">${escapeHtml(j.content || '')}</span></div></td>
         <td style="white-space:nowrap">${(j.tags || []).map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('')}</td>
         <td class="num faint">查看 ›</td>
-      </tr>`).join('') : '<tr><td colspan="4" class="muted faint">還沒有日誌，按右上「寫日誌」開始</td></tr>';
+      </tr>`).join('') : '<tr><td colspan="7" class="muted faint">還沒有日誌，按右上「寫日誌」開始</td></tr>';
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openJournalModal(tr.dataset.id)));
   }
 
@@ -2458,6 +2462,10 @@
     F('jv_date').textContent = (j.log_date || '').replace(/-/g, '/');
     F('jv_title').textContent = j.title || '—';
     F('jv_tags').innerHTML = (j.tags && j.tags.length) ? j.tags.map(t => `<span class="mtag sm">${escapeHtml(t)}</span>`).join('') : '';
+    F('jv_sales').textContent = j.pos_sales != null ? formatCurrency(j.pos_sales) : '—';
+    F('jv_peak').textContent = j.peak_time || '—';
+    F('jv_holiday').textContent = j.holiday || '—';
+    F('jv_double').textContent = j.double_pay ? '是' : '否';
     F('jv_content').textContent = j.content || '（無）';
   }
 
@@ -2465,6 +2473,11 @@
     F('j_date').value = j ? j.log_date : todayStr();
     F('j_title').value = j ? (j.title || '') : '';
     F('j_content').value = j ? (j.content || '') : '';
+    F('j_sales').value = j && j.pos_sales != null ? j.pos_sales : '';
+    F('j_peak').value = j ? (j.peak_time || '') : '';
+    F('j_holiday').value = j ? (j.holiday || '') : '';
+    F('j_double').checked = j ? !!j.double_pay : false;
+    F('jholidayList').innerHTML = [...new Set(journalList.map(x => x.holiday).filter(Boolean))].map(t => `<option value="${escapeHtml(t)}">`).join('');
     F('j_tags').value = j && j.tags ? j.tags.join(', ') : '';
     F('jtagList').innerHTML = [...new Set(journalList.flatMap(x => x.tags || []))].map(t => `<option value="${escapeHtml(t)}">`).join('');
     F('j_err').textContent = '';
@@ -2489,9 +2502,13 @@
     const content = F('j_content').value.trim();
     const title = F('j_title').value.trim();
     if (!date) { F('j_err').textContent = '請填日期'; return; }
-    if (!content && !title) { F('j_err').textContent = '請寫點內容'; return; }
-    const btn = F('j_save'); btn.disabled = true; btn.textContent = '儲存中…';
-    const payload = { log_date: date, title: title || null, content: content || null, tags: parseTags(F('j_tags').value) };
+        const btn = F('j_save'); btn.disabled = true; btn.textContent = '儲存中…';
+    const salesRaw = F('j_sales').value.trim();
+    const payload = {
+      log_date: date, title: title || null, content: content || null, tags: parseTags(F('j_tags').value),
+      pos_sales: salesRaw === '' ? null : Number(salesRaw), peak_time: F('j_peak').value.trim() || null,
+      holiday: F('j_holiday').value.trim() || null, double_pay: F('j_double').checked,
+    };
     const { error } = editJournalId
       ? await sb.from('work_journal').update(payload).eq('id', editJournalId)
       : await sb.from('work_journal').insert(payload);
