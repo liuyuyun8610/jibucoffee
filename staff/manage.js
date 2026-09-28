@@ -3008,7 +3008,7 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
       ${r.prev_amount != null || r.cash_revenue != null ? `<div class="divider"></div>
       <p style="font-weight:600;margin:0 0 6px">現金對帳</p>
       <div class="kv"><span class="k">前日留存金額</span><span>${formatCurrency(r.prev_amount)}</span></div>
-      <div class="kv"><span class="k">今日現金營業收入</span><span>${r.cash_revenue == null ? '<span class="faint">未填</span>' : formatCurrency(r.cash_revenue)}</span></div>
+      <div class="kv"><span class="k">POS 現金營業額</span><span>${r.cash_revenue == null ? '<span class="faint">未填</span>' : formatCurrency(r.cash_revenue)}</span></div>
       <div class="kv"><span class="k">應有實際金額</span><span>${r.expected_total == null ? '—' : formatCurrency(r.expected_total)}</span></div>
       <div class="kv" style="font-weight:700"><span>短溢</span><span>${hoDiffHtml(r.diff)}</span></div>` : ''}
       <div class="divider"></div>

@@ -111,12 +111,12 @@
           <p style="font-weight:600;margin:0 0 8px">現金對帳</p>
           <div class="grid2">
             <div class="field"><label class="label">前日留存金額</label><input class="input" type="number" min="0" id="dc_prev" placeholder="0"><div class="faint" id="dc_prev_hint" style="font-size:12px;margin-top:4px"></div></div>
-            <div class="field"><label class="label">今日現金營業收入</label><input class="input" type="number" min="0" id="dc_revenue" placeholder="POS 現金收入"><div class="faint" style="font-size:12px;margin-top:4px">只算現金，不含 LINE Pay／匯款</div></div>
+            <div class="field"><label class="label">POS 現金營業額</label><input class="input" type="number" min="0" id="dc_revenue" placeholder="看 POS 報表"><div class="faint" style="font-size:12px;margin-top:4px">POS 報表上的現金收入，不含 LINE Pay／匯款</div></div>
           </div>
-          <div class="kv"><span class="k">前日留存＋今日現金營業收入</span><span id="dc_exp_base">NT$0</span></div>
+          <div class="kv"><span class="k">前日留存＋POS 現金營業額</span><span id="dc_exp_base">NT$0</span></div>
           <div class="kv" id="dc_exp_pur_row"><span class="k">－ 錢盤現金採購</span><span id="dc_exp_pur">NT$0</span></div>
           <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>應有實際金額</span><span id="dc_expected">NT$0</span></div>
-          <div class="kv"><span class="k">實際店內現金</span><span id="dc_actual">NT$0</span></div>
+          <div class="kv"><span class="k">實際店內現金（自動帶入上面錢盤＋金庫）</span><span id="dc_actual">NT$0</span></div>
           <div class="kv" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>短溢</span><span id="dc_diff">—</span></div>
           <div class="divider"></div>
           <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="dc_has_purchase"> 今日有用現金（錢盤）採購／零用金支出？</label>
@@ -737,7 +737,7 @@
         ${lines.length ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">採購／零用金</p>' + lines.map(l => `<div class="kv"><span class="k">${escapeHtml(l.name)} ×${l.qty}</span><span>${formatCurrency(l.qty * l.cost)}</span></div>`).join('') + `<div class="kv faint"><span>採購合計</span><span>${formatCurrency(purT)}</span></div>` : ''}
         <div class="divider"></div><p style="font-weight:600;margin:0 0 6px">現金對帳</p>
         <div class="kv"><span class="k">前日留存金額</span><span>${formatCurrency(rc.prev)}</span></div>
-        <div class="kv"><span class="k">今日現金營業收入</span><span>${rc.revenue == null ? '<span class="faint">未填</span>' : formatCurrency(rc.revenue)}</span></div>
+        <div class="kv"><span class="k">POS 現金營業額</span><span>${rc.revenue == null ? '<span class="faint">未填</span>' : formatCurrency(rc.revenue)}</span></div>
         ${rc.pur ? `<div class="kv"><span class="k">－ 錢盤現金採購</span><span>${formatCurrency(rc.pur)}</span></div>` : ''}
         <div class="kv"><span class="k">應有實際金額</span><span>${formatCurrency(rc.expected)}</span></div>
         <div class="kv" style="font-weight:700"><span>短溢</span><span>${dcDiffHtml(rc.diff)}</span></div>
