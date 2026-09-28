@@ -108,15 +108,17 @@
           </div>
           <p class="faint" style="margin-top:-4px">LINE Pay 與匯款會各自記入帳本對應帳戶（歸戶由後台設定），不影響現金對帳。</p>
           <div class="divider"></div>
-          <p style="font-weight:600;margin:0 0 8px">現金對帳</p>
+          <p style="font-weight:600;margin:0 0 8px">周轉金對帳</p>
           <div class="grid2">
-            <div class="field"><label class="label">前日留存金額</label><input class="input" type="number" min="0" id="dc_prev" placeholder="0"><div class="faint" id="dc_prev_hint" style="font-size:12px;margin-top:4px"></div></div>
-            <div class="field"><label class="label">POS 現金營業額</label><input class="input" type="number" min="0" id="dc_revenue" placeholder="看 POS 報表"><div class="faint" style="font-size:12px;margin-top:4px">POS 報表上的現金收入，不含 LINE Pay／匯款</div></div>
+            <div class="field"><label class="label">今日現金收入</label><input class="input" type="number" min="0" id="dc_revenue" placeholder="看 POS 報表"><div class="faint" style="font-size:12px;margin-top:4px">POS 報表上的現金收入（不含 LINE Pay）</div></div>
+            <div class="field"><label class="label">前日留存周轉金</label><input class="input" type="number" min="0" id="dc_prev" placeholder="0"><div class="faint" id="dc_prev_hint" style="font-size:12px;margin-top:4px"></div></div>
           </div>
-          <div class="kv"><span class="k">前日留存＋POS 現金營業額</span><span id="dc_exp_base">NT$0</span></div>
-          <div class="kv" id="dc_exp_pur_row"><span class="k">－ 錢盤現金採購</span><span id="dc_exp_pur">NT$0</span></div>
-          <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>應有實際金額</span><span id="dc_expected">NT$0</span></div>
-          <div class="kv"><span class="k">實際店內現金（自動帶入上面錢盤＋金庫）</span><span id="dc_actual">NT$0</span></div>
+          <div class="kv"><span class="k">今日現金收入</span><span id="dc_r_rev">NT$0</span></div>
+          <div class="kv"><span class="k">－ 現金支出（錢盤採購）</span><span id="dc_r_pur">NT$0</span></div>
+          <div class="kv"><span class="k">＋ 前日留存周轉金</span><span id="dc_r_prev">NT$0</span></div>
+          <div class="kv"><span class="k">－ 匯款金額</span><span id="dc_r_remit">NT$0</span></div>
+          <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>本日應有周轉金</span><span id="dc_expected">NT$0</span></div>
+          <div class="kv"><span class="k">－ 實際清點（錢盤＋金庫）</span><span id="dc_actual">NT$0</span></div>
           <div class="kv" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>短溢</span><span id="dc_diff">—</span></div>
           <div class="divider"></div>
           <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="dc_has_purchase"> 今日有用現金（錢盤）採購／零用金支出？</label>
@@ -642,12 +644,14 @@
     let dcStock = [], dcAccts = [];
     function dcRows(prefix) { return DENOMS.map(d => `<div class="flex" style="gap:10px;margin-bottom:8px"><span class="muted" style="width:50px;text-align:right">${d}</span><input class="input" type="number" min="0" id="${prefix}_${d}" placeholder="金額" style="flex:1;max-width:150px"></div>`).join(''); }
     function dcCalc() { let tray = 0, safe = 0; DENOMS.forEach(d => { tray += Number(F('dc_tray_' + d).value) || 0; safe += Number(F('dc_safe_' + d).value) || 0; }); F('dc_tray_total').textContent = formatCurrency(tray); F('dc_safe_total').textContent = formatCurrency(safe); F('dc_total').textContent = formatCurrency(tray + safe); dcRecon(tray + safe); return { tray, safe }; }
-    // 現金對帳：前日留存＋今日現金營業收入－錢盤採購＝應有；實際－應有＝短溢（未填營業收入時不算）
+    // 周轉金對帳（店主公式）：今日現金收入－現金支出＋前日留存周轉金－匯款金額＝本日應有周轉金
+    // 短溢存成「實際清點－應有」：正＝溢、負＝短（未填今日現金收入時不算）
     function dcReconVals(actual) {
       const prev = Number(F('dc_prev').value) || 0, revRaw = F('dc_revenue').value.trim();
       const pur = collectDcLines().reduce((s, l) => s + l.qty * l.cost, 0);
-      const expected = prev + (Number(revRaw) || 0) - pur;
-      return { prev, pur, revenue: revRaw === '' ? null : Number(revRaw), expected, diff: revRaw === '' ? null : actual - expected };
+      const remit = Number(F('dc_remit').value) || 0;
+      const expected = (Number(revRaw) || 0) - pur + prev - remit;
+      return { prev, pur, remit, revenue: revRaw === '' ? null : Number(revRaw), expected, diff: revRaw === '' ? null : actual - expected };
     }
     function dcDiffHtml(diff) {
       if (diff == null) return '<span class="faint">—</span>';
@@ -656,9 +660,10 @@
     }
     function dcRecon(actual) {
       const v = dcReconVals(actual);
-      F('dc_exp_base').textContent = formatCurrency(v.prev + (v.revenue || 0));
-      F('dc_exp_pur').textContent = formatCurrency(v.pur);
-      F('dc_exp_pur_row').style.display = v.pur ? '' : 'none';
+      F('dc_r_rev').textContent = formatCurrency(v.revenue || 0);
+      F('dc_r_pur').textContent = formatCurrency(v.pur);
+      F('dc_r_prev').textContent = formatCurrency(v.prev);
+      F('dc_r_remit').textContent = formatCurrency(v.remit);
       F('dc_expected').textContent = formatCurrency(v.expected);
       F('dc_actual').textContent = formatCurrency(actual);
       F('dc_diff').innerHTML = dcDiffHtml(v.diff);
@@ -668,7 +673,7 @@
       F('dc_date').textContent = todayStr().replace(/-/g, '/');
       F('dc_tray').innerHTML = dcRows('dc_tray'); F('dc_safe').innerHTML = dcRows('dc_safe');
       document.querySelectorAll('#dc_tray input, #dc_safe input').forEach(i => i.addEventListener('input', dcCalc));
-      ['dc_prev', 'dc_revenue'].forEach(id => F(id).addEventListener('input', dcCalc));
+      ['dc_prev', 'dc_revenue', 'dc_remit'].forEach(id => F(id).addEventListener('input', dcCalc));
       F('dc_purchase_box').addEventListener('input', dcCalc); F('dc_purchase_box').addEventListener('change', dcCalc); F('dc_purchase_box').addEventListener('click', () => setTimeout(dcCalc));
       F('dc_has_purchase').addEventListener('change', dcCalc);
       F('dc_review').addEventListener('click', reviewDailyClose);
@@ -735,11 +740,13 @@
         <div class="kv" style="font-weight:700;border-top:1px solid var(--line);padding-top:8px"><span>今日店內現金</span><span>${formatCurrency(tray + safe)}</span></div>
         ${(linepay || remit) ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">非現金收入</p>' + (linepay ? `<div class="kv"><span class="k">LINE Pay</span><span>${formatCurrency(linepay)}</span></div>` : '') + (remit ? `<div class="kv"><span class="k">匯款</span><span>${formatCurrency(remit)}</span></div>` : '') : ''}
         ${lines.length ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">採購／零用金</p>' + lines.map(l => `<div class="kv"><span class="k">${escapeHtml(l.name)} ×${l.qty}</span><span>${formatCurrency(l.qty * l.cost)}</span></div>`).join('') + `<div class="kv faint"><span>採購合計</span><span>${formatCurrency(purT)}</span></div>` : ''}
-        <div class="divider"></div><p style="font-weight:600;margin:0 0 6px">現金對帳</p>
-        <div class="kv"><span class="k">前日留存金額</span><span>${formatCurrency(rc.prev)}</span></div>
-        <div class="kv"><span class="k">POS 現金營業額</span><span>${rc.revenue == null ? '<span class="faint">未填</span>' : formatCurrency(rc.revenue)}</span></div>
-        ${rc.pur ? `<div class="kv"><span class="k">－ 錢盤現金採購</span><span>${formatCurrency(rc.pur)}</span></div>` : ''}
-        <div class="kv"><span class="k">應有實際金額</span><span>${formatCurrency(rc.expected)}</span></div>
+        <div class="divider"></div><p style="font-weight:600;margin:0 0 6px">周轉金對帳</p>
+        <div class="kv"><span class="k">今日現金收入</span><span>${rc.revenue == null ? '<span class="faint">未填</span>' : formatCurrency(rc.revenue)}</span></div>
+        <div class="kv"><span class="k">－ 現金支出</span><span>${formatCurrency(rc.pur)}</span></div>
+        <div class="kv"><span class="k">＋ 前日留存周轉金</span><span>${formatCurrency(rc.prev)}</span></div>
+        <div class="kv"><span class="k">－ 匯款金額</span><span>${formatCurrency(rc.remit)}</span></div>
+        <div class="kv"><span class="k">本日應有周轉金</span><span>${formatCurrency(rc.expected)}</span></div>
+        <div class="kv"><span class="k">實際清點（錢盤＋金庫）</span><span>${formatCurrency(tray + safe)}</span></div>
         <div class="kv" style="font-weight:700"><span>短溢</span><span>${dcDiffHtml(rc.diff)}</span></div>
         ${F('dc_note').value.trim() ? `<p class="faint mt8">備註：${escapeHtml(F('dc_note').value.trim())}</p>` : ''}
         <p class="faint mt8">確認無誤後送出，今日店內現金將更新為上面的金額。</p>`;

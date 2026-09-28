@@ -3006,10 +3006,13 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
       </div>
       <div class="kv mt8" style="font-weight:700;border-top:1px solid var(--line);padding-top:8px"><span>店內現金</span><span>${formatCurrency(r.total)}</span></div>
       ${r.prev_amount != null || r.cash_revenue != null ? `<div class="divider"></div>
-      <p style="font-weight:600;margin:0 0 6px">現金對帳</p>
-      <div class="kv"><span class="k">前日留存金額</span><span>${formatCurrency(r.prev_amount)}</span></div>
-      <div class="kv"><span class="k">POS 現金營業額</span><span>${r.cash_revenue == null ? '<span class="faint">未填</span>' : formatCurrency(r.cash_revenue)}</span></div>
-      <div class="kv"><span class="k">應有實際金額</span><span>${r.expected_total == null ? '—' : formatCurrency(r.expected_total)}</span></div>
+      <p style="font-weight:600;margin:0 0 6px">周轉金對帳</p>
+      <div class="kv"><span class="k">今日現金收入</span><span>${r.cash_revenue == null ? '<span class="faint">未填</span>' : formatCurrency(r.cash_revenue)}</span></div>
+      ${r.expected_total != null ? `<div class="kv"><span class="k">－ 現金支出</span><span>${formatCurrency(Number(r.cash_revenue || 0) + Number(r.prev_amount || 0) - Number(r.remit_total || 0) - Number(r.expected_total))}</span></div>` : ''}
+      <div class="kv"><span class="k">＋ 前日留存周轉金</span><span>${formatCurrency(r.prev_amount)}</span></div>
+      <div class="kv"><span class="k">－ 匯款金額</span><span>${formatCurrency(r.remit_total)}</span></div>
+      <div class="kv"><span class="k">本日應有周轉金</span><span>${r.expected_total == null ? '—' : formatCurrency(r.expected_total)}</span></div>
+      <div class="kv"><span class="k">實際清點（錢盤＋金庫）</span><span>${formatCurrency(r.total)}</span></div>
       <div class="kv" style="font-weight:700"><span>短溢</span><span>${hoDiffHtml(r.diff)}</span></div>` : ''}
       <div class="divider"></div>
       <p style="font-weight:600;margin:0 0 6px">當日採購</p>
