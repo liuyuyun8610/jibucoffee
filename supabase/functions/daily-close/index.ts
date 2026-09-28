@@ -29,6 +29,10 @@ Deno.serve(async (req) => {
       count_date: cd, tray: b.tray || {}, safe: b.safe || {},
       tray_total: Number(b.tray_total) || 0, safe_total: Number(b.safe_total) || 0, total: Number(b.total) || 0,
       linepay_total: Number(b.linepay_total) || 0, remit_total: Number(b.remit_total) || 0,
+      prev_amount: b.prev_amount == null ? null : Number(b.prev_amount) || 0,
+      cash_revenue: b.cash_revenue == null ? null : Number(b.cash_revenue) || 0,
+      expected_total: b.expected_total == null ? null : Number(b.expected_total) || 0,
+      diff: b.diff == null ? null : Number(b.diff) || 0,
       note: b.note || null, counted_by: user.id, purchases: b.purchases || [],
     }, { onConflict: 'count_date' });
 

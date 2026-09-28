@@ -2968,11 +2968,12 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
         <td class="num">${formatCurrency(r.tray_total)}</td>
         <td class="num">${formatCurrency(r.safe_total)}</td>
         <td class="num" style="font-weight:600">${formatCurrency(r.total)}</td>
+        <td class="num" style="white-space:nowrap">${hoDiffHtml(r.diff)}</td>
         <td class="faint">${pur.length ? `${pur.length}筆 ${formatCurrency(purT)}` : '—'}</td>
         <td class="faint">${escapeHtml(nameOf(r.counted_by))}</td>
         <td class="num faint">明細 ›</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="7" class="muted faint">這段期間沒有大交班紀錄</td></tr>';
+    }).join('') : '<tr><td colspan="8" class="muted faint">這段期間沒有大交班紀錄</td></tr>';
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.addEventListener('click', () => openHandoverDetail(tr.dataset.id)));
   }
   F('ho_delete').addEventListener('click', async () => {
@@ -2984,6 +2985,13 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
     if (error) { toast('刪除失敗：' + error.message, 'error'); return; }
     F('hoModal').classList.remove('show'); toast('已刪除大交班'); loadHandover();
   });
+  // 短溢：實際－應有（正＝溢、負＝短）；舊紀錄沒填營業收入時為 null
+  function hoDiffHtml(diff) {
+    if (diff == null) return '<span class="faint">—</span>';
+    const d = Number(diff);
+    if (d === 0) return '<span class="badge badge-ok">±0</span>';
+    return d > 0 ? `<span class="badge badge-add">溢 +${formatCurrency(d)}</span>` : `<span class="badge badge-ded">短 −${formatCurrency(-d)}</span>`;
+  }
   function openHandoverDetail(id) {
     editHoId = id;
     const r = hoList.find(x => x.id === id); if (!r) return;
@@ -2997,6 +3005,12 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
         <div><p style="font-weight:600;margin:0 0 6px">金庫 ${formatCurrency(r.safe_total)}</p>${denRows(r.safe)}</div>
       </div>
       <div class="kv mt8" style="font-weight:700;border-top:1px solid var(--line);padding-top:8px"><span>店內現金</span><span>${formatCurrency(r.total)}</span></div>
+      ${r.prev_amount != null || r.cash_revenue != null ? `<div class="divider"></div>
+      <p style="font-weight:600;margin:0 0 6px">現金對帳</p>
+      <div class="kv"><span class="k">前日留存金額</span><span>${formatCurrency(r.prev_amount)}</span></div>
+      <div class="kv"><span class="k">今日現金營業收入</span><span>${r.cash_revenue == null ? '<span class="faint">未填</span>' : formatCurrency(r.cash_revenue)}</span></div>
+      <div class="kv"><span class="k">應有實際金額</span><span>${r.expected_total == null ? '—' : formatCurrency(r.expected_total)}</span></div>
+      <div class="kv" style="font-weight:700"><span>短溢</span><span>${hoDiffHtml(r.diff)}</span></div>` : ''}
       <div class="divider"></div>
       <p style="font-weight:600;margin:0 0 6px">當日採購</p>
       ${pur.length ? pur.map(p => `<div class="kv"><span class="k">${escapeHtml(p.name)} ×${p.qty}</span><span>${formatCurrency(p.amount)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無</span></div>'}
