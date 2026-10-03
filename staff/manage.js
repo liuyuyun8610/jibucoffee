@@ -3017,7 +3017,7 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
       ${r.diff_reason ? `<p class="mt8" style="margin-bottom:0">短溢原因：${escapeHtml(r.diff_reason)}</p>` : (r.diff ? '<p class="faint mt8" style="margin-bottom:0">短溢原因：未填寫</p>' : '')}` : ''}
       <div class="divider"></div>
       <p style="font-weight:600;margin:0 0 6px">當日採購</p>
-      ${pur.length ? pur.map(p => `<div class="kv"><span class="k">${escapeHtml(p.name)} ×${p.qty}</span><span>${formatCurrency(p.amount)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無</span></div>'}
+      ${pur.length ? pur.map(p => `<div class="kv"><span class="k">${escapeHtml(p.name)} ${p.custom ? '<span class="faint">（自由輸入）</span>' : '×' + p.qty}</span><span>${formatCurrency(p.amount)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無</span></div>'}
       ${r.note ? `<div class="divider"></div><p class="faint">備註：${escapeHtml(r.note)}</p>` : ''}`;
     F('hoModal').classList.add('show');
   }

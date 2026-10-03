@@ -24,6 +24,18 @@ Deno.serve(async (req) => {
     const cd = b.count_date;
     if (!cd) return json({ error: '缺少日期' }, 400);
 
+    // 0) 採購明細：庫存品項查成本；自由輸入品項（沒建庫存，例如蝦皮一次性採購）直接用填的金額
+    const lines: any[] = [];
+    for (const p of (b.purchases || [])) {
+      if (p.custom) {
+        const amt = Number(p.amount) || 0;
+        if (p.name && amt > 0) lines.push({ name: String(p.name), qty: 1, cost: amt, unit: null, category: '臨時採購', vendor: null, custom: true });
+        continue;
+      }
+      const { data: st } = await admin.from('stock_items').select('*').eq('name', p.name).maybeSingle();
+      lines.push({ name: p.name, qty: Number(p.qty) || 0, cost: st ? Number(st.cost || 0) : 0, unit: st?.unit ?? null, category: st?.category ?? null, vendor: st?.vendor ?? null });
+    }
+
     // 1) 大交班主紀錄
     await admin.from('cash_counts').upsert({
       count_date: cd, tray: b.tray || {}, safe: b.safe || {},
@@ -34,7 +46,8 @@ Deno.serve(async (req) => {
       expected_total: b.expected_total == null ? null : Number(b.expected_total) || 0,
       diff: b.diff == null ? null : Number(b.diff) || 0,
       diff_reason: b.diff_reason || null,
-      note: b.note || null, counted_by: user.id, purchases: b.purchases || [],
+      note: b.note || null, counted_by: user.id,
+      purchases: lines.map(l => ({ name: l.name, qty: l.qty, amount: l.qty * l.cost, ...(l.custom ? { custom: true } : {}) })),
     }, { onConflict: 'count_date' });
 
     // 2) 清掉當天大交班自動產生的分錄與叫貨
@@ -47,12 +60,7 @@ Deno.serve(async (req) => {
     const acTray = byName('錢盤'), acSafe = byName('金庫');
     const payAcc = acTray || (accs || [])[0] || null;
 
-    // 4) 採購：查庫存成本 → 寫叫貨 + 進貨分錄（從付款帳戶）
-    const lines: any[] = [];
-    for (const p of (b.purchases || [])) {
-      const { data: st } = await admin.from('stock_items').select('*').eq('name', p.name).maybeSingle();
-      lines.push({ name: p.name, qty: Number(p.qty) || 0, cost: st ? Number(st.cost || 0) : 0, unit: st?.unit ?? null, category: st?.category ?? null, vendor: st?.vendor ?? null });
-    }
+    // 4) 採購：寫叫貨 + 進貨分錄（從付款帳戶）
     if (lines.length) {
       await admin.from('purchases').insert(lines.map(l => ({ order_date: cd, item_name: l.name, category: l.category, quantity: l.qty, unit: l.unit, unit_cost: l.cost, total_cost: l.qty * l.cost, supplier: l.vendor, source: 'daily' })));
       await admin.from('ledger_entries').insert(lines.map(l => ({ account_id: payAcc ? payAcc.id : null, type: '支出', category: '進貨', amount: l.qty * l.cost, description: `大交班採購：${l.name}`, entry_date: cd, source: 'daily' })));
