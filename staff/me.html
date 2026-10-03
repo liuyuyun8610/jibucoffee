@@ -709,7 +709,7 @@
       F('dc_reason').value = data ? (data.diff_reason || '') : '';
       F('dc_purchase_lines').innerHTML = '';
       const pur = (data && data.purchases) || [];
-      if (pur.length) { F('dc_has_purchase').checked = true; F('dc_purchase_box').classList.remove('hidden'); pur.forEach(p => p.custom ? dcAddCustomLine(p.name, p.amount) : dcAddLine(p.name, p.qty)); }
+      if (pur.length) { F('dc_has_purchase').checked = true; F('dc_purchase_box').classList.remove('hidden'); pur.forEach(p => p.custom ? dcAddCustomLine(p.name, p.amount, p.pnl_line) : dcAddLine(p.name, p.qty)); }
       else { F('dc_has_purchase').checked = false; F('dc_purchase_box').classList.add('hidden'); }
       dcCalc(); loadDcHistory();
     }
@@ -727,23 +727,37 @@
       if (name) { const s = dcStock.find(x => x.name === name); if (s && s.category) catSel.value = s.category; fillItems(name); }
       if (qty) qtyIn.value = qty; calc();
     }
-    // 自由輸入品項：沒建庫存的一次性採購（例如蝦皮），直接填品名＋金額
-    function dcAddCustomLine(name, amount) {
+    // 自由輸入品項：沒建庫存的一次性採購（例如蝦皮），直接填品名＋金額＋損益科目（key 對應後台損益表）
+    const DC_PNL_OPTS = [
+      ['cost_beans', '咖啡豆成本'], ['cost_food', '食材成本'], ['cost_packaging', '耗材（杯子包裝紙巾等）'], ['cost_other_cogs', '其他銷貨成本'],
+      ['misc_purchase', '雜項購置'], ['equip_repair', '設備維修費'], ['equip_maintain', '設備保養費'],
+      ['water_gas', '水費、瓦斯'], ['electric', '電費'], ['other_ctrl', '其他可控費用'],
+    ];
+    function dcAddCustomLine(name, amount, pnl) {
       const div = document.createElement('div');
       div.dataset.custom = '1';
       div.style = 'display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center';
-      div.innerHTML = `<input class="input dcc-name" placeholder="品名（例：蝦皮 吸管）" style="flex:2;min-width:160px"><input class="input dcc-amt" type="number" min="0" placeholder="金額" style="width:110px"><span class="faint" style="min-width:78px;text-align:right">自由輸入</span><button class="btn btn-danger btn-sm dcp-del" type="button">✕</button>`;
+      div.innerHTML = `<input class="input dcc-name" placeholder="品名（例：蝦皮 吸管）" style="flex:2;min-width:160px"><input class="input dcc-amt" type="number" min="0" placeholder="金額" style="width:110px"><select class="input dcc-pnl" style="flex:1;min-width:150px"><option value="">損益科目…</option>${DC_PNL_OPTS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select><button class="btn btn-danger btn-sm dcp-del" type="button">✕</button>`;
       F('dc_purchase_lines').appendChild(div);
       div.querySelector('.dcp-del').addEventListener('click', () => div.remove());
       if (name) div.querySelector('.dcc-name').value = name;
       if (amount) div.querySelector('.dcc-amt').value = amount;
+      if (pnl) div.querySelector('.dcc-pnl').value = pnl;
+    }
+    // 自由輸入品項有填品名/金額卻沒選損益科目 → 回傳提示文字
+    function dcCustomMissingPnl() {
+      if (!F('dc_has_purchase').checked) return '';
+      const bad = [...document.querySelectorAll('#dc_purchase_lines > div[data-custom]')].find(div =>
+        (div.querySelector('.dcc-name').value.trim() || Number(div.querySelector('.dcc-amt').value)) && !div.querySelector('.dcc-pnl').value);
+      return bad ? '自由輸入品項請選擇「損益科目」' : '';
     }
     function collectDcLines() {
       const lines = [];
       if (F('dc_has_purchase').checked) document.querySelectorAll('#dc_purchase_lines > div').forEach(div => {
         if (div.dataset.custom) {
           const name = div.querySelector('.dcc-name').value.trim(), amt = Number(div.querySelector('.dcc-amt').value) || 0;
-          if (name && amt > 0) lines.push({ name, qty: 1, cost: amt, custom: true });
+          const pnl = div.querySelector('.dcc-pnl').value;
+          if (name && amt > 0) lines.push({ name, qty: 1, cost: amt, custom: true, pnl_line: pnl || null, pnl_label: (DC_PNL_OPTS.find(o => o[0] === pnl) || [])[1] || '' });
           return;
         }
         const name = div.querySelector('.dcp-item').value, q = Number(div.querySelector('.dcp-qty').value) || 0;
@@ -752,6 +766,8 @@
       return lines;
     }
     function reviewDailyClose() {
+      const miss = dcCustomMissingPnl();
+      if (miss) { toast(miss, 'error'); return; }
       const { tray, safe } = dcCalc();
       const lines = collectDcLines();
       const purT = lines.reduce((s, l) => s + l.qty * l.cost, 0);
@@ -762,7 +778,7 @@
         <div class="kv"><span class="k">金庫</span><span>${formatCurrency(safe)}</span></div>
         <div class="kv" style="font-weight:700;border-top:1px solid var(--line);padding-top:8px"><span>今日店內現金</span><span>${formatCurrency(tray + safe)}</span></div>
         ${(linepay || remit) ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">非現金收入</p>' + (linepay ? `<div class="kv"><span class="k">LINE Pay</span><span>${formatCurrency(linepay)}</span></div>` : '') + (remit ? `<div class="kv"><span class="k">匯款</span><span>${formatCurrency(remit)}</span></div>` : '') : ''}
-        ${lines.length ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">採購／零用金</p>' + lines.map(l => `<div class="kv"><span class="k">${escapeHtml(l.name)} ${l.custom ? '<span class="faint">（自由輸入）</span>' : '×' + l.qty}</span><span>${formatCurrency(l.qty * l.cost)}</span></div>`).join('') + `<div class="kv faint"><span>採購合計</span><span>${formatCurrency(purT)}</span></div>` : ''}
+        ${lines.length ? '<div class="divider"></div><p style="font-weight:600;margin:0 0 6px">採購／零用金</p>' + lines.map(l => `<div class="kv"><span class="k">${escapeHtml(l.name)} ${l.custom ? `<span class="faint">（${escapeHtml(l.pnl_label || '自由輸入')}）</span>` : '×' + l.qty}</span><span>${formatCurrency(l.qty * l.cost)}</span></div>`).join('') + `<div class="kv faint"><span>採購合計</span><span>${formatCurrency(purT)}</span></div>` : ''}
         <div class="divider"></div><p style="font-weight:600;margin:0 0 6px">周轉金對帳</p>
         <div class="kv"><span class="k">今日現金收入</span><span>${rc.revenue == null ? '<span class="faint">未填</span>' : formatCurrency(rc.revenue)}</span></div>
         <div class="kv"><span class="k">－ 現金支出</span><span>${formatCurrency(rc.pur)}</span></div>
@@ -783,7 +799,7 @@
       const lines = collectDcLines();
       const rc = dcReconVals(tray + safe);
       const btn = F('dc_save'); btn.disabled = true; btn.textContent = '送出中…';
-      const { data, error } = await sb.functions.invoke('daily-close', { body: { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, linepay_total: Number(F('dc_linepay').value) || 0, remit_total: Number(F('dc_remit').value) || 0, prev_amount: rc.prev, cash_revenue: rc.revenue, expected_total: rc.revenue == null ? null : rc.expected, diff: rc.diff, diff_reason: rc.diff ? (F('dc_reason').value.trim() || null) : null, note: F('dc_note').value.trim() || null, purchases: lines.map(l => l.custom ? { name: l.name, qty: 1, amount: l.cost, custom: true } : { name: l.name, qty: l.qty }) } });
+      const { data, error } = await sb.functions.invoke('daily-close', { body: { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, linepay_total: Number(F('dc_linepay').value) || 0, remit_total: Number(F('dc_remit').value) || 0, prev_amount: rc.prev, cash_revenue: rc.revenue, expected_total: rc.revenue == null ? null : rc.expected, diff: rc.diff, diff_reason: rc.diff ? (F('dc_reason').value.trim() || null) : null, note: F('dc_note').value.trim() || null, purchases: lines.map(l => l.custom ? { name: l.name, qty: 1, amount: l.cost, custom: true, pnl_line: l.pnl_line } : { name: l.name, qty: l.qty }) } });
       btn.disabled = false; btn.textContent = '確認送出';
       if (error || (data && data.error)) { toast('儲存失敗：' + (data?.error || error.message), 'error'); return; }
       F('dcConfirmModal').classList.remove('show');

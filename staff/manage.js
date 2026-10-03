@@ -853,6 +853,7 @@
     { calc: 'unctrl', label: '不可控費用合計' },
     { calc: 'opnet', label: '營業淨利', strong: true },
   ];
+  const PNL_LABEL_BY_KEY = Object.fromEntries(PNL_LINES.filter(l => l.key).map(l => [l.key, l.label]));
   const PNL_FIXED_SEED = { rent: 28444, parking: 2500, amort_decor: 13773, amort_equip: 8333, system_fee: 4183 };
   // 從用戶截圖讀到的 1–5 月（需逐格核對，尤其 1 月薪資與空白格）
   const PNL_SEED = {
@@ -977,7 +978,7 @@
     }
     const [{ data, error }, purRes, payRes, mapRes, ledRes, maintRes, accRes, tempRes] = await Promise.all([
       sb.from('pnl_monthly').select('*').eq('year', pnlYear),
-      sb.from('purchases').select('order_date,category,total_cost,item_name,note'),
+      sb.from('purchases').select('order_date,category,total_cost,item_name,note,pnl_line,source'),
       sb.from('payroll_records').select('year,month,total_pay,transfer_fee,staff_id').eq('year', pnlYear),
       sb.from('pnl_cost_map').select('*'),
       sb.from('ledger_entries').select('entry_date,category,amount,type,source,fee,description,account_id'),
@@ -1002,19 +1003,26 @@
       (pnlAutoSrc[mo][key] || (pnlAutoSrc[mo][key] = [])).push({ date: date || '', desc: desc || '', amount: Number(amount || 0) });
     };
     // 庫存叫貨 → 銷貨成本（只接受 COGS 科目；當年）
-    pnlMonPurchase = new Set();
+    // 大交班「自由輸入品項」有直接指定損益科目（pnl_line），優先用它，也可歸到費用科目
+    pnlMonPurchase = new Set(); pnlMonLedger = new Set();
     (purRes.data || []).forEach(p => {
       if (!p.order_date || Number(p.order_date.slice(0, 4)) !== pnlYear) return;
+      const mo = Number(p.order_date.slice(5, 7));
+      if (p.pnl_line && (PNL_COGS_KEYS.includes(p.pnl_line) || PNL_LEDGER_KEYS.includes(p.pnl_line))) {
+        if (!pnlAuto[mo]) pnlAuto[mo] = {};
+        pnlAuto[mo][p.pnl_line] = (pnlAuto[mo][p.pnl_line] || 0) + Number(p.total_cost || 0);
+        pushSrc(mo, p.pnl_line, p.order_date, (p.source === 'daily' ? '大交班採購：' : '叫貨：') + (p.item_name || '') + (p.note ? ' · ' + p.note : ''), p.total_cost);
+        (PNL_COGS_KEYS.includes(p.pnl_line) ? pnlMonPurchase : pnlMonLedger).add(mo);
+        return;
+      }
       const line = costMap[p.category];
       if (!PNL_COGS_KEYS.includes(line)) return;
-      const mo = Number(p.order_date.slice(5, 7));
       if (!pnlAuto[mo]) pnlAuto[mo] = {};
       pnlAuto[mo][line] = (pnlAuto[mo][line] || 0) + Number(p.total_cost || 0);
       pushSrc(mo, line, p.order_date, '叫貨：' + (p.category || '') + (p.item_name && p.item_name !== p.category ? '（' + p.item_name + '）' : (!p.category && p.item_name ? p.item_name : '')) + (p.note ? ' · ' + p.note : ''), p.total_cost);
       pnlMonPurchase.add(mo);
     });
     // 帳本 → 其他費用（排除進貨/薪資自動分錄避免重複；只接受帳本可對應科目；當年）
-    pnlMonLedger = new Set();
     (ledRes.data || []).forEach(e => {
       if (e.type !== '支出') return;
       if (e.source === 'purchase' || e.source === 'payroll' || e.source === 'temp_pt') return;
@@ -3017,7 +3025,7 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
       ${r.diff_reason ? `<p class="mt8" style="margin-bottom:0">短溢原因：${escapeHtml(r.diff_reason)}</p>` : (r.diff ? '<p class="faint mt8" style="margin-bottom:0">短溢原因：未填寫</p>' : '')}` : ''}
       <div class="divider"></div>
       <p style="font-weight:600;margin:0 0 6px">當日採購</p>
-      ${pur.length ? pur.map(p => `<div class="kv"><span class="k">${escapeHtml(p.name)} ${p.custom ? '<span class="faint">（自由輸入）</span>' : '×' + p.qty}</span><span>${formatCurrency(p.amount)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無</span></div>'}
+      ${pur.length ? pur.map(p => `<div class="kv"><span class="k">${escapeHtml(p.name)} ${p.custom ? `<span class="faint">（${escapeHtml(PNL_LABEL_BY_KEY[p.pnl_line] || '自由輸入')}）</span>` : '×' + p.qty}</span><span>${formatCurrency(p.amount)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無</span></div>'}
       ${r.note ? `<div class="divider"></div><p class="faint">備註：${escapeHtml(r.note)}</p>` : ''}`;
     F('hoModal').classList.add('show');
   }
