@@ -1932,11 +1932,14 @@
     const start = `${amYear}-${String(amMonth).padStart(2, '0')}-01`;
     const endD = new Date(amYear, amMonth, 0);
     const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
-    const [{ data }, { data: tdata }, { data: shdata }] = await Promise.all([
+    const [{ data }, { data: tdata }, { data: shdata }, { data: adjdata }] = await Promise.all([
       sb.from('attendance').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date'),
       sb.from('temp_pt_shifts').select('*').gte('work_date', start).lte('work_date', endStr).order('work_date'),
       sb.from('shifts').select('staff_id,work_date,start_time,end_time').gte('work_date', start).lte('work_date', endStr),
+      sb.from('attendance_adjustments').select('staff_id,work_date,minutes,note').gte('work_date', start).lte('work_date', endStr),
     ]);
+    // 審核修正（與薪資頁共用）：員工+日期 → { m: 審核後工時(分), note }
+    const adjMap = {}; (adjdata || []).forEach(x => { adjMap[x.staff_id + '|' + x.work_date] = { m: Number(x.minutes), note: x.note || '' }; });
     const recs = data || [];
     const temps = (tdata || []).filter(t => t.clock_in); // 有打卡的臨時PT
     // 班表依 員工+日期（取當天最早上班/最晚下班）
@@ -1953,6 +1956,9 @@
     const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
     const wminStaff = a => { const sc = schMap[a.staff_id + '|' + a.work_date] || {}; return workedMinutes(a.clock_in, a.clock_out, sc.ss, sc.se); };
     const wminTemp = t => workedMinutes(t.clock_in, t.clock_out, _hhmmMin(t.start_time), _hhmmMin(t.end_time));
+    // 實際工時＝有審核修正用修正值，否則打卡計算
+    const finStaff = a => { const ov = adjMap[a.staff_id + '|' + a.work_date]; return ov ? ov.m : wminStaff(a); };
+    const finTemp = t => (t.adj_minutes != null && t.adj_minutes !== '') ? Number(t.adj_minutes) || 0 : wminTemp(t);
     const fmtH = m => m ? `${Math.floor(m / 60)}h${m % 60}m` : '—';
     const hhmm = t => t ? new Date(t).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }) : '—';
 
@@ -1960,8 +1966,8 @@
 
     // 每人彙總（員工 + 臨時PT）
     const byEmp = {};
-    recs.forEach(a => { const k = a.staff_id; if (!byEmp[k]) byEmp[k] = { name: nameOf(k), days: 0, mins: 0, temp: false }; if (a.clock_in) byEmp[k].days++; byEmp[k].mins += wminStaff(a); });
-    temps.forEach(t => { const k = 't:' + t.name; if (!byEmp[k]) byEmp[k] = { name: t.name, days: 0, mins: 0, temp: true }; byEmp[k].days++; byEmp[k].mins += wminTemp(t); });
+    recs.forEach(a => { const k = a.staff_id; if (!byEmp[k]) byEmp[k] = { name: nameOf(k), days: 0, mins: 0, temp: false }; if (a.clock_in) byEmp[k].days++; byEmp[k].mins += finStaff(a); });
+    temps.forEach(t => { const k = 't:' + t.name; if (!byEmp[k]) byEmp[k] = { name: t.name, days: 0, mins: 0, temp: true }; byEmp[k].days++; byEmp[k].mins += finTemp(t); });
     const ids = Object.keys(byEmp).sort((a, b) => (byEmp[a].temp - byEmp[b].temp) || byEmp[a].name.localeCompare(byEmp[b].name));
     F('attSummary').querySelector('tbody').innerHTML = ids.length
       ? ids.map(id => `<tr><td>${escapeHtml(byEmp[id].name)}${byEmp[id].temp ? ' <span class="faint" style="font-size:11px">臨時PT</span>' : ''}</td><td class="num">${byEmp[id].days}</td><td class="num">${fmtH(byEmp[id].mins)}</td></tr>`).join('')
@@ -1969,8 +1975,8 @@
 
     // 明細（員工 + 臨時PT，依日期）
     const detail = [
-      ...recs.map(a => ({ date: a.work_date, name: nameOf(a.staff_id), ci: a.clock_in, co: a.clock_out, temp: false, mins: wminStaff(a) })),
-      ...temps.map(t => ({ date: t.work_date, name: t.name, ci: t.clock_in, co: t.clock_out, temp: true, mins: wminTemp(t) })),
+      ...recs.map(a => { const ov = adjMap[a.staff_id + '|' + a.work_date]; return { date: a.work_date, sid: a.staff_id, name: nameOf(a.staff_id), ci: a.clock_in, co: a.clock_out, temp: false, mins: wminStaff(a), fin: finStaff(a), adjNote: ov ? ov.note : '', hasAdj: !!ov, note: a.note || '' }; }),
+      ...temps.map(t => ({ date: t.work_date, name: t.name, ci: t.clock_in, co: t.clock_out, temp: true, mins: wminTemp(t), fin: finTemp(t), adjNote: t.adj_note || '', hasAdj: t.adj_minutes != null && t.adj_minutes !== '', note: t.note || '' })),
     ].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
     F('attDetail').querySelector('tbody').innerHTML = detail.length
       ? detail.map(a => `<tr>
@@ -1979,8 +1985,38 @@
           <td>${hhmm(a.ci)}</td>
           <td>${hhmm(a.co)}</td>
           <td class="num">${fmtH(a.mins)}</td>
+          <td style="max-width:160px;white-space:pre-wrap;font-size:12px">${escapeHtml(a.note)}</td>
+          <td style="white-space:nowrap">${a.temp
+            ? (a.hasAdj ? `<span class="faint" style="font-size:12px">${fmtDelta(a.fin - a.mins)}${a.adjNote ? '・' + escapeHtml(a.adjNote) : ''}（薪資頁調整）</span>` : '<span class="faint" style="font-size:12px">薪資頁調整</span>')
+            : `<input class="input" type="number" step="0.25" style="width:70px;display:inline-block;padding:5px 6px" data-amadj="${a.sid}|${a.date}" data-auto="${a.mins}" placeholder="±0" value="${a.hasAdj && a.fin !== a.mins ? Math.round((a.fin - a.mins) / 60 * 100) / 100 : ''}">
+               <input class="input" style="width:120px;display:inline-block;padding:5px 6px;margin-left:4px" data-amnote="${a.sid}|${a.date}" placeholder="原因" value="${escapeHtml(a.adjNote)}">`}</td>
+          <td class="num" style="${a.hasAdj ? 'font-weight:600;color:var(--accent-deep)' : ''}">${fmtH(a.fin)}</td>
         </tr>`).join('')
-      : '<tr><td colspan="5" class="muted faint">本月無出勤紀錄</td></tr>';
+      : '<tr><td colspan="8" class="muted faint">本月無出勤紀錄</td></tr>';
+    F('attDetail').querySelectorAll('input[data-amadj], input[data-amnote]').forEach(inp =>
+      inp.addEventListener('change', () => saveAttendDelta(inp.dataset.amadj || inp.dataset.amnote)));
+  }
+  const fmtDelta = m => (m > 0 ? '+' : m < 0 ? '−' : '±') + Math.round(Math.abs(m) / 60 * 100) / 100 + 'h';
+
+  // 出勤明細「加減工時」：審核後工時＝打卡工時＋加減，存進 attendance_adjustments（薪資頁的審核修正共用同一筆）
+  async function saveAttendDelta(key) {
+    const [staffId, date] = key.split('|');
+    const hInp = document.querySelector(`#attDetail input[data-amadj="${key}"]`);
+    const nInp = document.querySelector(`#attDetail input[data-amnote="${key}"]`);
+    const hv = hInp.value.trim(), note = nInp.value.trim();
+    const auto = Number(hInp.dataset.auto) || 0;
+    if (hv === '' || Number(hv) === 0) {
+      if (hv === '' && note) return;  // 先打原因、還沒填時數 → 等填完時數再存
+      await sb.from('attendance_adjustments').delete().eq('staff_id', staffId).eq('work_date', date);
+      toast('已移除調整（回打卡計算）');
+    } else {
+      const minutes = Math.max(0, auto + Math.round(Number(hv) * 60));
+      const { error } = await sb.from('attendance_adjustments')
+        .upsert({ staff_id: staffId, work_date: date, minutes, note: note || null }, { onConflict: 'staff_id,work_date' });
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      toast('已存工時調整');
+    }
+    loadAttendanceSummary();
   }
 
   /* ============================================================
