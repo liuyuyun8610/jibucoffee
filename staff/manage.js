@@ -2968,7 +2968,7 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
         <td class="num">${formatCurrency(r.tray_total)}</td>
         <td class="num">${formatCurrency(r.safe_total)}</td>
         <td class="num" style="font-weight:600">${formatCurrency(r.total)}</td>
-        <td class="num" style="white-space:nowrap">${hoDiffHtml(r.diff)}</td>
+        <td class="num" style="white-space:nowrap" title="${escapeHtml(r.diff_reason || '')}">${hoDiffHtml(r.diff)}${r.diff_reason ? '<div class="faint" style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;margin-left:auto">' + escapeHtml(r.diff_reason) + '</div>' : ''}</td>
         <td class="faint">${pur.length ? `${pur.length}筆 ${formatCurrency(purT)}` : '—'}</td>
         <td class="faint">${escapeHtml(nameOf(r.counted_by))}</td>
         <td class="num faint">明細 ›</td>
@@ -3013,7 +3013,8 @@ th{background:#efe7d8;font-weight:600;white-space:nowrap}td.r{text-align:right;w
       <div class="kv"><span class="k">－ 匯款金額</span><span>${formatCurrency(r.remit_total)}</span></div>
       <div class="kv"><span class="k">本日應有周轉金</span><span>${r.expected_total == null ? '—' : formatCurrency(r.expected_total)}</span></div>
       <div class="kv"><span class="k">實際清點（錢盤＋金庫）</span><span>${formatCurrency(r.total)}</span></div>
-      <div class="kv" style="font-weight:700"><span>短溢</span><span>${hoDiffHtml(r.diff)}</span></div>` : ''}
+      <div class="kv" style="font-weight:700"><span>短溢</span><span>${hoDiffHtml(r.diff)}</span></div>
+      ${r.diff_reason ? `<p class="mt8" style="margin-bottom:0">短溢原因：${escapeHtml(r.diff_reason)}</p>` : (r.diff ? '<p class="faint mt8" style="margin-bottom:0">短溢原因：未填寫</p>' : '')}` : ''}
       <div class="divider"></div>
       <p style="font-weight:600;margin:0 0 6px">當日採購</p>
       ${pur.length ? pur.map(p => `<div class="kv"><span class="k">${escapeHtml(p.name)} ×${p.qty}</span><span>${formatCurrency(p.amount)}</span></div>`).join('') : '<div class="kv"><span class="muted faint">無</span></div>'}

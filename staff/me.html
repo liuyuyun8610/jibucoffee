@@ -120,6 +120,7 @@
           <div class="kv" style="font-weight:600;border-top:1px solid var(--line);padding-top:8px"><span>本日應有周轉金</span><span id="dc_expected">NT$0</span></div>
           <div class="kv"><span class="k">－ 實際清點（錢盤＋金庫）</span><span id="dc_actual">NT$0</span></div>
           <div class="kv" style="font-size:18px;font-weight:700;border-top:2px solid var(--line);padding-top:12px"><span>短溢</span><span id="dc_diff">—</span></div>
+          <div class="field mt8 hidden" id="dc_reason_box"><label class="label">短溢原因</label><textarea class="input" id="dc_reason" rows="2" placeholder="例：找錯零錢、客人少付、POS 漏打一筆…"></textarea></div>
           <div class="divider"></div>
           <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="dc_has_purchase"> 今日有用現金（錢盤）採購／零用金支出？</label>
           <div id="dc_purchase_box" class="hidden mt8">
@@ -667,6 +668,7 @@
       F('dc_expected').textContent = formatCurrency(v.expected);
       F('dc_actual').textContent = formatCurrency(actual);
       F('dc_diff').innerHTML = dcDiffHtml(v.diff);
+      F('dc_reason_box').classList.toggle('hidden', v.diff == null || v.diff === 0);  // 不是 ±0 才需要填原因
       return v;
     }
     function initDailyClose() {
@@ -700,6 +702,7 @@
       F('dc_prev').value = data && data.prev_amount != null ? data.prev_amount : (prevAuto != null ? prevAuto : '');
       F('dc_prev_hint').textContent = prevRec ? `自動帶入 ${prevRec.count_date.replace(/-/g,'/')} 大交班店內現金 ${formatCurrency(prevAuto)}` : '找不到前一次大交班，請手動填';
       F('dc_revenue').value = data && data.cash_revenue != null ? data.cash_revenue : '';
+      F('dc_reason').value = data ? (data.diff_reason || '') : '';
       F('dc_purchase_lines').innerHTML = '';
       const pur = (data && data.purchases) || [];
       if (pur.length) { F('dc_has_purchase').checked = true; F('dc_purchase_box').classList.remove('hidden'); pur.forEach(p => dcAddLine(p.name, p.qty)); }
@@ -748,6 +751,7 @@
         <div class="kv"><span class="k">本日應有周轉金</span><span>${formatCurrency(rc.expected)}</span></div>
         <div class="kv"><span class="k">實際清點（錢盤＋金庫）</span><span>${formatCurrency(tray + safe)}</span></div>
         <div class="kv" style="font-weight:700"><span>短溢</span><span>${dcDiffHtml(rc.diff)}</span></div>
+        ${rc.diff ? `<p class="mt8" style="margin-bottom:0">短溢原因：${F('dc_reason').value.trim() ? escapeHtml(F('dc_reason').value.trim()) : '<span style="color:var(--danger)">未填寫</span>'}</p>` : ''}
         ${F('dc_note').value.trim() ? `<p class="faint mt8">備註：${escapeHtml(F('dc_note').value.trim())}</p>` : ''}
         <p class="faint mt8">確認無誤後送出，今日店內現金將更新為上面的金額。</p>`;
       F('dcConfirmModal').classList.add('show');
@@ -759,7 +763,7 @@
       const lines = collectDcLines();
       const rc = dcReconVals(tray + safe);
       const btn = F('dc_save'); btn.disabled = true; btn.textContent = '送出中…';
-      const { data, error } = await sb.functions.invoke('daily-close', { body: { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, linepay_total: Number(F('dc_linepay').value) || 0, remit_total: Number(F('dc_remit').value) || 0, prev_amount: rc.prev, cash_revenue: rc.revenue, expected_total: rc.revenue == null ? null : rc.expected, diff: rc.diff, note: F('dc_note').value.trim() || null, purchases: lines.map(l => ({ name: l.name, qty: l.qty })) } });
+      const { data, error } = await sb.functions.invoke('daily-close', { body: { count_date: todayStr(), tray: trayObj, safe: safeObj, tray_total: tray, safe_total: safe, total: tray + safe, linepay_total: Number(F('dc_linepay').value) || 0, remit_total: Number(F('dc_remit').value) || 0, prev_amount: rc.prev, cash_revenue: rc.revenue, expected_total: rc.revenue == null ? null : rc.expected, diff: rc.diff, diff_reason: rc.diff ? (F('dc_reason').value.trim() || null) : null, note: F('dc_note').value.trim() || null, purchases: lines.map(l => ({ name: l.name, qty: l.qty })) } });
       btn.disabled = false; btn.textContent = '確認送出';
       if (error || (data && data.error)) { toast('儲存失敗：' + (data?.error || error.message), 'error'); return; }
       F('dcConfirmModal').classList.remove('show');

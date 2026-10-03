@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
       cash_revenue: b.cash_revenue == null ? null : Number(b.cash_revenue) || 0,
       expected_total: b.expected_total == null ? null : Number(b.expected_total) || 0,
       diff: b.diff == null ? null : Number(b.diff) || 0,
+      diff_reason: b.diff_reason || null,
       note: b.note || null, counted_by: user.id, purchases: b.purchases || [],
     }, { onConflict: 'count_date' });
 
